@@ -1,0 +1,69 @@
+use std::collections::HashMap;
+
+use ash::vk;
+
+use crate::render_graph::TextureHandle;
+
+#[derive(Clone, Copy)]
+pub struct MaterialHandle(pub usize);
+
+pub struct MaterialCollection {
+    data: Vec<Material>,
+}
+
+impl MaterialCollection {
+    pub fn new() -> Self {
+        Self { data: vec![] }
+    }
+
+    pub fn add_material(&mut self, material: Material) -> MaterialHandle {
+        let index = self.data.len();
+        self.data.push(material);
+        MaterialHandle(index)
+    }
+
+    pub fn get_material(&self, handle: MaterialHandle) -> &Material {
+        &self.data[handle.0]
+    }
+}
+
+#[derive(Clone)]
+pub enum UniformValue {
+    Bool(bool),
+    Float32(f32),
+    Uint(u32),
+    Vec2([f32; 2]),
+    Vec3([f32; 3]),
+    Texture(TextureHandle),
+}
+
+impl Into<UniformValue> for f32 {
+    fn into(self) -> UniformValue {
+        UniformValue::Float32(self)
+    }
+}
+
+#[derive(Clone)]
+pub struct Material {
+    pub(crate) uniforms: HashMap<String, UniformValue>,
+}
+
+impl Material {
+    pub fn new() -> Self {
+        Material {
+            uniforms: HashMap::new(),
+        }
+    }
+
+    pub fn set_value<S: Into<String>, T: Into<UniformValue>>(mut self, name: S, value: T) -> Self {
+        self.uniforms.insert(name.into(), value.into());
+        self
+    }
+
+    pub fn get_mut<S: Into<String>, T: Into<UniformValue>>(
+        &mut self,
+        name: S,
+    ) -> Option<&mut UniformValue> {
+        self.uniforms.get_mut(&name.into())
+    }
+}
