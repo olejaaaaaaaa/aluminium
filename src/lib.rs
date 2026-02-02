@@ -1,3 +1,4 @@
+//! Lightweight abstraction for rendering using Vulkan API
 pub(crate) mod bindless;
 pub(crate) mod bvh;
 pub(crate) mod camera;
@@ -15,6 +16,8 @@ pub use render_graph::{
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;
 
+
+/// Basic types
 pub mod types {
     pub use super::core::{PBRVertex, TextureVertex, Vertex};
 }
