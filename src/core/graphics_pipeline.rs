@@ -113,20 +113,10 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         self
     }
 
-    // pub fn vertex_shader_from_file(mut self, path: S) -> Self {
-    //     self.vertex_shader_path = Some(path);
-    //     self
-    // }
-
     pub fn fragment_shader(mut self, module: vk::ShaderModule) -> Self {
         self.fragment_shader = Some(module);
         self
     }
-
-    // pub fn fragment_shader_from_file(mut self, path: S) -> Self {
-    //     self.fragment_shader_path = Some(path);
-    //     self
-    // }
 
     pub fn dynamic_state(mut self, state: Vec<vk::DynamicState>) -> Self {
         self.dynamic_state = Some(state);
@@ -175,20 +165,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .name(c"main")
                     .stage(vk::ShaderStageFlags::VERTEX),
             )
-        } else {
-            if let Some(path) = self.vertex_shader_path {
-                let shader = ShaderBuilder::from_file(self.device, false, path)?;
-
-                shader_states_infos.push(
-                    vk::PipelineShaderStageCreateInfo::default()
-                        .module(shader.raw)
-                        .name(c"main")
-                        .stage(vk::ShaderStageFlags::VERTEX),
-                );
-
-                std::mem::forget(shader);
-            }
-        }
+        } 
 
         if let Some(fragment) = self.fragment_shader {
             shader_states_infos.push(
@@ -197,20 +174,8 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .name(c"main")
                     .stage(vk::ShaderStageFlags::FRAGMENT),
             )
-        } else {
-            if let Some(path) = self.fragment_shader_path {
-                let shader = ShaderBuilder::from_file(self.device, false, path)?;
-
-                shader_states_infos.push(
-                    vk::PipelineShaderStageCreateInfo::default()
-                        .module(shader.raw)
-                        .name(c"main")
-                        .stage(vk::ShaderStageFlags::FRAGMENT),
-                );
-
-                std::mem::forget(shader);
-            }
         }
+        
         create_info = create_info.stages(&shader_states_infos);
         // ----------------- End ------------------------------------
 
