@@ -20,22 +20,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install shader compilers
-        run: |
-          sudo apt update
-          sudo apt install -y glslang-tools spirv-tools
-          
-          # DXC
-          wget -q https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/linux_dxc_2024_07_31.x86_64.tar.gz
-          tar -xzf linux_dxc_2024_07_31.x86_64.tar.gz
-          sudo cp dxc_2024_07_31/bin/dxc /usr/local/bin/
-          sudo cp dxc_2024_07_31/lib/* /usr/local/lib/
-          sudo ldconfig
-          
-          # Проверка
-          glslangValidator --version
-          dxc --version
+      - name: Install Vulkan SDK and Runtime
+        uses: jakoch/install-vulkan-sdk-action@v1.4.0
+        with:
+          vulkan_version: latest
+          install_runtime: true
+          cache: true
+          stripdown: true
       
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: cargo build --verbose
-      - run: cargo test --verbose
+      - name: Verify shader compilers
+        run: |
+          echo "=== GLSL Compiler (glslangValidator) ==="
+          glslangValidator --version
+          echo ""
+          echo "=== DXC Compiler ==="
+          dxc --version
+          echo ""
+          echo "=== SPIR-V Tools ==="
+          spirv-opt --version || echo "spirv-opt not found"
+      
+      - name: Setup Rust toolchain
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.toolchain }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build
+        run: cargo build --verbose
+      
+      - name: Run tests
+        run: cargo test --verbose
