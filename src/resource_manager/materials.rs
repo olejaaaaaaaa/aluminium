@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use ash::vk;
 
 use crate::render_graph::TextureHandle;
 
@@ -22,6 +21,7 @@ impl MaterialCollection {
         MaterialHandle(index)
     }
 
+    #[allow(dead_code)]
     pub fn get_material(&self, handle: MaterialHandle) -> &Material {
         &self.data[handle.0]
     }
@@ -43,23 +43,31 @@ impl Into<UniformValue> for f32 {
     }
 }
 
+/// Material
 #[derive(Clone)]
 pub struct Material {
     pub(crate) uniforms: HashMap<String, UniformValue>,
 }
 
 impl Material {
+
+    /// Create new Material
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Material {
             uniforms: HashMap::new(),
         }
     }
 
+    /// Setup Uniform Value
+    #[allow(dead_code)]
     pub fn set_value<S: Into<String>, T: Into<UniformValue>>(mut self, name: S, value: T) -> Self {
         self.uniforms.insert(name.into(), value.into());
         self
     }
 
+    /// Get mut Uniform Value
+    #[allow(dead_code)]
     pub fn get_mut<S: Into<String>, T: Into<UniformValue>>(
         &mut self,
         name: S,

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 #[derive(Debug)]
 pub enum Resolution {
     Full,
@@ -34,12 +36,17 @@ mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::TextureFormat;
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct TextureDesc {
+    #[allow(dead_code)]
     pub resolution: Resolution,
     pub layers: u32,
+    #[allow(dead_code)]
     pub format: TextureFormat,
+    #[allow(dead_code)]
     pub sampler: SamplerType,
+    #[allow(dead_code)]
     pub usage: TextureUsage,
 }
 
@@ -55,9 +62,13 @@ impl Default for TextureDesc {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
 pub enum TextureUsage {
+    #[allow(dead_code)]
     Transient,
+    #[allow(dead_code)]
     Color,
+    #[allow(dead_code)]
     Depth,
 }

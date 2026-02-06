@@ -2,11 +2,6 @@ use std::collections::HashMap;
 
 use ash::vk;
 use naga::front::spv;
-use naga::valid::{Capabilities, ValidationFlags, Validator};
-use naga::{
-    AddressSpace, Binding, GlobalVariable, Module, ResourceBinding, Scalar, ShaderStage,
-    StructMember, Type, TypeInner,
-};
 
 use crate::core::{ShaderError, ShaderModule, VulkanError, VulkanResult};
 
@@ -14,50 +9,67 @@ pub struct ShaderReflection {
     pub shader: vk::ShaderModule,
     pub shader_stage: naga::ShaderStage,
 
-    // Vertex shader inputs
+    /// Vertex shader inputs
+    #[allow(dead_code)]
     pub vertex_inputs: Vec<VertexInputAttribute>,
 
-    // Fragment shader outputs
+    /// Fragment shader outputs
+    #[allow(dead_code)]
     pub fragment_outputs: Vec<FragmentOutput>,
 
-    // Descriptor sets (uniform buffers, textures, samplers)
+    /// Descriptor sets (uniform buffers, textures, samplers)
+    #[allow(dead_code)]
     pub descriptor_sets: HashMap<u32, Vec<DescriptorBinding>>,
 
-    // Push constants
+    /// Push constants
+    #[allow(dead_code)]
     pub push_constants: Option<PushConstantInfo>,
 
-    // Flags
+    /// Flags
+    #[allow(dead_code)]
     pub use_instancing: bool,
+    #[allow(dead_code)]
     pub use_bindless: bool,
+    #[allow(dead_code)]
     pub workgroup: [u32; 3],
 }
 
 #[derive(Debug, Clone)]
 pub struct VertexInputAttribute {
     pub location: u32,
+    #[allow(dead_code)]
     pub name: String,
+    #[allow(dead_code)]
     pub format: vk::Format,
+    #[allow(dead_code)]
     pub offset: u32,
 }
 
 #[derive(Debug, Clone)]
 pub struct FragmentOutput {
     pub location: u32,
+    #[allow(dead_code)]
     pub name: String,
+    #[allow(dead_code)]
     pub format: vk::Format,
 }
 
 #[derive(Debug, Clone)]
 pub struct DescriptorBinding {
     pub binding: u32,
+    #[allow(dead_code)]
     pub descriptor_type: vk::DescriptorType,
+    #[allow(dead_code)]
     pub stage_flags: vk::ShaderStageFlags,
+    #[allow(dead_code)]
     pub name: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct PushConstantInfo {
+    #[allow(dead_code)]
     pub size: u32,
+    #[allow(dead_code)]
     pub stage_flags: vk::ShaderStageFlags,
 }
 
@@ -162,7 +174,7 @@ impl ShaderReflection {
     ) -> VulkanResult<HashMap<u32, Vec<DescriptorBinding>>> {
         let mut sets: HashMap<u32, Vec<DescriptorBinding>> = HashMap::new();
 
-        for (handle, global) in module.global_variables.iter() {
+        for (_handle, global) in module.global_variables.iter() {
             if let Some(naga::ResourceBinding { group, binding }) = global.binding {
                 let name = global
                     .name
@@ -203,7 +215,7 @@ impl ShaderReflection {
     }
 
     // ============ PUSH CONSTANTS ============
-    fn extract_push_constants(module: &naga::Module) -> VulkanResult<Option<PushConstantInfo>> {
+    fn extract_push_constants(_module: &naga::Module) -> VulkanResult<Option<PushConstantInfo>> {
         // for (_, global) in module.global_variables.iter() {
         //     if global.space == naga::AddressSpace: {
         //         let ty = &module.types[global.ty];
@@ -311,7 +323,7 @@ impl ShaderReflection {
             naga::TypeInner::Struct { members, .. } => {
                 members
                     .iter()
-                    .map(|m| {
+                    .map(|_m| {
                         // Рекурсивно для вложенных структур
                         // Упрощённо - нужен правильный alignment
                         16 // placeholder

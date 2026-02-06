@@ -4,21 +4,25 @@ use puffin::profile_scope;
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct Sampler {
+    #[allow(dead_code)]
     pub raw: vk::Sampler,
 }
 
 impl Sampler {
+    #[allow(dead_code)]
     pub fn destroy(&self, device: &Device) {
         unsafe { device.destroy_sampler(self.raw, None) };
     }
 }
 
+#[allow(dead_code)]
 pub struct SamplerBuilder<'a> {
     sampler_info: vk::SamplerCreateInfo<'static>,
     device: &'a Device,
 }
 
 impl<'a> SamplerBuilder<'a> {
+    #[allow(dead_code)]
     pub fn default(device: &'a Device) -> Self {
         Self {
             sampler_info: vk::SamplerCreateInfo::default(),
@@ -26,6 +30,7 @@ impl<'a> SamplerBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn build(self) -> VulkanResult<Sampler> {
         profile_scope!("Sampler");
 

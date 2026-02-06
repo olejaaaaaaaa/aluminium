@@ -20,7 +20,9 @@ use super::{VulkanError, VulkanResult};
 /// ```
 pub struct Instance {
     pub(crate) raw: ash::Instance,
+    #[allow(dead_code)]
     pub(crate) layers: Vec<&'static CStr>,
+    #[allow(dead_code)]
     pub(crate) extensions: Vec<&'static CStr>,
     pub(crate) debug_callback: Option<DebugCallback>,
 }
@@ -49,7 +51,7 @@ impl<'a> InstanceBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Instance> {
-        let extensions = unsafe {
+        let _extensions = unsafe {
             self.app
                 .entry
                 .enumerate_instance_extension_properties(None)

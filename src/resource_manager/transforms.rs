@@ -8,15 +8,20 @@ const MAX_TRANSFORMS: usize = 100000;
 #[derive(Clone, Copy)]
 pub struct TransformHandle(pub(crate) usize);
 
+/// Transform for Mesh
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Transform {
+    /// Scale
     pub scale: [f32; 4],
+    /// Rot
     pub rot: [[f32; 4]; 4],
+    /// Pos
     pub pos: [f32; 4],
 }
 
 impl Transform {
+    /// identity matrix
     pub fn identity() -> Self {
         Self {
             scale: [1.0, 1.0, 1.0, 0.0],
@@ -38,6 +43,7 @@ pub struct TransformCollection {
 }
 
 impl TransformCollection {
+    #[allow(dead_code)]
     pub fn destroy(&mut self, device: &Device) {
         unsafe {
             device
@@ -66,11 +72,13 @@ impl TransformCollection {
         })
     }
 
+    #[allow(dead_code)]
     pub fn get_mut(&mut self, handle: &TransformHandle) -> &mut Transform {
         self.is_dirty = true;
         &mut self.data[handle.0]
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, handle: &TransformHandle) -> &Transform {
         &self.data[handle.0]
     }
@@ -82,6 +90,7 @@ impl TransformCollection {
         TransformHandle(index)
     }
 
+    #[allow(dead_code)]
     pub fn update(&mut self, device: &Device) -> VulkanResult<()> {
         if self.is_dirty {
             self.is_dirty = false;

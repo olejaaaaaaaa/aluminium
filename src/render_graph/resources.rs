@@ -1,12 +1,4 @@
-use ash::vk::{self, DescriptorSet};
-use slotmap::{new_key_type, SecondaryMap, SlotMap};
-
-use super::PassContext;
-use crate::core::{
-    CommandPool, CommandPoolBuilder, DescriptorSetLayout, Device, FrameBuffer, FrameBufferBuilder,
-    GraphicsPipeline, Image, ImageBuilder, ImageView, ImageViewBuilder, PipelineLayout, Sampler,
-    SamplerBuilder, VulkanResult,
-};
+use slotmap::{new_key_type, SlotMap};
 use crate::render_graph::{LoadOp, StoreOp, TextureDesc};
 
 new_key_type! {
@@ -33,10 +25,10 @@ impl RenderGraphResource {
     pub fn last_access(&self) -> vk_sync::AccessType {
         match self {
             RenderGraphResource::Texture {
-                handle,
+                handle: _,
                 last_access,
             } => *last_access,
-            RenderGraphResource::RenderTarget { texture, ops } => texture.1,
+            RenderGraphResource::RenderTarget { texture, ops: _ } => texture.1,
         }
     }
 }
@@ -65,6 +57,7 @@ impl RenderGraphResources {
         self.textures.insert(desc)
     }
 
+    #[allow(dead_code)]
     pub fn get_texture(&mut self, handle: TextureHandle) -> Option<&TextureDesc> {
         self.textures.get(handle)
     }

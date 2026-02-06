@@ -1,6 +1,6 @@
 //! Lightweight abstraction for rendering using Vulkan API
 pub(crate) mod bindless;
-pub(crate) mod bvh;
+// pub(crate) mod bvh;
 pub(crate) mod camera;
 pub(crate) mod core;
 pub(crate) mod reflection;

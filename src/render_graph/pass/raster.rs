@@ -1,15 +1,16 @@
-use std::path::PathBuf;
-use std::str::FromStr;
+#![allow(missing_docs)]
 
-use ash::vk;
-use bytemuck::{Pod, Zeroable};
+use std::path::PathBuf;
+
 use slotmap::Key;
 
 use super::{Execute, LoadOp, PassContext, StoreOp};
 use crate::core::VulkanResult;
 use crate::reflection::ShaderReflection;
 use crate::render_graph::{RenderGraphResource, TextureHandle};
-use crate::resource_manager::{FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable};
+use crate::resource_manager::{
+    FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
+};
 
 pub struct RasterPipeline {
     pub(crate) pipeline_layout: PipelineLayoutHandle,
@@ -17,6 +18,7 @@ pub struct RasterPipeline {
     pub(crate) frame_buffer: FrameBufferHandle,
     pub(crate) vertex_shader: PathBuf,
     pub(crate) fragment_shader: PathBuf,
+    #[allow(dead_code)]
     pub(crate) use_cache: bool,
     pub(crate) depth_test: bool,
 }
@@ -41,7 +43,6 @@ pub struct RasterPipelineBuilder {
 }
 
 impl RasterPipelineBuilder {
-
     pub fn vertex(mut self, shader: impl Into<PathBuf>) -> Self {
         self.pipeline.vertex_shader = shader.into();
         self
@@ -68,6 +69,7 @@ pub struct RasterPass {
     pub(crate) reads: Vec<RenderGraphResource>,
     pub(crate) pipeline: Option<RasterPipeline>,
     pub(crate) execute: Box<Execute>,
+    #[allow(dead_code)]
     pub(crate) reflection: Vec<ShaderReflection>,
 }
 

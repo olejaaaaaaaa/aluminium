@@ -53,6 +53,7 @@ impl AppBuilder {
     }
 
     /// Set App name
+    #[allow(dead_code)]
     pub fn with_app_name(mut self, name: &'static CStr) -> Self {
         self.app_name = name;
         self

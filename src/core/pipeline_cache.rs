@@ -7,17 +7,20 @@ use puffin::profile_scope;
 
 use super::Device;
 
+#[allow(dead_code)]
 pub struct PipelineCache {
     pub raw: vk::PipelineCache,
 }
 
 impl PipelineCache {
+    #[allow(dead_code)]
     pub fn destroy(&self, device: &Device) {
         unsafe {
             device.destroy_pipeline_cache(self.raw, None);
         }
     }
 
+    #[allow(dead_code)]
     pub fn new(device: &Device) -> Result<Self, vk::Result> {
         profile_scope!("Pipeline Cache");
 
@@ -30,6 +33,7 @@ impl PipelineCache {
         Ok(Self { raw: cache })
     }
 
+    #[allow(dead_code)]
     pub fn from_file(device: &Device, path: &Path) -> Result<Self, vk::Result> {
         profile_scope!("Load Pipeline Cache from file");
 
@@ -51,6 +55,7 @@ impl PipelineCache {
         Ok(Self { raw: cache })
     }
 
+    #[allow(dead_code)]
     pub fn save_to_file(&self, device: &Device, path: &Path) -> Result<(), vk::Result> {
         profile_scope!("Save Pipeline Cache to file");
 

@@ -6,7 +6,7 @@ pub struct RtPass {}
 impl RtPass {
     pub fn new() {}
 
-    pub fn write_texture(&mut self, texture: TextureHandle, load: LoadOp, store: StoreOp) {}
+    pub fn write_texture(&mut self, _texture: TextureHandle, _load: LoadOp, _store: StoreOp) {}
 
     pub fn read() {}
 

@@ -19,11 +19,13 @@ pub struct ImageViewBuilder<'a> {
 }
 
 impl<'a> ImageViewBuilder<'a> {
+    #[allow(dead_code)]
     pub fn format(mut self, format: vk::Format) -> Self {
         self.create_info = self.create_info.format(format);
         self
     }
 
+    #[allow(dead_code)]
     pub fn image(mut self, image: vk::Image) -> Self {
         self.create_info = self.create_info.image(image);
         self

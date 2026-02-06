@@ -1,18 +1,16 @@
-use std::collections::HashMap;
-use std::future::{Future, pending};
-use std::sync::Mutex;
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use slotmap::*;
 
 use crate::core::{
-    AttributeDescriptions, BindingDescriptions, Device, FrameBuffer, GpuBufferBuilder, GraphicsPipeline, PipelineLayout, Sampler, VulkanResult
+    AttributeDescriptions, BindingDescriptions, Device, FrameBuffer, GpuBufferBuilder,
+    GraphicsPipeline, PipelineLayout, Sampler, VulkanResult,
 };
 use crate::render_context::RenderContext;
 
-mod aabb;
-pub use aabb::*;
+// mod aabb;
+// pub use aabb::*;
 
 mod mesh;
 pub use mesh::*;
@@ -40,14 +38,14 @@ pub struct ResourceManager {
     raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
     pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,
     frame_buffer: SlotMap<FrameBufferHandle, FrameBuffer>,
-    sampler: SlotMap<SamplerHandle, Sampler>
+    #[allow(dead_code)]
+    sampler: SlotMap<SamplerHandle, Sampler>,
 }
 
 impl ResourceManager {
-    pub fn destroy(&self, device: &Device) {}
+    pub fn destroy(&self, _device: &Device) {}
 
     pub fn new(ctx: &RenderContext) -> VulkanResult<Self> {
-
         Ok(ResourceManager {
             mesh: MeshCollection::new(),
             material: MaterialCollection::new(),
@@ -56,7 +54,7 @@ impl ResourceManager {
             sampler: SlotMap::with_key(),
             frame_buffer: SlotMap::with_key(),
             pipeline_layout: SlotMap::with_key(),
-            raster_pipeline: SlotMap::with_key()
+            raster_pipeline: SlotMap::with_key(),
         })
     }
 
@@ -133,4 +131,3 @@ impl ResourceManager {
         self.transform.create_transform(transform)
     }
 }
-

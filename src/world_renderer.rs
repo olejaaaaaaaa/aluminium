@@ -7,7 +7,6 @@ use puffin::{profile_scope, GlobalProfiler};
 
 use super::render_context::RenderContext;
 use crate::bindless::{Bindless, BindlessBuilder};
-use crate::bvh::Bvh;
 use crate::camera::{Camera, CameraData};
 use crate::core::{
     AttributeDescriptions, BindingDescriptions, SwapchainError, VulkanError, VulkanResult,
@@ -17,7 +16,6 @@ use crate::resource_manager::{
     Material, MaterialHandle, MeshHandle, Renderable, RenderableHandle, ResourceManager, Transform,
     TransformHandle,
 };
-use crate::{TextureDesc, TextureFormat};
 
 /// A lightweight abstraction for rendering using the Vulkan API
 pub struct WorldRenderer {
@@ -35,10 +33,6 @@ pub struct WorldRenderer {
     /// The rendering context provides an entry point for creating and deleting
     /// Vulkan objects
     pub(crate) ctx: ManuallyDrop<RenderContext>,
-    /// Bounding Volume Hierarchy
-    /// It is automatically built for meshes if ray-tracing is not natively
-    /// supported
-    pub(crate) bvh: Bvh,
     /// This structure not Send and Sync!
     pub(crate) _marker: PhantomData<*mut ()>,
 }
@@ -75,10 +69,8 @@ impl WorldRenderer {
 
         let graph = RenderGraph::new(&ctx, &bindless)?;
         let resources = ResourceManager::new(&ctx)?;
-        let bvh = Bvh::new();
 
         Ok(WorldRenderer {
-            bvh,
             bindless,
             resources,
             camera,
@@ -113,9 +105,6 @@ impl WorldRenderer {
         self.resources
             .create_static_mesh_immediately(&self.ctx, vertices, indices)
     }
-
-    /// Create texture from raw bytes
-    pub fn create_texture(&mut self, data: &[u8], desc: TextureDesc) {}
 
     /// Create new Material
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
@@ -199,10 +188,10 @@ impl Drop for WorldRenderer {
         // Wait all gpu work before destroy resources
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
 
-        self.resources.destroy(&device);
-        self.camera.destroy(&device);
-        self.graph.destroy(&device);
-        self.bindless.destroy(&device);
+        self.resources.destroy(device);
+        self.camera.destroy(device);
+        self.graph.destroy(device);
+        self.bindless.destroy(device);
 
         // Safety: All low-level vulkan resources are destroyed before that
         unsafe { ManuallyDrop::drop(&mut self.ctx) };

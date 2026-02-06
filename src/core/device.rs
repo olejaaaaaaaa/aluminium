@@ -1,5 +1,4 @@
 use std::ffi::CStr;
-use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use ash::vk;
@@ -48,6 +47,7 @@ impl<'a> DeviceBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_extenions<S: Iterator<Item = &'static CStr>>(mut self, extensions: S) -> Self {
         let extensions = extensions.into_iter().collect::<Vec<_>>();
 
@@ -91,7 +91,7 @@ impl<'a> DeviceBuilder<'a> {
             let create_info =
                 vk_mem::AllocatorCreateInfo::new(&self.instance.raw, &device, phys_dev.raw);
             vk_mem::Allocator::new(create_info)
-                .map_err(|e| VulkanError::Unknown(vk::Result::from_raw(0)))?
+                .map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))?
         };
 
         Ok(Device {

@@ -1,12 +1,9 @@
 #![allow(missing_docs)]
 
 use std::error::Error;
-use std::path::Path;
 
-use aluminium::types::Vertex;
 use aluminium::{
-    LoadOp, Material, PresentPass, RasterPass, Renderable, Resolution, SamplerType, StoreOp,
-    TextureDesc, TextureFormat, TextureUsage, Transform, WorldRenderer,
+    PresentPass, WorldRenderer,
 };
 
 use winit::application::ApplicationHandler;
@@ -43,7 +40,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
         if let Some(window) = &self.window {
             window.request_redraw();
         }

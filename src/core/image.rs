@@ -51,6 +51,7 @@ impl<'a> ImageBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn cube(device: &'a Device, format: vk::Format, extent: vk::Extent2D) -> Self {
         Self {
             device,
@@ -73,6 +74,7 @@ impl<'a> ImageBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_2d(device: &'a Device, format: vk::Format, extent: vk::Extent2D) -> Self {
         Self {
             device,
@@ -94,6 +96,7 @@ impl<'a> ImageBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn usage(mut self, usage: vk::ImageUsageFlags) -> Self {
         self.create_info = self.create_info.usage(usage);
         self

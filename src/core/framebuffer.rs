@@ -1,6 +1,4 @@
-use ash::vk::{
-    Result, {self},
-};
+use ash::vk::{self};
 use log::debug;
 use puffin::profile_scope;
 
@@ -47,6 +45,7 @@ impl<'a> FrameBufferBuilder<'a> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn render_pass(mut self, pass: vk::RenderPass) -> Self {
         self.create_info = self.create_info.render_pass(pass);
         self

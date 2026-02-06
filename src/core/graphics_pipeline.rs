@@ -1,11 +1,9 @@
-use std::path::Path;
 
 use ash::vk;
 use puffin::profile_scope;
 
 use super::device::Device;
-use super::shader::{ShaderBuilder, ShaderModule};
-use super::{VulkanError, VulkanResult};
+use super::VulkanResult;
 
 pub struct GraphicsPipeline {
     pub raw: vk::Pipeline,
@@ -16,6 +14,7 @@ pub struct GraphicsPipelineBuilder<'n> {
     pipeline_layout: Option<vk::PipelineLayout>,
     cache: Option<vk::PipelineCache>,
     render_pass: Option<vk::RenderPass>,
+    #[allow(dead_code)]
     descriptor_set_layout: Option<&'n [vk::DescriptorSetLayout]>,
     color_blending_info: Option<vk::PipelineColorBlendStateCreateInfo<'n>>,
     vertex_input_info: Option<vk::PipelineVertexInputStateCreateInfo<'n>>,
@@ -27,7 +26,9 @@ pub struct GraphicsPipelineBuilder<'n> {
     dynamic_state: Option<Vec<vk::DynamicState>>,
     vertex_shader: Option<vk::ShaderModule>,
     fragment_shader: Option<vk::ShaderModule>,
+    #[allow(dead_code)]
     vertex_shader_path: Option<String>,
+    #[allow(dead_code)]
     fragment_shader_path: Option<String>,
 }
 
@@ -54,6 +55,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn cache(mut self, cache: vk::PipelineCache) -> Self {
         self.cache = Some(cache);
         self
@@ -88,6 +90,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn descriptor_set_layout(mut self, layouts: &'n [vk::DescriptorSetLayout]) -> Self {
         self.descriptor_set_layout = Some(layouts);
         self

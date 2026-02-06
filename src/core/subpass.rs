@@ -64,6 +64,7 @@ impl SubpassDesc {
         self
     }
 
+    #[allow(dead_code)]
     pub fn color_attachments(mut self, attachments: Vec<vk::AttachmentReference>) -> Self {
         self.color_attachments = attachments;
         self
@@ -79,16 +80,19 @@ impl SubpassDesc {
         self
     }
 
+    #[allow(dead_code)]
     pub fn add_input_attachment_ref(mut self, attachment: vk::AttachmentReference) -> Self {
         self.input_attachments.push(attachment);
         self
     }
 
+    #[allow(dead_code)]
     pub fn input_attachments(mut self, attachments: Vec<vk::AttachmentReference>) -> Self {
         self.input_attachments = attachments;
         self
     }
 
+    #[allow(dead_code)]
     pub fn flags(mut self, flags: vk::SubpassDescriptionFlags) -> Self {
         self.flags = Some(flags);
         self

@@ -1,12 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::ptr::NonNull;
-use std::sync::Arc;
-use std::time::Instant;
 
-use ash::vk::{self, ClearValue, Extent2D};
-use puffin::{profile_scope, GlobalProfiler};
-use slotmap::SlotMap;
+use ash::vk::{self, ClearValue};
+use puffin::profile_scope;
 
 mod pass;
 pub use pass::*;
@@ -22,7 +17,8 @@ pub use texture::*;
 
 use crate::bindless::Bindless;
 use crate::core::{
-    CommandPool, CommandPoolBuilder, DescriptorSetLayoutBuilder, Device, GraphicsPipeline, GraphicsPipelineBuilder, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, ShaderError, ShaderModule, SwapchainError, Vertex, VulkanError, VulkanResult
+    CommandPool, CommandPoolBuilder, DescriptorSetLayoutBuilder, Device, GraphicsPipeline,
+    GraphicsPipelineBuilder, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, ShaderError, SwapchainError, VulkanError, VulkanResult,
 };
 use crate::reflection::ShaderReflection;
 use crate::render_context::RenderContext;
@@ -69,8 +65,8 @@ impl RenderGraph {
         profile_scope!("RenderGraph::topological_sort");
     }
 
-    pub(crate) fn recreate_transient_resources(&mut self, width: u32, height: u32) {
-        for (handle, desc) in self.resources.textures.iter() {
+    pub(crate) fn recreate_transient_resources(&mut self, _width: u32, _height: u32) {
+        for (_handle, desc) in self.resources.textures.iter() {
             if desc.usage == TextureUsage::Transient {}
         }
     }
@@ -140,16 +136,17 @@ impl RenderGraph {
             )
             .blend_enable(false);
 
-        let mut vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
-        let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device).build()?;
+        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
+        let _descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device).build()?;
 
         // let mut vertex_attribute_desc = vec![];
 
-        let (vertex_shader, fragment_shader) = if shader_reflection[0].shader_stage == naga::ShaderStage::Vertex {
-            (&shader_reflection[0], &shader_reflection[1])
-        } else {
-            (&shader_reflection[1], &shader_reflection[1])
-        };
+        let (vertex_shader, fragment_shader) =
+            if shader_reflection[0].shader_stage == naga::ShaderStage::Vertex {
+                (&shader_reflection[0], &shader_reflection[1])
+            } else {
+                (&shader_reflection[1], &shader_reflection[1])
+            };
 
         // for i in &vertex_shader.vertex_inputs {
         //     let desc = vk::VertexInputAttributeDescription::default()
@@ -163,7 +160,8 @@ impl RenderGraph {
 
         // println!("Vertex Attrib: {:?}", vertex_attribute_desc);
 
-        // vertex_input_info = vertex_input_info.vertex_attribute_descriptions(&vertex_attribute_desc);
+        // vertex_input_info =
+        // vertex_input_info.vertex_attribute_descriptions(&vertex_attribute_desc);
 
         // let vertex_binding_desc = vec![
         //     vk::VertexInputBindingDescription::default()
@@ -172,7 +170,8 @@ impl RenderGraph {
         //         .input_rate(vk::VertexInputRate::VERTEX),
         // ];
 
-        // vertex_input_info = vertex_input_info.vertex_binding_descriptions(&vertex_binding_desc);
+        // vertex_input_info =
+        // vertex_input_info.vertex_binding_descriptions(&vertex_binding_desc);
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
             .set_layouts(vec![])
@@ -225,10 +224,7 @@ impl RenderGraph {
                     .logic_op(vk::LogicOp::COPY)
                     .attachments(&[color_blend]),
             )
-            .dynamic_state(vec![
-                vk::DynamicState::VIEWPORT,
-                vk::DynamicState::SCISSOR
-            ])     
+            .dynamic_state(vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR])
             .vertex_input_info(vertex_input_info)
             .build()?;
 
@@ -244,8 +240,10 @@ impl RenderGraph {
 
         let mut cmd_bufs = vec![];
 
-        for _ in 0..10 {
-            let cmd = self.command_pool.create_command_buffers(&ctx.device, self.passes.len() as u32)?;
+        for _ in 0..ctx.window.frame_sync.len() {
+            let cmd = self
+                .command_pool
+                .create_command_buffers(&ctx.device, self.passes.len() as u32)?;
             cmd_bufs.push(cmd);
         }
 
@@ -255,7 +253,7 @@ impl RenderGraph {
                 log::error!("Error create pipeline with error: {:?}", err);
             } else {
                 self.execution_order.push(index);
-            }   
+            }
         }
 
         self.command_buffers = cmd_bufs;
@@ -270,7 +268,7 @@ impl RenderGraph {
         ctx: &RenderContext,
         pass: &mut Pass,
         shader_reflections: &Vec<ShaderReflection>,
-        resources: &mut ResourceManager
+        resources: &mut ResourceManager,
     ) -> VulkanResult<()> {
         match pass {
             Pass::Raster(raster) => {
@@ -295,11 +293,15 @@ impl RenderGraph {
         Ok(())
     }
 
+    /// Add pass to [`RenderGraph`]
+    /// 
+    /// It is recommended to recompile the graph before rendering.
     pub fn add_pass<P: Into<Pass>>(&mut self, pass: P) {
         self.passes.push(pass.into());
         self.is_compiled = false;
     }
 
+    /// Execute graph
     pub fn execute(
         &mut self,
         ctx: &mut RenderContext,
@@ -319,7 +321,6 @@ impl RenderGraph {
         };
 
         let image_index = {
-
             let window = &mut ctx.window;
             let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
@@ -343,10 +344,12 @@ impl RenderGraph {
                     sync.image_available.raw,
                     vk::Fence::null(),
                 ) {
-                    Ok((index, is_optimal)) => {
-                        // if !is_optimal {
-                        //     return Err(VulkanError::Swapchain(SwapchainError::SwapchainSubOptimal));
-                        // }
+                    Ok((index, is_not_optimal)) => {
+                        if is_not_optimal {
+                            return Err(VulkanError::Swapchain(
+                                SwapchainError::SwapchainSubOptimal,
+                            ));
+                        }
                         index
                     },
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
@@ -383,7 +386,6 @@ impl RenderGraph {
         }
 
         // Record Command Buffer
-
         for i in &self.execution_order {
             let command_buffer = command_buffers[*i];
             let pass = &self.passes[*i];
@@ -408,11 +410,11 @@ impl RenderGraph {
                     },
                 },
                 ClearValue {
-                    depth_stencil: vk::ClearDepthStencilValue { 
-                        depth: 1.0, 
-                        stencil: 0 
-                    }
-                }
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
             ];
 
             let frame_buffer = if pass.is_present_pass() {
@@ -438,27 +440,28 @@ impl RenderGraph {
                     command_buffer,
                     &render_pass_begin_info,
                     vk::SubpassContents::INLINE,
-                )
-            };
+                );
+            }
 
             (*pass.execute())(&pass_ctx, &renderables)?;
 
-            unsafe { device.cmd_end_render_pass(command_buffer) };
+            unsafe {
+                device.cmd_end_render_pass(command_buffer);
+            }
 
             // pass.end_sync(command_buffer);
 
             unsafe {
                 device
                     .end_command_buffer(command_buffer)
-                    .expect("Error end command buffer")
-            };
+                    .expect("Error end command buffer");
+            }
         }
 
         let window = &mut ctx.window;
         let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
         // Submit
-
         let wait_semaphores = [sync.image_available.raw];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let signal_semaphores = [sync.render_finished.raw];
@@ -476,11 +479,10 @@ impl RenderGraph {
                     &[submit_info],
                     sync.in_flight_fence.raw,
                 )
-                .expect("Error submit commands to queue")
-        };
+                .expect("Error submit commands to queue");
+        }
 
         // Present
-
         let swapchain = [window.swapchain.raw];
         let image_indices = [image_index];
 
@@ -494,8 +496,8 @@ impl RenderGraph {
                 .swapchain
                 .loader
                 .queue_present(self.graphics_queue, &present_info)
-                .expect("Error present")
-        };
+                .expect("Error present");
+        }
 
         log::debug!(
             "Image index: {}, Frame: {}",

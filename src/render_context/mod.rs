@@ -21,10 +21,15 @@ pub struct RenderContext {
 }
 
 pub struct RenderContextConfig {
+    #[allow(dead_code)]
     frame_count: Option<u32>,
+    #[allow(dead_code)]
     phys_dev_type_priority: Vec<vk::PhysicalDeviceType>,
+    #[allow(dead_code)]
     surface_format_priority: Vec<vk::Format>,
+    #[allow(dead_code)]
     depth_format_priority: Vec<vk::Format>,
+    #[allow(dead_code)]
     present_mode_priority: Vec<vk::PresentModeKHR>,
     max_api_version: u32,
     min_api_version: u32,
@@ -155,6 +160,7 @@ impl RenderContext {
     }
 
     // Debug
+    #[allow(dead_code)]
     fn execute_commands(&self, callback: impl FnOnce(vk::CommandBuffer)) {
         let device = &self.device;
 

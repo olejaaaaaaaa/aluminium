@@ -5,7 +5,6 @@ mod instance;
 pub use instance::*;
 
 mod debug;
-pub use debug::*;
 
 mod surface;
 pub use surface::*;
@@ -59,7 +58,6 @@ mod descriptor_set_layout;
 pub use descriptor_set_layout::*;
 
 mod pipeline_cache;
-pub use pipeline_cache::*;
 
 mod fence;
 pub use fence::*;

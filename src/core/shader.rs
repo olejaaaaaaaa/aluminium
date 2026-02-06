@@ -14,6 +14,7 @@ pub struct ShaderModule {
 }
 
 impl ShaderModule {
+    #[allow(dead_code)]
     pub fn destroy_shader(&self, device: &Device) {
         unsafe {
             device.destroy_shader_module(self.raw, None);
@@ -46,7 +47,7 @@ impl<'a, S: AsRef<Path>> ShaderBuilder<'a, S> {
         self
     }
 
-    pub fn build(mut self) -> VulkanResult<ShaderModule> {
+    pub fn build(self) -> VulkanResult<ShaderModule> {
         profile_scope!("ShaderModule");
 
         let path = self.path.unwrap();

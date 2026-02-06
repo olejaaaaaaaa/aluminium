@@ -1,9 +1,8 @@
 use ash::vk;
 use puffin::profile_scope;
-use winit::raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 use super::app::App;
-use super::device::Device;
 use super::instance::Instance;
 use super::{VulkanError, VulkanResult};
 
@@ -34,8 +33,8 @@ impl<'a> SurfaceBuilder<'a> {
             ash_window::create_surface(
                 &self.app.entry,
                 &self.instance.raw,
-                self.window.raw_display_handle().unwrap(),
-                self.window.raw_window_handle().unwrap(),
+                self.window.display_handle().unwrap().into(),
+                self.window.window_handle().unwrap().into(),
                 None,
             )
             .map_err(|e| VulkanError::Unknown(e))?
@@ -66,6 +65,7 @@ impl Surface {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_physical_device_surface_formats(
         &self,
         phys_dev: vk::PhysicalDevice,

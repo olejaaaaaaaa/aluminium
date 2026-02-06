@@ -1,17 +1,29 @@
-use crate::core::{Device, GpuBuffer, PBRVertex, Vertex};
-
-const MAX_MESH: usize = 100000;
+use crate::core::{Device, GpuBuffer};
 
 #[derive(Clone, Copy)]
 pub struct MeshHandle(pub usize);
 
 pub struct Mesh {
+    /// Instance offset
+    #[allow(dead_code)]
     pub instance_offset: u32,
+    /// Instance count
+    #[allow(dead_code)]
     pub instance_count: u32,
+    /// Vertex offser
+    #[allow(dead_code)]
     pub vertex_offset: u32,
+    /// Instance Buffer
+    #[allow(dead_code)]
     pub instance_buffer: Option<GpuBuffer>,
+    /// Vertex Buffer
+    #[allow(dead_code)]
     pub vertex_buffer: GpuBuffer,
+    /// Indices
+    #[allow(dead_code)]
     pub indices: Option<Vec<u32>>,
+    /// Index Buffer
+    #[allow(dead_code)]
     pub index_buffer: Option<GpuBuffer>,
 }
 
@@ -20,6 +32,7 @@ pub struct MeshCollection {
 }
 
 impl MeshCollection {
+    #[allow(dead_code)]
     pub fn destroy(&mut self, device: &Device) {
         unsafe {
             for i in &mut self.data {
@@ -45,6 +58,7 @@ impl MeshCollection {
         MeshHandle(index)
     }
 
+    #[allow(dead_code)]
     pub fn get_mesh(&self, mesh: MeshHandle) -> &Mesh {
         &self.data[mesh.0]
     }

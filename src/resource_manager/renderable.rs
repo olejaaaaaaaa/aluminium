@@ -22,13 +22,18 @@ impl RenderableCollection {
     }
 }
 
+/// Renderable Object
 pub struct Renderable {
+    #[allow(dead_code)]
     material: MaterialHandle,
+    #[allow(dead_code)]
     transform: TransformHandle,
+    #[allow(dead_code)]
     mesh: MeshHandle,
 }
 
 impl Renderable {
+    /// Create new Renderable Object
     pub fn new(mesh: MeshHandle, material: MaterialHandle, transform: TransformHandle) -> Self {
         Self {
             mesh,

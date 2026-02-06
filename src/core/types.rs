@@ -11,16 +11,22 @@ pub trait BindingDescriptions {
     fn bind_desc() -> Vec<vk::VertexInputBindingDescription>;
 }
 
+/// Basic simple vertex
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct Vertex {
+    /// Pos Vertex
     pub pos: [f32; 3],
+    /// Color Vertex
     pub color: [f32; 3],
 }
 
 impl Vertex {
-    pub fn cube(x: f32, y: f32, z: f32) -> Vec<Vertex> {
-        let mut vertices = vec![];
+    
+    /// Create cube mesh
+    #[allow(dead_code)]
+    pub fn cube(_x: f32, _y: f32, _z: f32) -> Vec<Vertex> {
+        let vertices = vec![];
 
         vertices
     }
@@ -47,22 +53,35 @@ impl AttributeDescriptions for Vertex {
     }
 }
 
+/// Texture Vertex
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct TextureVertex {
+    /// Pos
     pub pos: [f32; 3],
+    /// UV Pos
     pub uv: [f32; 2],
 }
 
+/// PBR Vertex
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PBRVertex {
+    /// Pos
     pub pos: [f32; 4],
+    /// Normal
     pub normal: [f32; 4],
+    /// Uv
     pub uv: [f32; 2],
+    /// Color
     pub color: [f32; 4],
+    /// Tangent
     pub tangent: [f32; 4],
 }
 
 impl PBRVertex {
+    /// Create new PBR Vertex
+    #[allow(dead_code)]
     pub fn new(x: f32, y: f32, z: f32) -> PBRVertex {
         PBRVertex {
             pos: [x, y, z, 0.0],

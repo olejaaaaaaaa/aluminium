@@ -1,6 +1,4 @@
-use ash::vk::{
-    Handle, {self},
-};
+use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use puffin::profile_scope;
 #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
@@ -76,6 +74,7 @@ impl<'a> GpuBufferBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn gpu_only(device: &'a Device) -> Self {
         GpuBufferBuilder {
             device,

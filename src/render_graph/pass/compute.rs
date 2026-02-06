@@ -1,9 +1,14 @@
+#![allow(missing_docs)]
+
 pub struct ComputePipelineDesc {
+    #[allow(dead_code)]
     compute_shader: String,
 }
 
 pub struct ComputePass {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     desc: ComputePipelineDesc,
 }
 

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use std::fs::{create_dir_all, read_dir};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 fn main() {
