@@ -1,6 +1,7 @@
 mod present;
 use std::path::PathBuf;
 
+use ash::vk;
 pub use present::PresentPass;
 
 mod compute;
@@ -13,15 +14,11 @@ mod rt;
 pub use rt::RtPass;
 
 use super::PassContext;
-use crate::core::VulkanResult;
+use crate::core::{VulkanError, VulkanResult};
 use crate::render_graph::RenderGraphResource;
-use crate::resource_manager::Renderable;
+use crate::resource_manager::{FrameBufferHandle, Renderable, ResourceManager};
 
 pub type Execute = dyn Fn(&PassContext, &[Renderable]) -> VulkanResult<()>;
-
-pub trait PushConstant {
-    fn bytes(&self) -> &[u8];
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum LoadOp {
@@ -45,6 +42,54 @@ pub enum Pass {
 }
 
 impl Pass {
+
+    pub fn pipeline_layout(&self, resources: &mut ResourceManager) -> vk::PipelineLayout {
+        match self {
+            Pass::Rt(rt_pass) => todo!(),
+            Pass::Raster(raster_pass) => resources.get_layout(raster_pass.pipeline.as_ref().unwrap().pipeline_layout).unwrap().raw,
+            Pass::Compute(compute_pass) => todo!(),
+            Pass::Present(present_pass) => resources.get_layout(present_pass.pipeline.as_ref().unwrap().pipeline_layout).unwrap().raw,
+        }
+    }
+
+    pub fn pipeline(&self, resources: &ResourceManager) -> vk::Pipeline {
+        match self {
+            Pass::Rt(rt_pass) => todo!(),
+            Pass::Raster(raster_pass) => resources.get_raster_pipeline(raster_pass.pipeline.as_ref().unwrap().pipeline).unwrap().raw,
+            Pass::Compute(compute_pass) => todo!(),
+            Pass::Present(present_pass) => resources.get_raster_pipeline(present_pass.pipeline.as_ref().unwrap().pipeline).unwrap().raw,
+        }
+    }
+
+    pub fn framebuffer(&self) -> FrameBufferHandle {
+        match self {
+            Pass::Rt(rt_pass) => todo!(),
+            Pass::Raster(raster_pass) => raster_pass.pipeline.as_ref().unwrap().frame_buffer,
+            Pass::Compute(compute_pass) => todo!(),
+            Pass::Present(present_pass) => todo!(),
+        }
+    }
+
+    pub fn is_present_pass(&self) -> bool {
+        match self {
+            Pass::Rt(rt_pass) => false,
+            Pass::Raster(raster_pass) => false,
+            Pass::Compute(compute_pass) => false,
+            Pass::Present(present_pass) => true,
+        }
+    }
+
+    pub fn execute(
+        &self,
+    ) -> &Box<dyn Fn(&PassContext, &[Renderable]) -> Result<(), VulkanError> + 'static> {
+        match self {
+            Pass::Raster(raster) => &raster.execute,
+            Pass::Rt(rt_pass) => todo!(),
+            Pass::Compute(compute_pass) => todo!(),
+            Pass::Present(present_pass) => &present_pass.execute,
+        }
+    }
+
     pub fn shaders(&self) -> Vec<PathBuf> {
         match self {
             Pass::Raster(raster_pass) => {
@@ -69,8 +114,8 @@ impl Pass {
     pub fn writes(&self) -> Vec<RenderGraphResource> {
         match self {
             Pass::Raster(raster) => raster.writes.clone(),
-            Pass::Rt(_) => todo!(),
-            Pass::Compute(_) => todo!(),
+            Pass::Rt(rt) => Vec::new(),
+            Pass::Compute(comp) => Vec::new(),
             Pass::Present(_) => Vec::new(),
         }
     }

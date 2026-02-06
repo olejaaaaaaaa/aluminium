@@ -9,7 +9,6 @@ pub struct Mesh {
     pub instance_offset: u32,
     pub instance_count: u32,
     pub vertex_offset: u32,
-    pub data: Option<MeshData>,
     pub instance_buffer: Option<GpuBuffer>,
     pub vertex_buffer: GpuBuffer,
     pub indices: Option<Vec<u32>>,
@@ -49,9 +48,4 @@ impl MeshCollection {
     pub fn get_mesh(&self, mesh: MeshHandle) -> &Mesh {
         &self.data[mesh.0]
     }
-}
-
-pub enum MeshData {
-    Simple(Vec<Vertex>),
-    PBR(Vec<PBRVertex>),
 }

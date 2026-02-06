@@ -46,6 +46,8 @@ fn main() {
         let name = words[0];
         let format = words[1];
 
+        println!("cargo:warning=Compile Shader: {}", original_name);
+
         if format == "frag" || format == "vert" {
             let out_name = format!("{}-{}.spv", name, format);
             let output_path = spv_output_dir.join(&out_name);
@@ -62,10 +64,49 @@ fn main() {
 
             if !res.success() {
                 println!(
+                    "cargo:warning=Failed to compile glsl shader: {} -> {}",
+                    original_name, out_name
+                );
+            }
+        } else if format == "hlsl" {
+            let out_name = format!("{}-{}.spv", name, format);
+            let output_path = spv_output_dir.join(&out_name);
+
+            let target_profile = if name.ends_with("_vs") {
+                "vs_6_6"
+            } else if name.ends_with("_ps") {
+                "ps_6_6"
+            } else {
+                "cs_6_6"
+            };
+
+            let res = Command::new("dxc")
+                .arg(shader_path)
+                .arg("-spirv")
+                .arg("-T")
+                .arg(target_profile)
+                .arg("-E")
+                .arg("main")
+                .arg("-fspv-target-env=vulkan1.0")
+                .arg("-fvk-use-dx-layout")
+                .arg("-WX")
+                .arg("-Ges")
+                .arg("-HV")
+                .arg("2021")
+                .arg("-Fo")
+                .arg(output_path.to_str().unwrap())
+                .spawn()
+                .and_then(|mut e| e.wait())
+                .unwrap();
+
+            if !res.success() {
+                println!(
                     "cargo:warning=Failed to compile shader: {} -> {}",
                     original_name, out_name
                 );
             }
+        } else {
+            println!("cargo:warning=Not valid shader: {}", original_name);
         }
     }
 }

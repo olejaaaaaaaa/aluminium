@@ -6,7 +6,7 @@ pub struct TriangleVertex {
 
 #[repr(C)]
 pub struct Bvh {
-    // nodes: [BVHNode; D]
+    
 }
 
 impl Bvh {

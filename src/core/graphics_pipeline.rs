@@ -165,7 +165,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .name(c"main")
                     .stage(vk::ShaderStageFlags::VERTEX),
             )
-        } 
+        }
 
         if let Some(fragment) = self.fragment_shader {
             shader_states_infos.push(
@@ -175,7 +175,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .stage(vk::ShaderStageFlags::FRAGMENT),
             )
         }
-        
+
         create_info = create_info.stages(&shader_states_infos);
         // ----------------- End ------------------------------------
 

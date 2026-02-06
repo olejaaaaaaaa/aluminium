@@ -16,7 +16,6 @@ pub use render_graph::{
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;
 
-
 /// Basic types
 pub mod types {
     pub use super::core::{PBRVertex, TextureVertex, Vertex};

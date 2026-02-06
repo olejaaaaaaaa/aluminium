@@ -91,6 +91,7 @@ impl<'a> RenderPassBuilder<'a> {
             .iter()
             .map(|x| x.raw)
             .collect::<Vec<_>>();
+
         let binding1 = self.attachments.unwrap_or(vec![]);
         let binding2 = self.dependencies.unwrap_or(vec![]);
 

@@ -24,16 +24,33 @@ impl ShaderModule {
 pub struct ShaderBuilder<'a, S: AsRef<Path>> {
     device: &'a Device,
     save_bytecode: bool,
-    path: S,
+    path: Option<S>,
 }
 
 impl<'a, S: AsRef<Path>> ShaderBuilder<'a, S> {
-    pub fn from_file(
-        device: &'a Device,
-        save_bytecode: bool,
-        path: S,
-    ) -> VulkanResult<ShaderModule> {
+    pub fn new(device: &'a Device) -> Self {
+        Self {
+            device,
+            save_bytecode: false,
+            path: None,
+        }
+    }
+
+    pub fn save_bytecode(mut self) -> Self {
+        self.save_bytecode = true;
+        self
+    }
+
+    pub fn file_path(mut self, path: S) -> Self {
+        self.path = Some(path);
+        self
+    }
+
+    pub fn build(mut self) -> VulkanResult<ShaderModule> {
         profile_scope!("ShaderModule");
+
+        let path = self.path.unwrap();
+        let device = self.device;
 
         let code = load_spv(path.as_ref());
         let create_info = vk::ShaderModuleCreateInfo::default().code(&code);
@@ -44,7 +61,7 @@ impl<'a, S: AsRef<Path>> ShaderBuilder<'a, S> {
                 .map_err(|e| VulkanError::Unknown(e))?
         };
 
-        let bytes = if save_bytecode { Some(code) } else { None };
+        let bytes = if self.save_bytecode { Some(code) } else { None };
 
         Ok(ShaderModule {
             raw: shader,

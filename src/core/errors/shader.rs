@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ShaderError {
+    #[error("EERRROR AAAA")]
+    UnsupportedType,
     #[error("Error create reflection module")]
     ShaderReflectionModuleCreationFailed(String),
     #[error("Error reflection shader")]

@@ -1,12 +1,14 @@
 #![allow(missing_docs)]
 
 use std::error::Error;
+use std::path::Path;
 
 use aluminium::types::Vertex;
 use aluminium::{
     LoadOp, Material, PresentPass, RasterPass, Renderable, Resolution, SamplerType, StoreOp,
     TextureDesc, TextureFormat, TextureUsage, Transform, WorldRenderer,
 };
+
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -27,10 +29,7 @@ impl ApplicationHandler for App {
             },
             WindowEvent::Resized(size) => {
                 let (width, height) = (size.width, size.height);
-
                 let world = self.world.as_mut().unwrap();
-                let window = self.window.as_ref().unwrap();
-
                 world.resize(width, height).expect("Error resize window");
             },
             WindowEvent::RedrawRequested => {
@@ -41,6 +40,12 @@ impl ApplicationHandler for App {
                 world.draw_frame().expect("Error draw frame");
             },
             _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
         }
     }
 
@@ -55,88 +60,38 @@ impl ApplicationHandler for App {
 
         let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
 
-        let simple_raster = world.graph_mut().create_texture(TextureDesc {
-            resolution: Resolution::Full,
-            usage: TextureUsage::Transient,
-            sampler: SamplerType::Linear,
-            format: TextureFormat::R8g8b8a8Srgb,
-            layers: 1,
-        });
-
-        world.graph_mut().add_pass(
-            RasterPass::new()
-                .render_target(simple_raster, LoadOp::Clear, StoreOp::DontCare)
-                .pipeline()
-                .vertex("shaders://base_simple.vert")
-                .fragment("shaders://base_simple.frag")
-                .end_pipeline()
-                .render(|ctx, renderables| {
-                    ctx.bind_pipeline()?;
-                    for i in renderables {
-                        ctx.draw_mesh(i)?;
-                    }
-                    Ok(())
-                }),
-        );
-
-        let grid_raster = world.graph_mut().create_texture(TextureDesc {
-            resolution: Resolution::Full,
-            usage: TextureUsage::Transient,
-            sampler: SamplerType::Linear,
-            format: TextureFormat::R8g8b8a8Srgb,
-            layers: 1,
-        });
-
-        world.graph_mut().add_pass(
-            RasterPass::new()
-                .render_target(grid_raster, LoadOp::Clear, StoreOp::DontCare)
-                .pipeline()
-                .vertex("shaders://grid.vert")
-                .fragment("shaders://grid.frag")
-                .end_pipeline()
-                .render(|ctx, renderables| {
-                    ctx.bind_pipeline()?;
-                    for i in renderables {
-                        ctx.draw_mesh(i)?;
-                    }
-                    Ok(())
-                }),
-        );
-
         world.graph_mut().add_pass(
             PresentPass::new()
-                .read(simple_raster)
-                .read(grid_raster)
                 .pipeline()
-                .vertex("shaders://final.vert")
-                .fragment("shaders://final.frag")
+                .vertex("shaders://raster_vs.hlsl")
+                .fragment("shaders://raster_ps.hlsl")
                 .end_pipeline()
-                .draw(|ctx, renderable| {
+                .draw(|ctx, _| {
                     ctx.bind_pipeline()?;
                     ctx.draw_fullscreen_triangle()?;
                     Ok(())
                 }),
         );
 
-        let triangle_mesh = vec![
-            Vertex {
-                pos: [0.0, 0.5, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            Vertex {
-                pos: [-0.5, -0.5, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            Vertex {
-                pos: [0.5, -0.5, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-        ];
+        // let triangle_mesh = vec![
+        //     Vertex {
+        //         pos: [0.0, 0.5, 0.0],
+        //         color: [1.0, 0.0, 0.0],
+        //     },
+        //     Vertex {
+        //         pos: [-0.5, -0.5, 0.0],
+        //         color: [0.0, 1.0, 0.0],
+        //     },
+        //     Vertex {
+        //         pos: [0.5, -0.5, 0.0],
+        //         color: [0.0, 0.0, 1.0],
+        //     },
+        // ];
 
-        let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
-        let material = world.create_material(Material::new()).unwrap();
-        let transform = world.create_transform(Transform::identity()).unwrap();
-        let object = world.create_renderable(Renderable::new(mesh, material, transform));
+        // let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
+        // let material = world.create_material(Material::new()).unwrap();
+        // let transform = world.create_transform(Transform::identity()).unwrap();
+        // let _ = world.create_renderable(Renderable::new(mesh, material, transform));
 
         self.world = Some(world);
         self.window = Some(window);
@@ -145,7 +100,7 @@ impl ApplicationHandler for App {
 
 fn main() -> Result<(), Box<dyn Error>> {
     unsafe {
-        std::env::set_var("RUST_LOG", "Info");
+        std::env::set_var("RUST_LOG", "Debug");
     }
 
     env_logger::builder().init();

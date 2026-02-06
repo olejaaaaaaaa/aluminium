@@ -88,6 +88,7 @@ impl RenderContext {
 
         let depth_image =
             ImageBuilder::depth(&device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
+
         let depth_view =
             ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 

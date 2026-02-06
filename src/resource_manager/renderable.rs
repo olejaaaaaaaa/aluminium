@@ -1,21 +1,24 @@
+use slotmap::{new_key_type, SlotMap};
+
 use crate::resource_manager::{MaterialHandle, MeshHandle, TransformHandle};
 
-#[derive(Clone, Copy)]
-pub struct RenderableHandle(pub usize);
+new_key_type! {
+    pub struct RenderableHandle;
+}
 
 pub struct RenderableCollection {
-    data: Vec<Renderable>,
+    data: SlotMap<RenderableHandle, Renderable>,
 }
 
 impl RenderableCollection {
     pub fn new() -> Self {
-        Self { data: vec![] }
+        Self {
+            data: SlotMap::with_key(),
+        }
     }
 
     pub fn add_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
-        let index = self.data.len();
-        self.data.push(renderable);
-        RenderableHandle(index)
+        self.data.insert(renderable)
     }
 }
 

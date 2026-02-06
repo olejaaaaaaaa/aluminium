@@ -55,7 +55,7 @@ impl Default for TextureDesc {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TextureUsage {
     Transient,
     Color,

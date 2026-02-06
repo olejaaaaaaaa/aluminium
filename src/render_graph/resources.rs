@@ -10,10 +10,6 @@ use crate::core::{
 use crate::render_graph::{LoadOp, StoreOp, TextureDesc};
 
 new_key_type! {
-    pub struct FrameBufferHandle;
-}
-
-new_key_type! {
     pub struct DescriptorSetHandle;
 }
 
@@ -33,6 +29,18 @@ pub enum RenderGraphResource {
     },
 }
 
+impl RenderGraphResource {
+    pub fn last_access(&self) -> vk_sync::AccessType {
+        match self {
+            RenderGraphResource::Texture {
+                handle,
+                last_access,
+            } => *last_access,
+            RenderGraphResource::RenderTarget { texture, ops } => texture.1,
+        }
+    }
+}
+
 impl Into<RenderGraphResource> for TextureHandle {
     fn into(self) -> RenderGraphResource {
         RenderGraphResource::Texture {
@@ -43,7 +51,7 @@ impl Into<RenderGraphResource> for TextureHandle {
 }
 
 pub struct RenderGraphResources {
-    textures: SlotMap<TextureHandle, TextureDesc>,
+    pub(crate) textures: SlotMap<TextureHandle, TextureDesc>,
 }
 
 impl RenderGraphResources {

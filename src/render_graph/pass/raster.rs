@@ -3,16 +3,18 @@ use std::str::FromStr;
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
+use slotmap::Key;
 
 use super::{Execute, LoadOp, PassContext, StoreOp};
 use crate::core::VulkanResult;
-use crate::reflection::PipelineReflection;
-use crate::render_graph::pass::PushConstant;
+use crate::reflection::ShaderReflection;
 use crate::render_graph::{RenderGraphResource, TextureHandle};
-use crate::resource_manager::Renderable;
+use crate::resource_manager::{FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable};
 
 pub struct RasterPipeline {
-    pub(crate) push_constant: Option<Box<dyn PushConstant>>,
+    pub(crate) pipeline_layout: PipelineLayoutHandle,
+    pub(crate) pipeline: RasterPipelineHandle,
+    pub(crate) frame_buffer: FrameBufferHandle,
     pub(crate) vertex_shader: PathBuf,
     pub(crate) fragment_shader: PathBuf,
     pub(crate) use_cache: bool,
@@ -22,7 +24,9 @@ pub struct RasterPipeline {
 impl RasterPipeline {
     pub(crate) fn new() -> Self {
         Self {
-            push_constant: None,
+            frame_buffer: FrameBufferHandle::null(),
+            pipeline_layout: PipelineLayoutHandle::null(),
+            pipeline: RasterPipelineHandle::null(),
             vertex_shader: PathBuf::new(),
             fragment_shader: PathBuf::new(),
             use_cache: false,
@@ -37,10 +41,6 @@ pub struct RasterPipelineBuilder {
 }
 
 impl RasterPipelineBuilder {
-    pub fn push_constant(mut self, push: impl PushConstant + 'static) -> Self {
-        self.pipeline.push_constant = Some(Box::new(push));
-        self
-    }
 
     pub fn vertex(mut self, shader: impl Into<PathBuf>) -> Self {
         self.pipeline.vertex_shader = shader.into();
@@ -68,7 +68,7 @@ pub struct RasterPass {
     pub(crate) reads: Vec<RenderGraphResource>,
     pub(crate) pipeline: Option<RasterPipeline>,
     pub(crate) execute: Box<Execute>,
-    pub(crate) reflection: Option<PipelineReflection>,
+    pub(crate) reflection: Vec<ShaderReflection>,
 }
 
 impl RasterPass {
@@ -78,7 +78,7 @@ impl RasterPass {
             reads: vec![],
             pipeline: None,
             execute: Box::new(|_, _| Ok(())),
-            reflection: None,
+            reflection: vec![],
         }
     }
 
