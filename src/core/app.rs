@@ -22,15 +22,6 @@ pub struct AppBuilder {
 
 impl AppBuilder {
     /// Default App
-    ///
-    /// ```
-    /// AppBuilder {
-    ///     app_name: c"App",
-    ///     app_version: 0,
-    ///     max_api_version: vk::API_VERSION_1_0,
-    ///     min_api_version: vk::API_VERSION_1_0,
-    /// }
-    /// ```
     pub fn default() -> Self {
         AppBuilder {
             app_name: c"App",

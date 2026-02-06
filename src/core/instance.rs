@@ -9,15 +9,6 @@ use super::{VulkanError, VulkanResult};
 
 /// Unsafe Wrapper around [`vk::Instance`]
 /// Required manually destroy before Drop
-///
-/// <h1>Example:</h1>
-///
-/// ```
-/// fn main() {
-///     let app = App::new(AppDesc::default());
-///     let instance = Instance::new(InstanceDesc::empty().app_info(&app.info).entry(&app.entry));
-/// }
-/// ```
 pub struct Instance {
     pub(crate) raw: ash::Instance,
     #[allow(dead_code)]
