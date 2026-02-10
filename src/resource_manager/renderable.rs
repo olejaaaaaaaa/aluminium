@@ -7,14 +7,23 @@ new_key_type! {
 }
 
 pub struct RenderableCollection {
-    data: SlotMap<RenderableHandle, Renderable>,
+    pub data: SlotMap<RenderableHandle, Renderable>,
 }
 
 impl RenderableCollection {
+
     pub fn new() -> Self {
         Self {
             data: SlotMap::with_key(),
         }
+    }
+
+    pub fn get_renderables(&self) -> Vec<Renderable> {
+        let mut v = vec![];
+        for i in &self.data {
+            v.push(i.1.clone());
+        }
+        v
     }
 
     pub fn add_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
@@ -23,13 +32,14 @@ impl RenderableCollection {
 }
 
 /// Renderable Object
+#[derive(Clone, Copy)]
 pub struct Renderable {
     #[allow(dead_code)]
-    material: MaterialHandle,
+    pub material: MaterialHandle,
     #[allow(dead_code)]
-    transform: TransformHandle,
+    pub transform: TransformHandle,
     #[allow(dead_code)]
-    mesh: MeshHandle,
+    pub mesh: MeshHandle,
 }
 
 impl Renderable {

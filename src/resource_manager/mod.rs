@@ -58,6 +58,14 @@ impl ResourceManager {
         })
     }
 
+    pub fn get_renderables(&self) -> Vec<Renderable> {
+        self.renderable.get_renderables().clone()
+    }
+
+    pub fn get_mesh(&self, handle: MeshHandle) -> &Mesh {
+        self.mesh.get_mesh(handle)
+    }
+
     pub fn add_raster_pipeline(&mut self, pipeline: GraphicsPipeline) -> RasterPipelineHandle {
         self.raster_pipeline.insert(pipeline)
     }
@@ -86,7 +94,7 @@ impl ResourceManager {
         mesh: &[T],
         indices: Option<&[u32]>,
     ) -> VulkanResult<MeshHandle> {
-        let size = (size_of::<T>() + mesh.len()) as u64;
+        let size = (size_of::<T>() * mesh.len()) as u64;
 
         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
             .size(size)

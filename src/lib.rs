@@ -11,7 +11,7 @@ pub(crate) mod world_renderer;
 
 pub use render_graph::{
     ComputePass, LoadOp, PresentPass, RasterPass, Resolution, SamplerType, StoreOp, TextureDesc,
-    TextureFormat, TextureUsage,
+    TextureFormat, TextureUsage, PresentPassBuilder
 };
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;

@@ -12,6 +12,8 @@ pub enum ShaderError {
     ShaderInvalidExtension,
     #[error("Not valid path to shader")]
     ShaderInvalidPath,
+    #[error("Error read shader to end")]
+    ShaderReadToEnd,
     #[error("Error create Shader with not valid unicode like name")]
     ShaderNameNotValidUnicode,
     #[error("Error create Shader")]

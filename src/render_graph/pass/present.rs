@@ -1,74 +1,88 @@
 #![allow(missing_docs)]
 
-use std::path::PathBuf;
 
+use super::{Execute, PassContext, Source};
+use crate::Renderable;
+use crate::reflection::PipelineShaderReflection;
+use crate::render_graph::{PassDesc, RenderGraphResource};
+use crate::resource_manager::{PipelineLayoutHandle, RasterPipelineHandle};
 
-use super::{Execute, PassContext};
-use crate::core::VulkanResult;
-use crate::render_graph::pass::raster::RasterPipeline;
-use crate::render_graph::RenderGraphResource;
-use crate::resource_manager::Renderable;
-
-pub struct PresentPipelineBuilder {
-    pub(crate) pass: PresentPass,
-    pub(crate) pipeline: RasterPipeline,
+pub struct PresentPassDesc {
+    pub(crate) reads: Vec<RenderGraphResource>,
+    pub(crate) execute_fn: Box<Execute>,
+    pub(crate) vertex_shader: Source,
+    pub(crate) fragment_shader: Source,
+    pub(crate) use_cache: bool,
+    pub(crate) depth_test: bool,
 }
 
-impl PresentPipelineBuilder {
-    pub fn vertex(mut self, shader: impl Into<PathBuf>) -> Self {
-        self.pipeline.vertex_shader = shader.into();
+impl Default for PresentPassDesc {
+    fn default() -> Self {
+        Self { 
+            reads: vec![], 
+            execute_fn: Box::new(|_, _| {}), 
+            vertex_shader: Source::None, 
+            fragment_shader: Source::None, 
+            use_cache: false, 
+            depth_test: true 
+        }
+    }
+}
+
+pub struct PresentPassBuilder {
+    inner: PresentPassDesc
+}
+
+impl PresentPassBuilder {
+
+    pub fn new() -> Self {
+        Self { inner: PresentPassDesc::default() }
+    }
+
+    pub fn vertex(mut self, shader: impl Into<Source>) -> Self {
+        self.inner.vertex_shader = shader.into();
         self
     }
 
-    pub fn fragment(mut self, shader: impl Into<PathBuf>) -> Self {
-        self.pipeline.fragment_shader = shader.into();
+    pub fn fragment(mut self, shader: impl Into<Source>) -> Self {
+        self.inner.fragment_shader = shader.into();
         self
     }
 
     pub fn depth_test(mut self, enable: bool) -> Self {
-        self.pipeline.depth_test = enable;
+        self.inner.depth_test = enable;
         self
-    }
-
-    pub fn end_pipeline(mut self) -> PresentPass {
-        self.pass.pipeline = Some(self.pipeline);
-        self.pass
-    }
-}
-
-pub struct PresentPass {
-    pub(crate) reads: Vec<RenderGraphResource>,
-    pub(crate) pipeline: Option<RasterPipeline>,
-    pub(crate) execute: Box<Execute>,
-}
-
-impl PresentPass {
-    pub fn new() -> Self {
-        Self {
-            reads: vec![],
-            pipeline: None,
-            execute: Box::new(|_, _| Ok(())),
-        }
-    }
-
-    pub fn pipeline(self) -> PresentPipelineBuilder {
-        PresentPipelineBuilder {
-            pass: self,
-            pipeline: RasterPipeline::new(),
-        }
     }
 
     pub fn read<T: Into<RenderGraphResource>>(mut self, res: T) -> Self {
-        self.reads.push(res.into());
+        self.inner.reads.push(res.into());
         self
     }
 
-    /// Draw to swapchain image
-    pub fn draw<F>(mut self, clojure: F) -> Self
+    pub fn execute<F>(mut self, clojure: F) -> Self
     where
-        F: Fn(&PassContext, &[Renderable]) -> VulkanResult<()> + 'static,
+        F: Fn(&PassContext, &[Renderable]) + 'static,
     {
-        self.execute = Box::new(clojure);
+        self.inner.execute_fn = Box::new(clojure);
         self
+    }
+
+    pub fn build(self) -> PresentPassDesc {
+        self.inner
+    }
+}
+
+
+pub struct PresentPass {
+    pub(crate) reflection: PipelineShaderReflection,
+    pub(crate) reads: Vec<RenderGraphResource>,
+    pub(crate) pipeline_layout: PipelineLayoutHandle,
+    pub(crate) pipeline: RasterPipelineHandle,
+    pub(crate) execute_fn: Box<Execute>,
+}
+
+impl Into<PassDesc> for PresentPassDesc {
+    fn into(self) -> PassDesc {
+        PassDesc::Present(self)
     }
 }

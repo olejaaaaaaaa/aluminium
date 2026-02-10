@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use ash::vk::{self, ClearValue};
+use bytemuck::checked::cast_slice;
 use puffin::profile_scope;
 
 mod pass;
@@ -17,10 +18,9 @@ pub use texture::*;
 
 use crate::bindless::Bindless;
 use crate::core::{
-    CommandPool, CommandPoolBuilder, DescriptorSetLayoutBuilder, Device, GraphicsPipeline,
-    GraphicsPipelineBuilder, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, ShaderError, SwapchainError, VulkanError, VulkanResult,
+    AttributeDescriptions, BindingDescriptions, CommandPool, CommandPoolBuilder, DescriptorSetLayoutBuilder, Device, GraphicsPipeline, GraphicsPipelineBuilder, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, ShaderError, ShaderModule, SwapchainError, Vertex, VulkanError, VulkanResult, load_spv
 };
-use crate::reflection::ShaderReflection;
+use crate::reflection::PipelineShaderReflection;
 use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
 
@@ -30,6 +30,7 @@ pub struct RenderGraph {
     command_pool: CommandPool,
     resources: RenderGraphResources,
     passes: Vec<Pass>,
+    pass_desc: Vec<PassDesc>,
     execution_order: Vec<usize>,
     command_buffers: Vec<Vec<vk::CommandBuffer>>,
     is_compiled: bool,
@@ -51,6 +52,7 @@ impl RenderGraph {
             graphics_queue: queue,
             command_pool: pool,
             resources: RenderGraphResources::new(),
+            pass_desc: vec![],
             passes: vec![],
             command_buffers: vec![],
             is_compiled: false,
@@ -71,61 +73,44 @@ impl RenderGraph {
         }
     }
 
-    fn resolve_path(path: &PathBuf) -> VulkanResult<PathBuf> {
-        const SHADER_PREFIX: &str = "shaders://";
-
-        if path.starts_with(SHADER_PREFIX) {
-            let extenion = path.extension().unwrap().to_str().unwrap();
-
-            let shader_name = path
-                .file_name()
-                .ok_or(VulkanError::Shader(ShaderError::ShaderNameNotValidUnicode))?
-                .to_str()
-                .ok_or(VulkanError::Shader(ShaderError::ShaderNameNotValidUnicode))?;
-
-            let shader_name_no_ext = shader_name
-                .trim_end_matches(".vert")
-                .trim_end_matches(".frag")
-                .trim_end_matches(".comp")
-                .trim_end_matches(".hlsl");
-
-            let file_name = format!("{}-{}.spv", shader_name_no_ext, extenion);
-
-            let root = env!("CARGO_MANIFEST_DIR");
-            let path = Path::new(root).join("shaders/spv/").join(&file_name);
-
-            log::info!("Shader URI: {} -> Path: {:?}", path.display(), path);
-
-            return Ok(path);
-        }
-
-        return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
-    }
-
     fn shader_reflection(
         ctx: &RenderContext,
-        pass: &mut Pass,
-    ) -> VulkanResult<Vec<ShaderReflection>> {
-        pass.shaders()
-            .iter()
-            .map(|shader_path| {
-                let path = Self::resolve_path(shader_path)?;
+        desc: &mut PassDesc,
+    ) -> VulkanResult<PipelineShaderReflection> {
 
-                let shader = ShaderBuilder::new(&ctx.device)
-                    .file_path(path)
-                    .save_bytecode()
-                    .build()?;
+        let mut shaders = vec![];
 
-                let reflection = ShaderReflection::new_from_shader(&shader)?;
+        for source in desc.sources() {
+            let shader = match source {
+                Source::None => todo!(),
+                Source::Path(path_buf) => {
+                    let bytecode = load_spv(path_buf);
+                    ShaderBuilder::new(&ctx.device)
+                        .bytecode(&bytecode)
+                        .build()?
+                },
+                Source::SpirvU32(bytecode) => {
+                    ShaderBuilder::new(&ctx.device)
+                        .bytecode(bytecode)
+                        .build()?
+                }
+                Source::SpirvU8(bytes) => {
+                    ShaderBuilder::new(&ctx.device)
+                        .bytecode(cast_slice(bytes))
+                        .build()?
+                },
+            };
+            shaders.push(shader);
+        }
 
-                Ok(reflection)
-            })
-            .collect()
+        let reflection = PipelineShaderReflection::new_from_shaders(shaders)?;
+
+        Ok(reflection)
     }
 
     fn create_graphics_pipeline(
         ctx: &RenderContext,
-        shader_reflection: &Vec<ShaderReflection>,
+        reflection: &PipelineShaderReflection,
     ) -> VulkanResult<(GraphicsPipeline, PipelineLayout)> {
         let color_blend = vk::PipelineColorBlendAttachmentState::default()
             .color_write_mask(
@@ -136,45 +121,37 @@ impl RenderGraph {
             )
             .blend_enable(false);
 
-        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
-        let _descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device).build()?;
+        let binds = Vertex::bind_desc();
+        let attr = Vertex::attr_desc();
 
-        // let mut vertex_attribute_desc = vec![];
+        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
+            .vertex_binding_descriptions(&binds)
+            .vertex_attribute_descriptions(&attr);
 
-        let (vertex_shader, fragment_shader) =
-            if shader_reflection[0].shader_stage == naga::ShaderStage::Vertex {
-                (&shader_reflection[0], &shader_reflection[1])
-            } else {
-                (&shader_reflection[1], &shader_reflection[1])
-            };
+        let set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
+            .bindings(vec![
+                vk::DescriptorSetLayoutBinding::default()
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .descriptor_count(1)
+            ])
+            .build()?;
 
-        // for i in &vertex_shader.vertex_inputs {
-        //     let desc = vk::VertexInputAttributeDescription::default()
-        //         .binding(0)
-        //         .location(i.location)
-        //         .format(i.format)
-        //         .offset(i.offset);
+        let binds = vec![
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+        ];
 
-        //     vertex_attribute_desc.push(desc);
-        // }
-
-        // println!("Vertex Attrib: {:?}", vertex_attribute_desc);
-
-        // vertex_input_info =
-        // vertex_input_info.vertex_attribute_descriptions(&vertex_attribute_desc);
-
-        // let vertex_binding_desc = vec![
-        //     vk::VertexInputBindingDescription::default()
-        //         .binding(0)
-        //         .stride(std::mem::size_of::<Vertex>() as u32)
-        //         .input_rate(vk::VertexInputRate::VERTEX),
-        // ];
-
-        // vertex_input_info =
-        // vertex_input_info.vertex_binding_descriptions(&vertex_binding_desc);
+        let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
+            .bindings(binds)
+            .build()?;
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
-            .set_layouts(vec![])
+            .set_layouts(vec![
+                descriptor_set_layout.raw
+            ])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
@@ -184,8 +161,8 @@ impl RenderGraph {
             .build()?;
 
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
-            .vertex_shader(vertex_shader.shader)
-            .fragment_shader(fragment_shader.shader)
+            .vertex_shader(reflection.vertex.as_ref().unwrap().raw)
+            .fragment_shader(reflection.fragment.as_ref().unwrap().raw)
             .render_pass(ctx.window.render_pass.raw)
             .pipeline_layout(layout.raw)
             .viewport(vec![vk::Viewport::default()
@@ -243,17 +220,15 @@ impl RenderGraph {
         for _ in 0..ctx.window.frame_sync.len() {
             let cmd = self
                 .command_pool
-                .create_command_buffers(&ctx.device, self.passes.len() as u32)?;
+                .create_command_buffers(&ctx.device, self.pass_desc.len() as u32)?;
             cmd_bufs.push(cmd);
         }
 
-        for (index, pass) in &mut self.passes.iter_mut().enumerate() {
-            let shader_reflections = Self::shader_reflection(ctx, pass)?;
-            if let Err(err) = Self::create_pipeline(ctx, pass, &shader_reflections, resources) {
-                log::error!("Error create pipeline with error: {:?}", err);
-            } else {
-                self.execution_order.push(index);
-            }
+        for (index, mut desc) in &mut self.pass_desc.drain(..).enumerate() {
+            let reflection = Self::shader_reflection(ctx, &mut desc)?;
+            let pass = Self::create_pipeline(ctx, desc, reflection, resources)?;
+            self.passes.push(pass);
+            self.execution_order.push(index);
         }
 
         self.command_buffers = cmd_bufs;
@@ -266,38 +241,35 @@ impl RenderGraph {
 
     fn create_pipeline(
         ctx: &RenderContext,
-        pass: &mut Pass,
-        shader_reflections: &Vec<ShaderReflection>,
+        desc: PassDesc,
+        reflection: PipelineShaderReflection,
         resources: &mut ResourceManager,
-    ) -> VulkanResult<()> {
-        match pass {
-            Pass::Raster(raster) => {
-                let (pipeline, layout) = Self::create_graphics_pipeline(ctx, &shader_reflections)?;
+    ) -> VulkanResult<Pass> {
+
+        let compiled_pass = match desc {
+            PassDesc::Present(present) => {
+                let (pipeline, layout) = Self::create_graphics_pipeline(ctx, &reflection)?;
                 let pipeline_handle = resources.add_raster_pipeline(pipeline);
                 let layout_handle = resources.add_layout(layout);
-                raster.pipeline.as_mut().unwrap().pipeline = pipeline_handle;
-                raster.pipeline.as_mut().unwrap().pipeline_layout = layout_handle;
+                Pass::Present(PresentPass { 
+                    reflection,
+                    reads: present.reads.clone(), 
+                    pipeline_layout: layout_handle, 
+                    pipeline: pipeline_handle, 
+                    execute_fn: present.execute_fn
+                })
             },
+            _ => todo!(),
+        };
 
-            Pass::Present(raster) => {
-                let (pipeline, layout) = Self::create_graphics_pipeline(ctx, &shader_reflections)?;
-                let pipeline_handle = resources.add_raster_pipeline(pipeline);
-                let layout_handle = resources.add_layout(layout);
-                raster.pipeline.as_mut().unwrap().pipeline = pipeline_handle;
-                raster.pipeline.as_mut().unwrap().pipeline_layout = layout_handle;
-            },
-
-            _ => {},
-        }
-
-        Ok(())
+        Ok(compiled_pass)
     }
 
     /// Add pass to [`RenderGraph`]
     /// 
     /// It is recommended to recompile the graph before rendering.
-    pub fn add_pass<P: Into<Pass>>(&mut self, pass: P) {
-        self.passes.push(pass.into());
+    pub fn add_pass<P: Into<PassDesc>>(&mut self, pass: P) {
+        self.pass_desc.push(pass.into());
         self.is_compiled = false;
     }
 
@@ -344,8 +316,8 @@ impl RenderGraph {
                     sync.image_available.raw,
                     vk::Fence::null(),
                 ) {
-                    Ok((index, is_not_optimal)) => {
-                        if is_not_optimal {
+                    Ok((index, is_suboptimal)) => {
+                        if is_suboptimal {
                             return Err(VulkanError::Swapchain(
                                 SwapchainError::SwapchainSubOptimal,
                             ));
@@ -399,9 +371,10 @@ impl RenderGraph {
                 cbuf: command_buffer,
                 pipeline: pass.pipeline(resources),
                 layout: pass.pipeline_layout(resources),
+                resources,
             };
 
-            let renderables = vec![];
+            let renderables = resources.get_renderables();
 
             let clear_values = vec![
                 ClearValue {
@@ -417,7 +390,7 @@ impl RenderGraph {
                 },
             ];
 
-            let frame_buffer = if pass.is_present_pass() {
+            let frame_buffer = if pass.is_present() {
                 &ctx.window.frame_buffers[image_index as usize]
             } else {
                 let handle = pass.framebuffer();
@@ -443,7 +416,7 @@ impl RenderGraph {
                 );
             }
 
-            (*pass.execute())(&pass_ctx, &renderables)?;
+            (*pass.execute())(&pass_ctx, &renderables);
 
             unsafe {
                 device.cmd_end_render_pass(command_buffer);

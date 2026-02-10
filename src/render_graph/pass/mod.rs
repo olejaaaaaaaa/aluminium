@@ -2,7 +2,16 @@ mod present;
 use std::path::PathBuf;
 
 use ash::vk;
-pub use present::PresentPass;
+pub use present::*;
+
+mod desc;
+pub use desc::PassDesc;
+
+mod source;
+pub use source::Source;
+
+mod ops;
+pub use ops::{LoadOp, StoreOp};
 
 mod compute;
 pub use compute::ComputePass;
@@ -16,25 +25,10 @@ pub use rt::RtPass;
 use super::PassContext;
 use crate::core::{VulkanError, VulkanResult};
 use crate::render_graph::RenderGraphResource;
+use crate::render_graph::pass::present::PresentPassDesc;
 use crate::resource_manager::{FrameBufferHandle, Renderable, ResourceManager};
 
-pub type Execute = dyn Fn(&PassContext, &[Renderable]) -> VulkanResult<()>;
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
-pub enum LoadOp {
-    Clear,
-    Store,
-    DontCare,
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
-pub enum StoreOp {
-    Clear,
-    Store,
-    DontCare,
-}
+pub type Execute = dyn Fn(&PassContext, &[Renderable]);
 
 pub enum Pass {
     Rt(RtPass),
@@ -56,7 +50,7 @@ impl Pass {
             Pass::Compute(_compute_pass) => todo!(),
             Pass::Present(present_pass) => {
                 resources
-                    .get_layout(present_pass.pipeline.as_ref().unwrap().pipeline_layout)
+                    .get_layout(present_pass.pipeline_layout)
                     .unwrap()
                     .raw
             },
@@ -75,7 +69,7 @@ impl Pass {
             Pass::Compute(_compute_pass) => todo!(),
             Pass::Present(present_pass) => {
                 resources
-                    .get_raster_pipeline(present_pass.pipeline.as_ref().unwrap().pipeline)
+                    .get_raster_pipeline(present_pass.pipeline)
                     .unwrap()
                     .raw
             },
@@ -91,7 +85,7 @@ impl Pass {
         }
     }
 
-    pub fn is_present_pass(&self) -> bool {
+    pub fn is_present(&self) -> bool {
         match self {
             Pass::Rt(_rt_pass) => false,
             Pass::Raster(_raster_pass) => false,
@@ -102,33 +96,12 @@ impl Pass {
 
     pub fn execute(
         &self,
-    ) -> &Box<dyn Fn(&PassContext, &[Renderable]) -> Result<(), VulkanError> + 'static> {
+    ) -> &Box<dyn Fn(&PassContext, &[Renderable]) + 'static> {
         match self {
-            Pass::Raster(raster) => &raster.execute,
+            Pass::Raster(raster) => &raster.execute_fn,
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Compute(_compute_pass) => todo!(),
-            Pass::Present(present_pass) => &present_pass.execute,
-        }
-    }
-
-    pub fn shaders(&self) -> Vec<PathBuf> {
-        match self {
-            Pass::Raster(raster_pass) => {
-                let pipeline = raster_pass.pipeline.as_ref().unwrap();
-                vec![
-                    pipeline.vertex_shader.clone(),
-                    pipeline.fragment_shader.clone(),
-                ]
-            },
-            Pass::Rt(_rt_pass) => todo!(),
-            Pass::Compute(_compute_pass) => todo!(),
-            Pass::Present(present_pass) => {
-                let pipeline = present_pass.pipeline.as_ref().unwrap();
-                vec![
-                    pipeline.vertex_shader.clone(),
-                    pipeline.fragment_shader.clone(),
-                ]
-            },
+            Pass::Present(present_pass) => &present_pass.execute_fn,
         }
     }
 

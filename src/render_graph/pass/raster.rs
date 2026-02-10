@@ -6,7 +6,7 @@ use slotmap::Key;
 
 use super::{Execute, LoadOp, PassContext, StoreOp};
 use crate::core::VulkanResult;
-use crate::reflection::ShaderReflection;
+use crate::reflection::PipelineShaderReflection;
 use crate::render_graph::{RenderGraphResource, TextureHandle};
 use crate::resource_manager::{
     FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
@@ -68,9 +68,8 @@ pub struct RasterPass {
     pub(crate) writes: Vec<RenderGraphResource>,
     pub(crate) reads: Vec<RenderGraphResource>,
     pub(crate) pipeline: Option<RasterPipeline>,
-    pub(crate) execute: Box<Execute>,
-    #[allow(dead_code)]
-    pub(crate) reflection: Vec<ShaderReflection>,
+    pub(crate) execute_fn: Box<Execute>,
+    pub(crate) reflection: Option<PipelineShaderReflection>,
 }
 
 impl RasterPass {
@@ -79,8 +78,8 @@ impl RasterPass {
             writes: vec![],
             reads: vec![],
             pipeline: None,
-            execute: Box::new(|_, _| Ok(())),
-            reflection: vec![],
+            execute_fn: Box::new(|_, _| {}),
+            reflection: None,
         }
     }
 
@@ -111,9 +110,9 @@ impl RasterPass {
 
     pub fn render<F>(mut self, clojure: F) -> Self
     where
-        F: Fn(&PassContext, &[Renderable]) -> VulkanResult<()> + 'static,
+        F: Fn(&PassContext, &[Renderable]) + 'static,
     {
-        self.execute = Box::new(clojure);
+        self.execute_fn = Box::new(clojure);
         self
     }
 }

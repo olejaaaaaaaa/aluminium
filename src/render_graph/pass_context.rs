@@ -1,23 +1,23 @@
 use ash::vk;
 
 use crate::core::VulkanResult;
-use crate::resource_manager::Renderable;
+use crate::resource_manager::{Renderable, ResourceManager};
 
 /// The context of the currently running pass
-pub struct PassContext {
-    #[allow(dead_code)]
+pub struct PassContext<'a> {
+    pub(crate) resources: &'a ResourceManager,
     pub(crate) bindless_set: vk::DescriptorSet,
     pub(crate) resolution: vk::Extent2D,
     pub(crate) pipeline: vk::Pipeline,
-    #[allow(dead_code)]
     pub(crate) layout: vk::PipelineLayout,
     pub(crate) device: ash::Device,
     pub(crate) cbuf: vk::CommandBuffer,
 }
 
-impl PassContext {
-    pub fn bind_pipeline(&self) -> VulkanResult<()> {
+impl<'a> PassContext<'a> {
+    pub fn bind_pipeline(&self) {
         unsafe {
+
             let view = vk::Viewport::default()
                 .height(self.resolution.height as f32)
                 .width(self.resolution.width as f32)
@@ -39,29 +39,52 @@ impl PassContext {
             self.device
                 .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, self.pipeline)
         };
-        Ok(())
     }
 
-    pub fn bind_bindless(&self) -> VulkanResult<()> {
-        Ok(())
+    pub fn bind_bindless(&self) {
+        unsafe {
+            self.device.cmd_bind_descriptor_sets(
+                self.cbuf, 
+                vk::PipelineBindPoint::GRAPHICS, 
+                self.layout, 
+                0, 
+                &[self.bindless_set], 
+                &[]
+            );
+        }
     }
 
-    pub fn bind_material(&self, _renderable: &Renderable) -> VulkanResult<()> {
-        Ok(())
+    pub fn bind_material(&self, _renderable: &Renderable) {
+  
     }
 
-    pub fn dispatch(&self) -> VulkanResult<()> {
-        Ok(())
+    pub fn dispatch(&self)  {
+   
     }
 
-    pub fn draw_mesh(&self, _renderable: &Renderable) -> VulkanResult<()> {
-        Ok(())
+    pub fn draw_mesh(&self, renderable: &Renderable) {
+        let mesh = self.resources.get_mesh(renderable.mesh);
+        unsafe {
+            self.device.cmd_bind_vertex_buffers(
+                self.cbuf, 
+                0, 
+                &[mesh.vertex_buffer.raw], 
+                &[0]
+            );
+
+            self.device.cmd_draw(
+                self.cbuf, 
+                mesh.vertex_buffer.vertex_count as u32, 
+                1, 
+                0, 
+                0
+            );
+        }
     }
 
-    pub fn draw_fullscreen_triangle(&self) -> VulkanResult<()> {
+    pub fn draw_fullscreen_triangle(&self) {
         unsafe {
             self.device.cmd_draw(self.cbuf, 3, 1, 0, 0);
         }
-        Ok(())
     }
 }

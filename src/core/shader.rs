@@ -9,7 +9,7 @@ use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
 pub struct ShaderModule {
-    pub(crate) spirv_bytes: Option<Vec<u32>>,
+    pub(crate) bytes: Vec<u8>,
     pub(crate) raw: vk::ShaderModule,
 }
 
@@ -22,38 +22,30 @@ impl ShaderModule {
     }
 }
 
-pub struct ShaderBuilder<'a, S: AsRef<Path>> {
+pub struct ShaderBuilder<'a> {
     device: &'a Device,
-    save_bytecode: bool,
-    path: Option<S>,
+    bytecode: Option<&'a [u32]>,
 }
 
-impl<'a, S: AsRef<Path>> ShaderBuilder<'a, S> {
+impl<'a> ShaderBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
         Self {
             device,
-            save_bytecode: false,
-            path: None,
+            bytecode: None
         }
     }
 
-    pub fn save_bytecode(mut self) -> Self {
-        self.save_bytecode = true;
-        self
-    }
-
-    pub fn file_path(mut self, path: S) -> Self {
-        self.path = Some(path);
+    pub fn bytecode(mut self, bytecode: &'a [u32]) -> Self {
+        self.bytecode = Some(bytecode);
         self
     }
 
     pub fn build(self) -> VulkanResult<ShaderModule> {
         profile_scope!("ShaderModule");
 
-        let path = self.path.unwrap();
         let device = self.device;
+        let code = self.bytecode.unwrap();
 
-        let code = load_spv(path.as_ref());
         let create_info = vk::ShaderModuleCreateInfo::default().code(&code);
 
         let shader = unsafe {
@@ -62,11 +54,9 @@ impl<'a, S: AsRef<Path>> ShaderBuilder<'a, S> {
                 .map_err(|e| VulkanError::Unknown(e))?
         };
 
-        let bytes = if self.save_bytecode { Some(code) } else { None };
-
         Ok(ShaderModule {
             raw: shader,
-            spirv_bytes: bytes,
+            bytes: bytemuck::cast_slice(&code).to_vec()
         })
     }
 }
@@ -77,6 +67,7 @@ pub(crate) fn read_shader_from_bytes(bytes: &[u8]) -> Result<Vec<u32>, Box<dyn E
 }
 
 pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
+
     let mut file = std::fs::File::open(path).unwrap();
     let mut text = Vec::new();
     file.read_to_end(&mut text).unwrap();
