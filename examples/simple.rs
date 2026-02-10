@@ -3,10 +3,7 @@
 use std::error::Error;
 
 use aluminium::types::Vertex;
-use aluminium::{
-    Material, PresentPass, PresentPassBuilder, Renderable, Transform, WorldRenderer
-};
-
+use aluminium::{Material, PresentPass, PresentPassBuilder, Renderable, Transform, WorldRenderer};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -59,9 +56,18 @@ impl ApplicationHandler for App {
         let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
 
         let triangle_mesh = vec![
-            Vertex { pos: [-0.8, -0.8, 0.0], color: [1.0, 0.0, 0.0] },
-            Vertex { pos: [ 0.8, -0.8, 0.0], color: [0.0, 1.0, 0.0] },
-            Vertex { pos: [ 0.0,  0.8, 0.0], color: [0.0, 0.0, 1.0] },
+            Vertex {
+                pos: [-0.8, -0.8, 0.0],
+                color: [1.0, 0.0, 0.0],
+            },
+            Vertex {
+                pos: [0.8, -0.8, 0.0],
+                color: [0.0, 1.0, 0.0],
+            },
+            Vertex {
+                pos: [0.0, 0.8, 0.0],
+                color: [0.0, 0.0, 1.0],
+            },
         ];
 
         let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
@@ -75,12 +81,14 @@ impl ApplicationHandler for App {
                 .fragment(r"shaders\spv\raster_ps-hlsl.spv")
                 .execute(|ctx, renderables| {
                     ctx.bind_bindless();
+                    ctx.set_scissor(None);
+                    ctx.set_viewport(None);
                     ctx.bind_pipeline();
                     for i in renderables {
                         ctx.draw_mesh(i);
                     }
                 })
-                .build()
+                .build(),
         );
 
         self.world = Some(world);
