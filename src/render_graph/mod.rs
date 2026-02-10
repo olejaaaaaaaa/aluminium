@@ -141,7 +141,12 @@ impl RenderGraph {
                 .binding(0)
                 .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
+                .descriptor_count(1),
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(10000)
         ];
 
         let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)

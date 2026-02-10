@@ -33,7 +33,7 @@ new_key_type! { pub struct FrameBufferHandle; }
 pub struct ResourceManager {
     mesh: MeshCollection,
     material: MaterialCollection,
-    transform: TransformCollection,
+    pub(crate) transform: TransformCollection,
     renderable: RenderableCollection,
     raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
     pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,

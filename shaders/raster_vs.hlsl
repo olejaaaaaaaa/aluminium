@@ -5,9 +5,14 @@ struct CameraData {
     float4   pos;
 };
 
-cbuffer CameraBuffer : register(b0) {
-    CameraData camera;
+struct Transform {
+    float4x4 rot;
+    float4   scale;
+    float4   pos;
 };
+
+[[vk::binding(0, 0)]] StructuredBuffer<CameraData> camera;
+[[vk::binding(0, 1)]] StructuredBuffer<Transform> transforms;
 
 struct VSInput
 {
@@ -18,7 +23,7 @@ struct VSInput
 struct VSOutput
 {
     float4 position : SV_POSITION;
-    float3 color    : COLOR0;      
+    float4 color    : COLOR0;      
 };
 
 VSOutput main(VSInput input)
@@ -26,8 +31,8 @@ VSOutput main(VSInput input)
     VSOutput output;
 
     float4 worldPos = float4(input.position, 1.0f);
-    output.position = mul(camera.proj, mul(camera.view, worldPos));
-    output.color = input.color;
+    output.position = worldPos;
+    output.color = float4(input.color, 1.0);
 
     return output;
 }

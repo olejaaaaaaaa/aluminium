@@ -3,7 +3,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
 
-const MAX_TRANSFORMS: usize = 100000;
+const MAX_TRANSFORMS: usize = 10000;
 
 #[derive(Clone, Copy)]
 pub struct TransformHandle(pub(crate) usize);
@@ -12,10 +12,10 @@ pub struct TransformHandle(pub(crate) usize);
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Transform {
-    /// Scale
-    pub scale: [f32; 4],
     /// Rot
     pub rot: [[f32; 4]; 4],
+    /// Scale
+    pub scale: [f32; 4],
     /// Pos
     pub pos: [f32; 4],
 }
@@ -53,6 +53,7 @@ impl TransformCollection {
     }
 
     pub fn new(device: &Device) -> VulkanResult<Self> {
+
         let count = MAX_TRANSFORMS;
         let size = (size_of::<Transform>() * count) as u64;
 

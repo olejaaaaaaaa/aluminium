@@ -48,6 +48,7 @@ impl WorldRenderer {
         // platform
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
+        let resources = ResourceManager::new(&ctx)?;
 
         let mut bindless = BindlessBuilder::new(&ctx.device)
             .with(
@@ -55,6 +56,12 @@ impl WorldRenderer {
                 1,
                 vk::DescriptorType::UNIFORM_BUFFER,
                 vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            )
+            .with(
+                1, 
+                10000, 
+                vk::DescriptorType::STORAGE_BUFFER, 
+                vk::ShaderStageFlags::VERTEX
             )
             .build()?;
 
@@ -67,8 +74,16 @@ impl WorldRenderer {
             size_of::<CameraData>() as u64,
         );
 
+        bindless.update_buffer_set(
+            &ctx.device,
+            1,
+            vk::DescriptorType::STORAGE_BUFFER,
+            resources.transform.buffer.raw,
+            0,
+            size_of::<Transform>() as u64 * 10000,
+        );
+
         let graph = RenderGraph::new(&ctx, &bindless)?;
-        let resources = ResourceManager::new(&ctx)?;
 
         Ok(WorldRenderer {
             bindless,
