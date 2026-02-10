@@ -2,8 +2,9 @@
 
 use std::error::Error;
 
+use aluminium::types::Vertex;
 use aluminium::{
-    PresentPass, WorldRenderer,
+    Material, PresentPass, PresentPassBuilder, Renderable, Transform, WorldRenderer
 };
 
 use winit::application::ApplicationHandler;
@@ -57,38 +58,30 @@ impl ApplicationHandler for App {
 
         let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
 
+        let triangle_mesh = vec![
+            Vertex { pos: [-0.8, -0.8, 0.0], color: [1.0, 0.0, 0.0] },
+            Vertex { pos: [ 0.8, -0.8, 0.0], color: [0.0, 1.0, 0.0] },
+            Vertex { pos: [ 0.0,  0.8, 0.0], color: [0.0, 0.0, 1.0] },
+        ];
+
+        let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
+        let material = world.create_material(Material::new()).unwrap();
+        let transform = world.create_transform(Transform::identity()).unwrap();
+        let _ = world.create_renderable(Renderable::new(mesh, material, transform));
+
         world.graph_mut().add_pass(
-            PresentPass::new()
-                .pipeline()
-                .vertex("shaders://raster_vs.hlsl")
-                .fragment("shaders://raster_ps.hlsl")
-                .end_pipeline()
-                .draw(|ctx, _| {
-                    ctx.bind_pipeline()?;
-                    ctx.draw_fullscreen_triangle()?;
-                    Ok(())
-                }),
+            PresentPassBuilder::new()
+                .vertex(r"shaders\spv\raster_vs-hlsl.spv")
+                .fragment(r"shaders\spv\raster_ps-hlsl.spv")
+                .execute(|ctx, renderables| {
+                    ctx.bind_bindless();
+                    ctx.bind_pipeline();
+                    for i in renderables {
+                        ctx.draw_mesh(i);
+                    }
+                })
+                .build()
         );
-
-        // let triangle_mesh = vec![
-        //     Vertex {
-        //         pos: [0.0, 0.5, 0.0],
-        //         color: [1.0, 0.0, 0.0],
-        //     },
-        //     Vertex {
-        //         pos: [-0.5, -0.5, 0.0],
-        //         color: [0.0, 1.0, 0.0],
-        //     },
-        //     Vertex {
-        //         pos: [0.5, -0.5, 0.0],
-        //         color: [0.0, 0.0, 1.0],
-        //     },
-        // ];
-
-        // let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
-        // let material = world.create_material(Material::new()).unwrap();
-        // let transform = world.create_transform(Transform::identity()).unwrap();
-        // let _ = world.create_renderable(Renderable::new(mesh, material, transform));
 
         self.world = Some(world);
         self.window = Some(window);
@@ -97,7 +90,7 @@ impl ApplicationHandler for App {
 
 fn main() -> Result<(), Box<dyn Error>> {
     unsafe {
-        std::env::set_var("RUST_LOG", "Debug");
+        std::env::set_var("RUST_LOG", "Info");
     }
 
     env_logger::builder().init();
