@@ -46,8 +46,6 @@ fn main() {
         let name = words[0];
         let format = words[1];
 
-        println!("cargo:warning=Compile Shader: {}", original_name);
-
         if format == "frag" || format == "vert" {
             let out_name = format!("{}-{}.spv", name, format);
             let output_path = spv_output_dir.join(&out_name);
@@ -96,7 +94,8 @@ fn main() {
                 .arg("-Fo")
                 .arg(output_path.to_str().unwrap())
                 .spawn()
-                .and_then(|mut e| e.wait())
+                .unwrap()
+                .wait()
                 .unwrap();
 
             if !res.success() {
