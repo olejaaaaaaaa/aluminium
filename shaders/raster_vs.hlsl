@@ -1,19 +1,33 @@
+
+struct CameraData {
+    float4x4 view;
+    float4x4 proj;
+    float4   pos;
+};
+
+cbuffer CameraBuffer : register(b0) {
+    CameraData camera;
+};
+
+struct VSInput
+{
+    float3 position : POSITION;     
+    float3 color    : COLOR0;      
+};
+
 struct VSOutput
 {
     float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
+    float3 color    : COLOR0;      
 };
 
-VSOutput main(uint vertexID : SV_VertexID)
+VSOutput main(VSInput input)
 {
     VSOutput output;
-    
-    // Генерируем UV координаты из vertexID
-    float2 uv = float2((vertexID << 1) & 2, vertexID & 2);
-    output.uv = uv;
-    
-    // Преобразуем в clip space (-1 до 1)
-    output.position = float4(uv * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
-    
+
+    float4 worldPos = float4(input.position, 1.0f);
+    output.position = mul(camera.proj, mul(camera.view, worldPos));
+    output.color = input.color;
+
     return output;
 }

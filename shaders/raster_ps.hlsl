@@ -1,11 +1,20 @@
-struct PSInput
+struct VSInput
 {
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
+    float3 position : POSITION;     
+    float3 color    : COLOR0;      
 };
 
-float4 main(PSInput input) : SV_TARGET
+struct VSOutput
 {
-    // Яркий градиент
-    return float4(input.uv.x, input.uv.y, 1.0 - input.uv.x, 1.0);
+    float4 position : SV_POSITION;
+    float3 color    : COLOR0;      
+};
+
+VSOutput main(VSInput input)
+{
+    VSOutput output;
+    output.position = float4(input.position, 1.0);
+    output.color = input.color;
+
+    return output;
 }
