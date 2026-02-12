@@ -24,66 +24,90 @@ pub use transforms::*;
 mod renderable;
 pub use renderable::*;
 
-new_key_type! { pub struct PipelineLayoutHandle; }
-new_key_type! { pub struct SamplerHandle; }
-new_key_type! { pub struct RasterPipelineHandle; }
+new_key_type! { 
+    pub struct PipelineLayoutHandle; 
+    pub struct SamplerHandle;
+    pub struct RasterPipelineHandle;
+    pub struct FrameBufferHandle;
+}
 
-new_key_type! { pub struct FrameBufferHandle; }
-
-pub struct ResourceManager {
-    mesh: MeshCollection,
-    material: MaterialCollection,
+pub struct AssetManager {
+    pub(crate) mesh: MeshCollection,
+    pub(crate) material: MaterialCollection,
     pub(crate) transform: TransformCollection,
-    renderable: RenderableCollection,
+    pub(crate) renderable: RenderableCollection,
+}
+
+impl AssetManager {
+    pub fn new(device: &Device) -> VulkanResult<Self> {
+        Ok(Self {
+            mesh: MeshCollection::new(),
+            material: MaterialCollection::new(),
+            transform: TransformCollection::new(device)?,
+            renderable: RenderableCollection::new()
+        })
+    }
+}
+
+pub struct LowLevelManager {
     raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
     pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,
     frame_buffer: SlotMap<FrameBufferHandle, FrameBuffer>,
-    #[allow(dead_code)]
     sampler: SlotMap<SamplerHandle, Sampler>,
+}
+
+impl LowLevelManager {
+    pub fn new() -> Self {
+        Self { 
+            raster_pipeline: SlotMap::with_key(), 
+            pipeline_layout: SlotMap::with_key(), 
+            frame_buffer: SlotMap::with_key(), 
+            sampler: SlotMap::with_key() 
+        }
+    }
+}
+
+pub struct ResourceManager {
+    pub(crate) assets: AssetManager,
+    pub(crate) low_level: LowLevelManager,
 }
 
 impl ResourceManager {
     pub fn destroy(&self, _device: &Device) {}
 
-    pub fn new(ctx: &RenderContext) -> VulkanResult<Self> {
-        Ok(ResourceManager {
-            mesh: MeshCollection::new(),
-            material: MaterialCollection::new(),
-            transform: TransformCollection::new(&ctx.device)?,
-            renderable: RenderableCollection::new(),
-            sampler: SlotMap::with_key(),
-            frame_buffer: SlotMap::with_key(),
-            pipeline_layout: SlotMap::with_key(),
-            raster_pipeline: SlotMap::with_key(),
+    pub fn new(device: &Device) -> VulkanResult<Self> {
+        Ok(Self {
+            assets: AssetManager::new(device)?,
+            low_level: LowLevelManager::new()
         })
     }
 
     pub fn get_renderables(&self) -> Vec<Renderable> {
-        self.renderable.get_renderables().clone()
+        self.assets.renderable.get_renderables().clone()
     }
 
     pub fn get_mesh(&self, handle: MeshHandle) -> &Mesh {
-        self.mesh.get_mesh(handle)
+        self.assets.mesh.get_mesh(handle)
     }
 
     pub fn add_raster_pipeline(&mut self, pipeline: GraphicsPipeline) -> RasterPipelineHandle {
-        self.raster_pipeline.insert(pipeline)
+        self.low_level.raster_pipeline.insert(pipeline)
     }
 
     pub fn add_layout(&mut self, pipeline: PipelineLayout) -> PipelineLayoutHandle {
-        self.pipeline_layout.insert(pipeline)
+        self.low_level.pipeline_layout.insert(pipeline)
     }
 
     pub fn get_layout(&mut self, pipeline: PipelineLayoutHandle) -> Option<&PipelineLayout> {
-        self.pipeline_layout.get(pipeline)
+        self.low_level.pipeline_layout.get(pipeline)
     }
 
     pub fn get_raster_pipeline(&self, pipeline: RasterPipelineHandle) -> Option<&GraphicsPipeline> {
-        self.raster_pipeline.get(pipeline)
+        self.low_level.raster_pipeline.get(pipeline)
     }
 
     pub fn get_framebuffer(&self, frame_buffer: FrameBufferHandle) -> Option<&FrameBuffer> {
-        self.frame_buffer.get(frame_buffer)
+        self.low_level.frame_buffer.get(frame_buffer)
     }
 
     pub fn create_static_mesh_immediately<
@@ -116,7 +140,7 @@ impl ResourceManager {
             None
         };
 
-        Ok(self.mesh.add_mesh(Mesh {
+        Ok(self.assets.mesh.add_mesh(Mesh {
             instance_offset: 0,
             instance_count: 1,
             vertex_offset: 0,
@@ -128,14 +152,14 @@ impl ResourceManager {
     }
 
     pub fn create_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
-        self.renderable.add_renderable(renderable)
+        self.assets.renderable.add_renderable(renderable)
     }
 
     pub fn create_material(&mut self, material: Material) -> MaterialHandle {
-        self.material.add_material(material)
+        self.assets.material.add_material(material)
     }
 
     pub fn create_transform(&mut self, transform: Transform) -> TransformHandle {
-        self.transform.create_transform(transform)
+        self.assets.transform.create_transform(transform)
     }
 }
