@@ -4,6 +4,7 @@ use std::mem::ManuallyDrop;
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use puffin::{profile_scope, GlobalProfiler};
+use winit::window::Window;
 
 use super::render_context::RenderContext;
 use crate::bindless::{Bindless, BindlessBuilder};
@@ -20,35 +21,43 @@ use crate::resource_manager::{
 /// A lightweight abstraction for rendering using the Vulkan API
 pub struct WorldRenderer {
     /// Resource Manager
+    ///
+    /// Contains resources for rendering and caches them
     pub(crate) resources: ResourceManager,
     /// Bindless
+    ///
+    /// Natively supported on Windows and Linux; on other platforms, falls back to arrays
     pub(crate) bindless: Bindless,
     /// Render Graph
+    ///
     /// The rendering graph automatically creates the necessary resources and
-    /// performs topological sorting.
+    /// performs topological sorting
     pub(crate) graph: RenderGraph,
     /// Main Camera
+    ///
+    /// Provides data and methods for changing it
     pub(crate) camera: Camera,
-    /// RenderContext
-    /// The rendering context provides an entry point for creating and deleting
-    /// Vulkan objects
+    /// Render Context
+    ///
+    /// The rendering context provides an entry point for creating and deleting resources
     pub(crate) ctx: ManuallyDrop<RenderContext>,
     /// This structure not Send and Sync!
     pub(crate) _marker: PhantomData<*mut ()>,
 }
 
 impl WorldRenderer {
-    /// Create new WorldRenderer!
-    /// # Panic!
+    /// Creates a new [`WorldRenderer`].
+    ///
+    /// # Panics
     ///
     /// If Vulkan is not found on this device or the device does not support
     /// core formats or features.
-    pub fn new(window: &winit::window::Window) -> VulkanResult<WorldRenderer> {
+    pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         // Automatically enable required extensions/layers/features depending on the
         // platform
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
-        let resources = ResourceManager::new(&ctx)?;
+        let resources = ResourceManager::new(&ctx.device)?;
 
         let mut bindless = BindlessBuilder::new(&ctx.device)
             .with(
@@ -78,7 +87,7 @@ impl WorldRenderer {
             &ctx.device,
             1,
             vk::DescriptorType::STORAGE_BUFFER,
-            resources.transform.buffer.raw,
+            resources.assets.transform.buffer.raw,
             0,
             size_of::<Transform>() as u64 * 10000,
         );
@@ -95,20 +104,21 @@ impl WorldRenderer {
         })
     }
 
-    /// Get mut ref to Camera
+    /// Gets a reference to the [`Camera`]
     pub fn camera_mut(&mut self) -> &mut Camera {
         &mut self.camera
     }
 
-    /// Get ref to Camera
+    /// Gets a reference to the [`Camera`]
     pub fn camera(&self) -> &Camera {
         &self.camera
     }
 
-    /// Create immutable mesh at the moment and block current thread
-    /// # Panic!
+    /// Creates an immutable mesh
     ///
-    /// If not enought memory for new allocation
+    /// # Panics
+    ///
+    /// if there is not enough memory for a new allocation
     pub fn create_mesh<T>(
         &mut self,
         vertices: &[T],
@@ -122,6 +132,9 @@ impl WorldRenderer {
     }
 
     /// Create new Material
+    /// # Panic!
+    /// 
+    /// if not success allocate descriptor set
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
         Ok(self.resources.create_material(material))
     }
@@ -136,13 +149,13 @@ impl WorldRenderer {
         self.resources.create_renderable(renderable)
     }
 
-    /// Resize the window
-    /// # Panic!
-    /// If the GPU has stopped responding
+    /// Resizes the window
     ///
-    /// If not enough memory
+    /// # Panics
     ///
-    /// If you were unable to create new resources or delete old ones
+    /// - If the GPU has stopped responding
+    /// - If there is not enough memory
+    /// - If new resources cannot be created or old ones deleted
     pub fn resize(&mut self, width: u32, height: u32) -> VulkanResult<()> {
         profile_scope!("WorldRenderer::resize");
 
@@ -152,17 +165,16 @@ impl WorldRenderer {
         }
 
         self.ctx.resize(width, height)?;
-        self.graph.recreate_transient_resources(width, height);
 
         Ok(())
     }
 
-    /// Get mut ref to RenderGraph
+    /// Get mut ref to [`RenderGraph`]
     pub fn graph_mut(&mut self) -> &mut RenderGraph {
         &mut self.graph
     }
 
-    /// Get ref to RenderGraph
+    /// Get ref to [`RenderGraph`]
     pub fn graph(&mut self) -> &RenderGraph {
         &self.graph
     }
@@ -170,7 +182,7 @@ impl WorldRenderer {
     /// Draw a frame or skip a frame if some resources need to be create
     /// # Panic!
     ///
-    /// If the GPU has stopped responding
+    /// If the GPU has stopped responding or an unexpected error occurred
     pub fn draw_frame(&mut self) -> VulkanResult<()> {
         profile_scope!("WorldRenderer::draw_frame");
         GlobalProfiler::lock().new_frame();
@@ -187,7 +199,7 @@ impl WorldRenderer {
                 },
             },
             Err(err) => {
-                log::error!("Error draw frame: {:?}", err);
+                return Err(err);
             },
         }
 
