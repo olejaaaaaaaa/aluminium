@@ -18,11 +18,11 @@ impl DescriptorPool {
 
         let desc = vk::DescriptorSetAllocateInfo::default()
             .descriptor_pool(self.raw)
-            .set_layouts(&layouts);
+            .set_layouts(layouts);
 
-        let sets = unsafe { device.allocate_descriptor_sets(&desc).unwrap() };
+        
 
-        sets
+        unsafe { device.allocate_descriptor_sets(&desc).unwrap() }
     }
 }
 
@@ -55,7 +55,7 @@ impl<'a> DescriptorPoolBuilder<'a> {
         let pool = unsafe {
             self.device
                 .create_descriptor_pool(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(DescriptorPool { raw: pool })

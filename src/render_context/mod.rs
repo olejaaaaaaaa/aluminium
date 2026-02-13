@@ -20,50 +20,26 @@ pub struct RenderContext {
     pub(crate) device: GraphicsDevice,
 }
 
-pub struct RenderContextConfig {
-    #[allow(dead_code)]
-    frame_count: Option<u32>,
-    #[allow(dead_code)]
-    phys_dev_type_priority: Vec<vk::PhysicalDeviceType>,
-    #[allow(dead_code)]
-    surface_format_priority: Vec<vk::Format>,
-    #[allow(dead_code)]
-    depth_format_priority: Vec<vk::Format>,
-    #[allow(dead_code)]
-    present_mode_priority: Vec<vk::PresentModeKHR>,
-    max_api_version: u32,
-    min_api_version: u32,
-}
-
-impl Default for RenderContextConfig {
-    fn default() -> Self {
-        RenderContextConfig {
-            frame_count: None,
-            phys_dev_type_priority: vec![
-                vk::PhysicalDeviceType::DISCRETE_GPU,
-                vk::PhysicalDeviceType::INTEGRATED_GPU,
-            ],
-            surface_format_priority: vec![vk::Format::R8G8B8A8_SRGB, vk::Format::B8G8R8A8_SRGB],
-            depth_format_priority: vec![vk::Format::D32_SFLOAT],
-            present_mode_priority: vec![vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::FIFO],
-            max_api_version: vk::API_VERSION_1_0,
-            min_api_version: vk::API_VERSION_1_0,
-        }
-    }
-}
-
 impl RenderContext {
+    /// Recreate
+    /// - Swapchain
+    /// - `FrameBuffers`
+    /// - `ImageViews`
     pub fn resize(&mut self, width: u32, height: u32) -> VulkanResult<()> {
         self.window.resize(&self.device, width, height)
     }
 
-    pub fn with_config(
-        window: &winit::window::Window,
-        config: RenderContextConfig,
-    ) -> VulkanResult<RenderContext> {
+    /// Create Render Context with default params
+    ///
+    /// Render Pass with Depth Image
+    ///
+    /// Choose integrated GPU
+    ///
+    /// Only Vulkan 1.0 and the most necessary extensions
+    pub fn new(window: &winit::window::Window) -> VulkanResult<RenderContext> {
         let app = AppBuilder::default()
-            .with_min_api_version(config.min_api_version)
-            .with_max_api_version(config.max_api_version)
+            .with_min_api_version(vk::API_VERSION_1_0)
+            .with_max_api_version(vk::API_VERSION_1_2)
             .build()?;
 
         let instance = InstanceBuilder::default(&app).build()?;
@@ -145,18 +121,6 @@ impl RenderContext {
                 queue_pool: pool,
             },
         })
-    }
-
-    /// Create Render Context with default params
-    ///
-    /// Render Pass with Depth Image
-    ///
-    /// Chouse integrated GPU
-    ///
-    /// Only Vulkan 1.0 and the most necessary extensions
-    pub fn new(window: &winit::window::Window) -> VulkanResult<Self> {
-        let config = RenderContextConfig::default();
-        Self::with_config(window, config)
     }
 
     // Debug

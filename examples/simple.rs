@@ -33,7 +33,6 @@ impl ApplicationHandler for App {
 
                 let world = self.world.as_mut().unwrap();
                 let _ = world.draw_frame(|graph| {
-
                     graph.add_pass(
                         PresentPassBuilder::new()
                             .vertex(r"shaders\spv\raster_vs-hlsl.spv")
@@ -47,10 +46,8 @@ impl ApplicationHandler for App {
                                     ctx.draw_mesh(i);
                                 }
                             })
-                            .build()
+                            .build(),
                     );
-
-                    
                 });
             },
             _ => (),

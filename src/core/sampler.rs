@@ -37,7 +37,7 @@ impl<'a> SamplerBuilder<'a> {
         let sampler = unsafe {
             self.device
                 .create_sampler(&self.sampler_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(Sampler { raw: sampler })

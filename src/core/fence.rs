@@ -27,7 +27,7 @@ impl<'a> FenceBuilder<'a> {
         let fence = unsafe {
             self.device
                 .create_fence(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(Fence { raw: fence })

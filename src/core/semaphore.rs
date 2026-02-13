@@ -26,7 +26,7 @@ impl<'a> SemaphoreBuilder<'a> {
         let sem = unsafe {
             self.device
                 .create_semaphore(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(Semaphore { raw: sem })

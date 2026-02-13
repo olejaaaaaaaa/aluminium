@@ -105,7 +105,7 @@ impl<'a> RenderPassBuilder<'a> {
         let render_pass = unsafe {
             device
                 .create_render_pass(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(RenderPass { raw: render_pass })

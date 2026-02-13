@@ -65,7 +65,7 @@ impl<'a> DeviceBuilder<'a> {
         let p_extenions = self
             .extenions
             .iter()
-            .map(|p| p.as_ptr() as *const i8)
+            .map(|p| p.as_ptr().cast::<i8>())
             .collect::<Vec<_>>();
 
         let binding = [queue_create_info];
@@ -78,7 +78,7 @@ impl<'a> DeviceBuilder<'a> {
             self.instance
                 .raw
                 .create_device(phys_dev.raw, &create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         let queue_prop = unsafe {

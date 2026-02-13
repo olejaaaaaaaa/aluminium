@@ -1,9 +1,7 @@
-
-use super::Source;
-use super::PresentPassDesc;
+use super::{PresentPassDesc, Source};
 
 pub enum PassDesc {
-    Present(PresentPassDesc)
+    Present(PresentPassDesc),
 }
 
 impl PassDesc {
@@ -11,10 +9,10 @@ impl PassDesc {
         match self {
             PassDesc::Present(pass) => {
                 vec![
-                    &pass.vertex_shader,
-                    &pass.fragment_shader
+                    &pass.pipeline_desc.vertex_shader,
+                    &pass.pipeline_desc.fragment_shader,
                 ]
-            }
+            },
         }
     }
 }

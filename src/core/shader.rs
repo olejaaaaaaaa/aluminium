@@ -31,7 +31,7 @@ impl<'a> ShaderBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
         Self {
             device,
-            bytecode: None
+            bytecode: None,
         }
     }
 
@@ -46,17 +46,17 @@ impl<'a> ShaderBuilder<'a> {
         let device = self.device;
         let code = self.bytecode.unwrap();
 
-        let create_info = vk::ShaderModuleCreateInfo::default().code(&code);
+        let create_info = vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader = unsafe {
             device
                 .create_shader_module(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(ShaderModule {
             raw: shader,
-            bytes: bytemuck::cast_slice(&code).to_vec()
+            bytes: bytemuck::cast_slice(code).to_vec(),
         })
     }
 }
@@ -67,7 +67,6 @@ pub(crate) fn read_shader_from_bytes(bytes: &[u8]) -> Result<Vec<u32>, Box<dyn E
 }
 
 pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
-
     let mut file = std::fs::File::open(path).unwrap();
     let mut text = Vec::new();
     file.read_to_end(&mut text).unwrap();

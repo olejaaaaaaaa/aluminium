@@ -37,7 +37,7 @@ impl<'a> SurfaceBuilder<'a> {
                 self.window.window_handle().unwrap().into(),
                 None,
             )
-            .map_err(|e| VulkanError::Unknown(e))?
+            .map_err(VulkanError::Unknown)?
         };
 
         let loader = ash::khr::surface::Instance::new(&self.app.entry, &self.instance.raw);

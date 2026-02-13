@@ -109,7 +109,7 @@ impl<'a> ImageBuilder<'a> {
             self.device
                 .allocator
                 .create_image(&self.create_info, &self.alloc_info)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(Image {

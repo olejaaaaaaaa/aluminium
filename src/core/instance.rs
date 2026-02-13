@@ -46,7 +46,7 @@ impl<'a> InstanceBuilder<'a> {
             self.app
                 .entry
                 .enumerate_instance_extension_properties(None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         let layers = [c"VK_LAYER_KHRONOS_validation"];
@@ -78,7 +78,7 @@ impl<'a> InstanceBuilder<'a> {
             self.app
                 .entry
                 .create_instance(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         let debug = if self.enable_debug {

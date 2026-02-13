@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 use crate::render_graph::TextureHandle;
 
 #[derive(Clone, Copy)]
@@ -37,9 +36,9 @@ pub enum UniformValue {
     Texture(TextureHandle),
 }
 
-impl Into<UniformValue> for f32 {
-    fn into(self) -> UniformValue {
-        UniformValue::Float32(self)
+impl From<f32> for UniformValue {
+    fn from(val: f32) -> Self {
+        UniformValue::Float32(val)
     }
 }
 
@@ -50,7 +49,6 @@ pub struct Material {
 }
 
 impl Material {
-
     /// Create new Material
     #[allow(dead_code)]
     pub fn new() -> Self {

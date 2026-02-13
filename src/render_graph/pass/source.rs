@@ -1,35 +1,34 @@
-use std::{path::PathBuf, str::FromStr};
-
+use std::path::PathBuf;
 
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub enum Source {
     None,
     Path(PathBuf),
     SpirvU32(Vec<u32>),
-    SpirvU8(Vec<u8>)
+    SpirvU8(Vec<u8>),
 }
 
-impl Into<Source> for &'static str {
-    fn into(self) -> Source {
-        Source::Path(PathBuf::from(self))
+impl From<&'static str> for Source {
+    fn from(val: &'static str) -> Self {
+        Source::Path(PathBuf::from(val))
     }
 }
 
-impl Into<Source> for String {
-    fn into(self) -> Source {
-        Source::Path(PathBuf::from(self))
+impl From<String> for Source {
+    fn from(val: String) -> Self {
+        Source::Path(PathBuf::from(val))
     }
 }
 
-impl Into<Source> for &[u32] {
-    fn into(self) -> Source {
-        Source::SpirvU32(self.to_vec())
+impl From<&[u32]> for Source {
+    fn from(val: &[u32]) -> Self {
+        Source::SpirvU32(val.to_vec())
     }
 }
 
-impl Into<Source> for &[u8] {
-    fn into(self) -> Source {
-        Source::SpirvU8(self.to_vec())
+impl From<&[u8]> for Source {
+    fn from(val: &[u8]) -> Self {
+        Source::SpirvU8(val.to_vec())
     }
 }

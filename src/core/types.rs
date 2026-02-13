@@ -22,7 +22,6 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    
     /// Create cube mesh
     #[allow(dead_code)]
     pub fn cube(_x: f32, _y: f32, _z: f32) -> Vec<Vertex> {

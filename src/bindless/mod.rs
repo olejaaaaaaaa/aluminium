@@ -51,7 +51,7 @@ impl<'a> BindlessBuilder<'a> {
         }
 
         let set_layout = DescriptorSetLayoutBuilder::new(self.device)
-            .bindings((&bindings).to_vec())
+            .bindings(bindings.clone())
             .build()?;
 
         let mut pool_sizes = vec![];

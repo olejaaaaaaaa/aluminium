@@ -45,7 +45,7 @@ impl<'a> PipelineLayoutBuilder<'a> {
         let layout = unsafe {
             self.device
                 .create_pipeline_layout(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(PipelineLayout { raw: layout })

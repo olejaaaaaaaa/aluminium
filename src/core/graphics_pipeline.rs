@@ -1,4 +1,3 @@
-
 use ash::vk;
 use puffin::profile_scope;
 
@@ -148,7 +147,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         let mut dynamic_state = None;
         if let Some(_dynamic_states) = &self.dynamic_state {
             let _dynamic_state =
-                vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&_dynamic_states);
+                vk::PipelineDynamicStateCreateInfo::default().dynamic_states(_dynamic_states);
 
             dynamic_state = Some(_dynamic_state);
         }
@@ -167,7 +166,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .module(vertex)
                     .name(c"main")
                     .stage(vk::ShaderStageFlags::VERTEX),
-            )
+            );
         }
 
         if let Some(fragment) = self.fragment_shader {
@@ -176,7 +175,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                     .module(fragment)
                     .name(c"main")
                     .stage(vk::ShaderStageFlags::FRAGMENT),
-            )
+            );
         }
 
         create_info = create_info.stages(&shader_states_infos);

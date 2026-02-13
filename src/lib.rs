@@ -1,5 +1,11 @@
 //! Lightweight abstraction for rendering using Vulkan API
+//!
+//! # Cargo Features
+//! - vma (AMD Vulkan Memory Allocator used by default)
+//! - gpu-allocator (Traverse Research Gpu Allocator without С/C++ dependencies)
+//! - runtime-check (Runtime check used by default)
 pub(crate) mod bindless;
+// TODO:
 // pub(crate) mod bvh;
 pub(crate) mod camera;
 pub(crate) mod core;
@@ -10,8 +16,8 @@ pub(crate) mod resource_manager;
 pub(crate) mod world_renderer;
 
 pub use render_graph::{
-    ComputePass, LoadOp, PresentPass, RasterPass, Resolution, SamplerType, StoreOp, TextureDesc,
-    TextureFormat, TextureUsage, PresentPassBuilder
+    ComputePass, LoadOp, PresentPass, PresentPassBuilder, RasterPass, Resolution, SamplerType,
+    StoreOp, TextureDesc, TextureFormat, TextureUsage,
 };
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;

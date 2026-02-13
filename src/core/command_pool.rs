@@ -28,7 +28,7 @@ impl CommandPool {
         let buffers = unsafe {
             device
                 .allocate_command_buffers(&create_info)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(buffers)
@@ -55,7 +55,7 @@ impl<'a> CommandPoolBuilder<'a> {
         let pool = unsafe {
             self.device
                 .create_command_pool(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(CommandPool { raw: pool })

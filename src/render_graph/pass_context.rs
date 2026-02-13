@@ -27,12 +27,13 @@ impl<'a> PassContext<'a> {
     }
 
     pub fn set_scissor(&self, scissor: Option<vk::Rect2D>) {
-        let scissor = vk::Rect2D {
+        let scissor = scissor.unwrap_or(vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
             extent: vk::Extent2D::default()
                 .width(self.resolution.width)
                 .height(self.resolution.height),
-        };
+        });
+
         let scissors = vec![scissor];
         unsafe {
             self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
@@ -41,8 +42,11 @@ impl<'a> PassContext<'a> {
 
     pub fn bind_pipeline(&self) {
         unsafe {
-            self.device
-                .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
+            self.device.cmd_bind_pipeline(
+                self.cbuf,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.pipeline,
+            );
         };
     }
 

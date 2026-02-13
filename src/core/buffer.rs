@@ -28,7 +28,7 @@ impl GpuBuffer {
         data: &[T],
     ) -> VulkanResult<()> {
         self.vertex_count = data.len() as u32;
-        let buffer_size = (data.len() * std::mem::size_of::<T>()) as u64;
+        let buffer_size = std::mem::size_of_val(data) as u64;
 
         profile_scope!("Upload bytes");
 
@@ -36,8 +36,8 @@ impl GpuBuffer {
 
         unsafe {
             std::ptr::copy_nonoverlapping(
-                data.as_ptr() as *const u8,
-                allocation.mapped_data as *mut u8,
+                data.as_ptr().cast::<u8>(),
+                allocation.mapped_data.cast::<u8>(),
                 buffer_size as usize,
             );
         }
@@ -103,7 +103,7 @@ impl<'a> GpuBufferBuilder<'a> {
             self.device
                 .allocator
                 .create_buffer(&self.buffer_info, &self.alloc_info)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(GpuBuffer {

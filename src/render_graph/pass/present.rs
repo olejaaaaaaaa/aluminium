@@ -1,56 +1,55 @@
 #![allow(missing_docs)]
 
-
 use super::{Execute, PassContext, Source};
-use crate::Renderable;
-use crate::reflection::PipelineShaderReflection;
-use crate::render_graph::{PassDesc, RenderGraphResource};
+use crate::render_graph::{PassDesc, RasterPipelineDesc, RenderGraphResource};
 use crate::resource_manager::{PipelineLayoutHandle, RasterPipelineHandle};
+use crate::Renderable;
 
 pub struct PresentPassDesc {
     pub(crate) reads: Vec<RenderGraphResource>,
     pub(crate) execute_fn: Box<Execute>,
-    pub(crate) vertex_shader: Source,
-    pub(crate) fragment_shader: Source,
-    pub(crate) use_cache: bool,
-    pub(crate) depth_test: bool,
+    pub(crate) pipeline_desc: RasterPipelineDesc,
 }
 
 impl Default for PresentPassDesc {
     fn default() -> Self {
-        Self { 
-            reads: vec![], 
-            execute_fn: Box::new(|_, _| {}), 
-            vertex_shader: Source::None, 
-            fragment_shader: Source::None, 
-            use_cache: false, 
-            depth_test: true 
+        Self {
+            reads: vec![],
+            execute_fn: Box::new(|_, _| {}),
+            pipeline_desc: RasterPipelineDesc::default(),
         }
     }
 }
 
 pub struct PresentPassBuilder {
-    inner: PresentPassDesc
+    inner: PresentPassDesc,
+}
+
+impl Default for PresentPassBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PresentPassBuilder {
-
     pub fn new() -> Self {
-        Self { inner: PresentPassDesc::default() }
+        Self {
+            inner: PresentPassDesc::default(),
+        }
     }
 
     pub fn vertex(mut self, shader: impl Into<Source>) -> Self {
-        self.inner.vertex_shader = shader.into();
+        self.inner.pipeline_desc.vertex_shader = shader.into();
         self
     }
 
     pub fn fragment(mut self, shader: impl Into<Source>) -> Self {
-        self.inner.fragment_shader = shader.into();
+        self.inner.pipeline_desc.fragment_shader = shader.into();
         self
     }
 
     pub fn depth_test(mut self, enable: bool) -> Self {
-        self.inner.depth_test = enable;
+        self.inner.pipeline_desc.depth_test = enable;
         self
     }
 
@@ -72,17 +71,15 @@ impl PresentPassBuilder {
     }
 }
 
-
 pub struct PresentPass {
-    pub(crate) reflection: PipelineShaderReflection,
     pub(crate) reads: Vec<RenderGraphResource>,
     pub(crate) pipeline_layout: PipelineLayoutHandle,
     pub(crate) pipeline: RasterPipelineHandle,
     pub(crate) execute_fn: Box<Execute>,
 }
 
-impl Into<PassDesc> for PresentPassDesc {
-    fn into(self) -> PassDesc {
-        PassDesc::Present(self)
+impl From<PresentPassDesc> for PassDesc {
+    fn from(val: PresentPassDesc) -> Self {
+        PassDesc::Present(val)
     }
 }

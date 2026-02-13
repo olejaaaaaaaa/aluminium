@@ -6,7 +6,7 @@ use log::debug;
 use super::{VulkanError, VulkanResult};
 
 const ENGINE_VERSION: u32 = 0;
-const ENGINE_NAME: &'static CStr = c"Aluminium";
+const ENGINE_NAME: &CStr = c"Aluminium";
 
 pub struct App {
     pub(crate) create_info: vk::ApplicationInfo<'static>,

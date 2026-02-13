@@ -62,7 +62,7 @@ impl<'a> SwapchainBuilder<'a> {
         let swapchain = unsafe {
             swapchain_loader
                 .create_swapchain(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(Swapchain {
@@ -77,7 +77,7 @@ impl Swapchain {
         unsafe {
             self.loader
                 .get_swapchain_images(self.raw)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }
     }
 

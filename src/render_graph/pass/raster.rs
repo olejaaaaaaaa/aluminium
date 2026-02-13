@@ -4,13 +4,41 @@ use std::path::PathBuf;
 
 use slotmap::Key;
 
-use super::{Execute, LoadOp, PassContext, StoreOp};
-use crate::core::VulkanResult;
+use super::{Execute, LoadOp, PassContext, Source, StoreOp};
 use crate::reflection::PipelineShaderReflection;
 use crate::render_graph::{RenderGraphResource, TextureHandle};
 use crate::resource_manager::{
     FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
 };
+
+#[derive(Eq, Hash, PartialEq, Clone)]
+pub struct RasterPipelineDesc {
+    pub(crate) vertex_shader: Source,
+    pub(crate) fragment_shader: Source,
+    pub(crate) use_cache: bool,
+    pub(crate) depth_test: bool,
+}
+
+impl Default for RasterPipelineDesc {
+    fn default() -> Self {
+        Self {
+            vertex_shader: Source::None,
+            fragment_shader: Source::None,
+            use_cache: false,
+            depth_test: true,
+        }
+    }
+}
+
+pub struct RasterPassDesc {
+    pub(crate) execute_fn: Box<Execute>,
+    pub(crate) writes: Vec<RenderGraphResource>,
+    pub(crate) reads: Vec<RenderGraphResource>,
+    pub(crate) vertex_shader: Source,
+    pub(crate) fragment_shader: Source,
+    pub(crate) use_cache: bool,
+    pub(crate) depth_test: bool,
+}
 
 pub struct RasterPipeline {
     pub(crate) pipeline_layout: PipelineLayoutHandle,
@@ -70,6 +98,12 @@ pub struct RasterPass {
     pub(crate) pipeline: Option<RasterPipeline>,
     pub(crate) execute_fn: Box<Execute>,
     pub(crate) reflection: Option<PipelineShaderReflection>,
+}
+
+impl Default for RasterPass {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RasterPass {

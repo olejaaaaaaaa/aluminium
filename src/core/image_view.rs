@@ -73,7 +73,7 @@ impl<'a> ImageViewBuilder<'a> {
         let image_view = unsafe {
             self.device
                 .create_image_view(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(ImageView { raw: image_view })

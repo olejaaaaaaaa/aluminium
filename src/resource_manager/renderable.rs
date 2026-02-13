@@ -11,7 +11,6 @@ pub struct RenderableCollection {
 }
 
 impl RenderableCollection {
-
     pub fn new() -> Self {
         Self {
             data: SlotMap::with_key(),
@@ -21,7 +20,7 @@ impl RenderableCollection {
     pub fn get_renderables(&self) -> Vec<Renderable> {
         let mut v = vec![];
         for i in &self.data {
-            v.push(i.1.clone());
+            v.push(*i.1);
         }
         v
     }

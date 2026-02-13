@@ -1,4 +1,3 @@
-
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub enum LoadOp {

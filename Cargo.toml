@@ -35,7 +35,7 @@ egui-winit = { version = "0.33.3", optional = true }
 egui_extras = { version = "0.33.3", default-features = false, features = ["all_loaders"], optional = true }
 
 [features]
-default = ["vma"]
+default = ["vma", "runtime-check"]
 gpu-allocator = ["dep:gpu-allocator"]
 vma = ["dep:vk-mem"]
 runtime-check = []

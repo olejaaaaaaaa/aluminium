@@ -4,8 +4,8 @@ use puffin::profile_scope;
 
 use super::GraphicsDevice;
 use crate::core::{
-    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder, RenderPass, Surface, Swapchain, SwapchainBuilder,
-    VulkanResult,
+    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder,
+    RenderPass, Surface, Swapchain, SwapchainBuilder, VulkanResult,
 };
 
 /// Manages window-related Vulkan resources (swapchain, framebuffers, etc.)
@@ -53,18 +53,18 @@ impl WindowManager {
             .format(vk::Format::R8G8B8A8_SRGB)
             .build()?;
 
-        let depth_image = ImageBuilder::depth(&device, vk::Format::D32_SFLOAT, caps.current_extent)
+        let depth_image = ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent)
             .build()
             .unwrap();
 
-        let depth_view = ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw)
+        let depth_view = ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw)
             .build()
             .unwrap();
 
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images()? {
-            let image_view = ImageViewBuilder::new_2d(&device, vk::Format::R8G8B8A8_SRGB, i)
+            let image_view = ImageViewBuilder::new_2d(device, vk::Format::R8G8B8A8_SRGB, i)
                 .build()
                 .unwrap();
             image_views.push(image_view);
@@ -73,7 +73,7 @@ impl WindowManager {
         let mut frame_buffers = vec![];
 
         for i in &image_views {
-            let frame_buffer = FrameBufferBuilder::new(&device, self.render_pass.raw)
+            let frame_buffer = FrameBufferBuilder::new(device, self.render_pass.raw)
                 .add_attachment(i.raw)
                 .add_attachment(depth_view.raw)
                 .extent(caps.current_extent)
@@ -83,20 +83,20 @@ impl WindowManager {
             frame_buffers.push(frame_buffer);
         }
 
-        self.depth_view.destroy(&device);
+        self.depth_view.destroy(device);
         self.depth_view = depth_view;
 
-        self.depth_image.destory(&device);
+        self.depth_image.destory(device);
         self.depth_image = depth_image;
 
         for i in &self.image_views {
-            i.destroy(&device);
+            i.destroy(device);
         }
 
         self.image_views = image_views;
 
         for i in &self.frame_buffers {
-            i.destroy(&device);
+            i.destroy(device);
         }
 
         self.frame_buffers = frame_buffers;

@@ -1,5 +1,4 @@
 mod present;
-use std::path::PathBuf;
 
 use ash::vk;
 pub use present::*;
@@ -17,15 +16,13 @@ mod compute;
 pub use compute::ComputePass;
 
 mod raster;
-pub use raster::RasterPass;
+pub use raster::*;
 
 mod rt;
 pub use rt::RtPass;
 
 use super::PassContext;
-use crate::core::{VulkanError, VulkanResult};
 use crate::render_graph::RenderGraphResource;
-use crate::render_graph::pass::present::PresentPassDesc;
 use crate::resource_manager::{FrameBufferHandle, Renderable, ResourceManager};
 
 pub type Execute = dyn Fn(&PassContext, &[Renderable]);
@@ -94,9 +91,7 @@ impl Pass {
         }
     }
 
-    pub fn execute(
-        &self,
-    ) -> &Box<dyn Fn(&PassContext, &[Renderable]) + 'static> {
+    pub fn execute(&self) -> &Box<dyn Fn(&PassContext, &[Renderable]) + 'static> {
         match self {
             Pass::Raster(raster) => &raster.execute_fn,
             Pass::Rt(_rt_pass) => todo!(),
@@ -124,26 +119,26 @@ impl Pass {
     }
 }
 
-impl Into<Pass> for RasterPass {
-    fn into(self) -> Pass {
-        Pass::Raster(self)
+impl From<RasterPass> for Pass {
+    fn from(val: RasterPass) -> Self {
+        Pass::Raster(val)
     }
 }
 
-impl Into<Pass> for ComputePass {
-    fn into(self) -> Pass {
-        Pass::Compute(self)
+impl From<ComputePass> for Pass {
+    fn from(val: ComputePass) -> Self {
+        Pass::Compute(val)
     }
 }
 
-impl Into<Pass> for RtPass {
-    fn into(self) -> Pass {
-        Pass::Rt(self)
+impl From<RtPass> for Pass {
+    fn from(val: RtPass) -> Self {
+        Pass::Rt(val)
     }
 }
 
-impl Into<Pass> for PresentPass {
-    fn into(self) -> Pass {
-        Pass::Present(self)
+impl From<PresentPass> for Pass {
+    fn from(val: PresentPass) -> Self {
+        Pass::Present(val)
     }
 }

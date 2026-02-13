@@ -53,11 +53,10 @@ impl TransformCollection {
     }
 
     pub fn new(device: &Device) -> VulkanResult<Self> {
-
         let count = MAX_TRANSFORMS;
         let size = (size_of::<Transform>() * count) as u64;
 
-        let mut buffer = GpuBufferBuilder::cpu_only(&device)
+        let mut buffer = GpuBufferBuilder::cpu_only(device)
             .usage(vk::BufferUsageFlags::STORAGE_BUFFER)
             .size(size)
             .build()?;

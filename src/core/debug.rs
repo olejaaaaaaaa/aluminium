@@ -9,7 +9,7 @@ impl DebugCallback {
     pub fn destroy(&self) {
         unsafe {
             self.loader
-                .destroy_debug_utils_messenger(self.callback, None)
+                .destroy_debug_utils_messenger(self.callback, None);
         };
     }
 
@@ -59,12 +59,12 @@ pub unsafe extern "system" fn vulkan_debug_callback(
     }
 
     if message_severity == vk::DebugUtilsMessageSeverityFlagsEXT::ERROR {
-        log::error!("{}", message)
+        log::error!("{}", message);
     }
 
-    if message_severity == vk::DebugUtilsMessageSeverityFlagsEXT::INFO {
-        // tracing::info!("{}", message)
-    }
+    // if message_severity == vk::DebugUtilsMessageSeverityFlagsEXT::INFO {
+
+    // }
 
     vk::FALSE
 }

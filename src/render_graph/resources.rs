@@ -1,11 +1,9 @@
 use slotmap::{new_key_type, SlotMap};
+
 use crate::render_graph::{LoadOp, StoreOp, TextureDesc};
 
 new_key_type! {
     pub struct DescriptorSetHandle;
-}
-
-new_key_type! {
     pub struct TextureHandle;
 }
 
@@ -33,10 +31,10 @@ impl RenderGraphResource {
     }
 }
 
-impl Into<RenderGraphResource> for TextureHandle {
-    fn into(self) -> RenderGraphResource {
+impl From<TextureHandle> for RenderGraphResource {
+    fn from(val: TextureHandle) -> Self {
         RenderGraphResource::Texture {
-            handle: self,
+            handle: val,
             last_access: vk_sync::AccessType::Nothing,
         }
     }

@@ -24,7 +24,7 @@ impl QueuePool {
 }
 
 impl QueuePool {
-    pub fn new(device: &ash::Device, props: &Vec<vk::QueueFamilyProperties>) -> Self {
+    pub fn new(device: &ash::Device, props: &[vk::QueueFamilyProperties]) -> Self {
         let mut queues = vec![];
 
         for (i, prop) in props.iter().enumerate() {
@@ -44,7 +44,7 @@ impl QueuePool {
 
         QueuePool {
             queues,
-            props: props.clone(),
+            props: props.to_vec(),
         }
     }
 }

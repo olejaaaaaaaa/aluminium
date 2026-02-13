@@ -34,7 +34,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
         let layout = unsafe {
             self.device
                 .create_descriptor_set_layout(&create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }?;
 
         Ok(DescriptorSetLayout { raw: layout })

@@ -62,11 +62,11 @@ impl<'a> FrameBufferBuilder<'a> {
             let limits = self.device.phys_dev.prop.limits;
 
             if self.create_info.width > limits.max_framebuffer_width {
-                return Err(VulkanError::Unknown(Result::from_raw(0)));
+                return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
             }
 
             if self.create_info.height > limits.max_framebuffer_height {
-                return Err(VulkanError::Unknown(Result::from_raw(0)));
+                return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
             }
         }
 
@@ -75,7 +75,7 @@ impl<'a> FrameBufferBuilder<'a> {
         let frame_buffer = unsafe {
             self.device
                 .create_framebuffer(&self.create_info, None)
-                .map_err(|e| VulkanError::Unknown(e))?
+                .map_err(VulkanError::Unknown)?
         };
 
         Ok(FrameBuffer { raw: frame_buffer })
