@@ -1,5 +1,4 @@
 use std::ffi::CStr;
-use std::sync::Arc;
 
 use ash::vk;
 #[cfg(not(feature = "gpu-allocator"))]
@@ -10,7 +9,7 @@ use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
     /// Gpu allocator
-    pub(crate) allocator: Arc<Allocator>,
+    pub(crate) allocator: Allocator,
     pub(crate) phys_dev: PhysicalDevice,
     pub(crate) queue_family_props: Vec<vk::QueueFamilyProperties>,
     pub(crate) raw: ash::Device,
@@ -58,33 +57,47 @@ impl<'a> DeviceBuilder<'a> {
     pub fn build(self) -> VulkanResult<Device> {
         let phys_dev = self.phys_dev;
 
-        let queue_create_info = vk::DeviceQueueCreateInfo::default()
-            .queue_family_index(0)
-            .queue_priorities(&[1.0]);
-
         let p_extenions = self
             .extenions
             .iter()
             .map(|p| p.as_ptr().cast::<i8>())
             .collect::<Vec<_>>();
 
-        let binding = [queue_create_info];
+        let queue_family_prop = unsafe {
+            self.instance
+                .raw
+                .get_physical_device_queue_family_properties(phys_dev.raw)
+        };
+
+        let mut priorities: Vec<Vec<f32>> = vec![];
+
+        for i in &queue_family_prop {
+            priorities.push(
+                (1..i.queue_count + 1)
+                    .map(|ndx| 1.0 / (ndx as f32))
+                    .collect::<Vec<f32>>(),
+            );
+        }
+
+        let mut queue_infos = vec![];
+
+        for (index, _) in queue_family_prop.iter().enumerate() {
+            let queue_info = vk::DeviceQueueCreateInfo::default()
+                .queue_family_index(index as u32)
+                .queue_priorities(&priorities[index]);
+
+            queue_infos.push(queue_info);
+        }
 
         let create_info = vk::DeviceCreateInfo::default()
-            .enabled_extension_names(&p_extenions)
-            .queue_create_infos(&binding);
+            .queue_create_infos(&queue_infos)
+            .enabled_extension_names(&p_extenions);
 
         let device = unsafe {
             self.instance
                 .raw
                 .create_device(phys_dev.raw, &create_info, None)
                 .map_err(VulkanError::Unknown)?
-        };
-
-        let queue_prop = unsafe {
-            self.instance
-                .raw
-                .get_physical_device_queue_family_properties(phys_dev.raw)
         };
 
         let allocator = unsafe {
@@ -96,9 +109,9 @@ impl<'a> DeviceBuilder<'a> {
 
         Ok(Device {
             raw: device,
-            allocator: Arc::new(allocator),
+            allocator,
             phys_dev,
-            queue_family_props: queue_prop,
+            queue_family_props: queue_family_prop,
         })
     }
 }
