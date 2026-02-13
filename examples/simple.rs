@@ -3,7 +3,7 @@
 use std::error::Error;
 
 use aluminium::types::Vertex;
-use aluminium::{Material, PresentPass, PresentPassBuilder, Renderable, Transform, WorldRenderer};
+use aluminium::{Material, PresentPassBuilder, Renderable, Transform, WorldRenderer};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -32,7 +32,26 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
-                world.draw_frame().expect("Error draw frame");
+                let _ = world.draw_frame(|graph| {
+
+                    graph.add_pass(
+                        PresentPassBuilder::new()
+                            .vertex(r"shaders\spv\raster_vs-hlsl.spv")
+                            .fragment(r"shaders\spv\raster_ps-hlsl.spv")
+                            .execute(|ctx, renderables| {
+                                ctx.bind_bindless();
+                                ctx.set_scissor(None);
+                                ctx.set_viewport(None);
+                                ctx.bind_pipeline();
+                                for i in renderables {
+                                    ctx.draw_mesh(i);
+                                }
+                            })
+                            .build()
+                    );
+
+                    
+                });
             },
             _ => (),
         }
@@ -74,22 +93,6 @@ impl ApplicationHandler for App {
         let material = world.create_material(Material::new()).unwrap();
         let transform = world.create_transform(Transform::identity()).unwrap();
         let _ = world.create_renderable(Renderable::new(mesh, material, transform));
-
-        world.graph_mut().add_pass(
-            PresentPassBuilder::new()
-                .vertex(r"shaders\spv\raster_vs-hlsl.spv")
-                .fragment(r"shaders\spv\raster_ps-hlsl.spv")
-                .execute(|ctx, renderables| {
-                    ctx.bind_bindless();
-                    ctx.set_scissor(None);
-                    ctx.set_viewport(None);
-                    ctx.bind_pipeline();
-                    for i in renderables {
-                        ctx.draw_mesh(i);
-                    }
-                })
-                .build(),
-        );
 
         self.world = Some(world);
         self.window = Some(window);
