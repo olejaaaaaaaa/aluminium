@@ -26,7 +26,8 @@ pub struct WorldRenderer {
     pub(crate) resources: ResourceManager,
     /// Bindless
     ///
-    /// Natively supported on Windows and Linux; on other platforms, falls back to arrays
+    /// Natively supported on Windows and Linux; on other platforms, falls back
+    /// to arrays
     pub(crate) bindless: Bindless,
     /// Render Graph
     ///
@@ -39,14 +40,15 @@ pub struct WorldRenderer {
     pub(crate) camera: Camera,
     /// Render Context
     ///
-    /// The rendering context provides an entry point for creating and deleting resources
+    /// The rendering context provides an entry point for creating and deleting
+    /// resources
     pub(crate) ctx: ManuallyDrop<RenderContext>,
     /// This structure not Send and Sync!
     pub(crate) _marker: PhantomData<*mut ()>,
 }
 
 impl WorldRenderer {
-    /// Creates a new [`WorldRenderer`].
+    /// Creates a new [`WorldRenderer`]!
     ///
     /// # Panics
     ///
@@ -67,10 +69,10 @@ impl WorldRenderer {
                 vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
             )
             .with(
-                1, 
-                10000, 
-                vk::DescriptorType::STORAGE_BUFFER, 
-                vk::ShaderStageFlags::VERTEX
+                1,
+                10000,
+                vk::DescriptorType::STORAGE_BUFFER,
+                vk::ShaderStageFlags::VERTEX,
             )
             .build()?;
 
@@ -116,9 +118,10 @@ impl WorldRenderer {
 
     /// Creates an immutable mesh
     ///
-    /// # Panics
+    /// # Panics!
     ///
-    /// if there is not enough memory for a new allocation
+    /// - If there is not enough memory for a new allocation
+    /// - If an unexpected error occurs
     pub fn create_mesh<T>(
         &mut self,
         vertices: &[T],
@@ -132,26 +135,34 @@ impl WorldRenderer {
     }
 
     /// Create new Material
-    /// # Panic!
-    /// 
-    /// if not success allocate descriptor set
+    /// # Panics!
+    ///
+    /// - If not success allocate descriptor set
+    /// - If the GPU has stopped responding
+    /// - If an unexpected error occurs
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
-        Ok(self.resources.create_material(material))
+        self.resources.create_material(material)
     }
 
-    /// Create Transform for Mesh
+    /// Create Transform
+    /// # Panics!
+    ///
+    /// - If platform not supported natively bindless and their number is
+    ///   greater than the GPU can support
     pub fn create_transform(&mut self, transform: Transform) -> VulkanResult<TransformHandle> {
-        Ok(self.resources.create_transform(transform))
+        self.resources.create_transform(transform)
     }
 
     /// Create Renderable Object
+    ///
+    /// Does not require new allocations or any actions from the GPU
     pub fn create_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
         self.resources.create_renderable(renderable)
     }
 
     /// Resizes the window
     ///
-    /// # Panics
+    /// # Panics!
     ///
     /// - If the GPU has stopped responding
     /// - If there is not enough memory
@@ -169,24 +180,23 @@ impl WorldRenderer {
         Ok(())
     }
 
-    /// Get mut ref to [`RenderGraph`]
-    pub fn graph_mut(&mut self) -> &mut RenderGraph {
-        &mut self.graph
-    }
-
-    /// Get ref to [`RenderGraph`]
-    pub fn graph(&mut self) -> &RenderGraph {
-        &self.graph
-    }
-
     /// Draw a frame or skip a frame if some resources need to be create
     /// # Panic!
     ///
-    /// If the GPU has stopped responding or an unexpected error occurred
-    pub fn draw_frame(&mut self) -> VulkanResult<()> {
+    /// - If the GPU has stopped responding
+    /// - If new resources cannot be created or old ones deleted
+    /// - If an unexpected error occurs
+    pub fn draw_frame<F: FnOnce(&mut RenderGraph)>(&mut self, setup: F) -> VulkanResult<()> {
         profile_scope!("WorldRenderer::draw_frame");
         GlobalProfiler::lock().new_frame();
 
+        // Setup graph
+        setup(&mut self.graph);
+
+        // Compile Graph
+        self.graph.compile(&self.ctx, &mut self.resources)?;
+
+        // Execute Graph
         match self.graph.execute(&mut self.ctx, &mut self.resources) {
             Ok(_) => {},
             Err(VulkanError::Swapchain(err)) => match err {
@@ -194,11 +204,14 @@ impl WorldRenderer {
                     let extent = self.ctx.window.resolution;
                     self.resize(extent.width, extent.height)?;
                 },
-                _ => {
-                    log::error!("Error swapchain: {:?}", err);
+                SwapchainError::SwapchainCreationFailed(err) => {
+                    return Err(VulkanError::Swapchain(
+                        SwapchainError::SwapchainCreationFailed(err),
+                    ));
                 },
             },
             Err(err) => {
+                log::error!("Error execute frame: {:?}", err);
                 return Err(err);
             },
         }
@@ -217,7 +230,7 @@ impl Drop for WorldRenderer {
 
         self.resources.destroy(device);
         self.camera.destroy(device);
-        self.graph.destroy(device);
+        // self.graph.destroy(device);
         self.bindless.destroy(device);
 
         // Safety: All low-level vulkan resources are destroyed before that
