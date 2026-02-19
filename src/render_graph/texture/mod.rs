@@ -39,14 +39,10 @@ pub use windows::TextureFormat;
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct TextureDesc {
-    #[allow(dead_code)]
     pub resolution: Resolution,
     pub layers: u32,
-    #[allow(dead_code)]
     pub format: TextureFormat,
-    #[allow(dead_code)]
     pub sampler: SamplerType,
-    #[allow(dead_code)]
     pub usage: TextureUsage,
 }
 

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
+use std::sync::LazyLock;
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
@@ -10,41 +11,70 @@ use super::render_context::RenderContext;
 use crate::bindless::{Bindless, BindlessBuilder};
 use crate::camera::{Camera, CameraData};
 use crate::core::{
-    AttributeDescriptions, BindingDescriptions, SwapchainError, VulkanError, VulkanResult,
+    AttributeDescriptions, BindingDescriptions, Resolution, SwapchainError, VulkanError,
+    VulkanResult,
 };
+use crate::frame_values::{FrameData, FrameValues};
 use crate::render_graph::RenderGraph;
 use crate::resource_manager::{
     Material, MaterialHandle, MeshHandle, Renderable, RenderableHandle, ResourceManager, Transform,
     TransformHandle,
 };
 
+static BINDLESS_LAYOUT_INFO: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
+    LazyLock::new(|| {
+        vec![
+            // Main Camera
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+            // Frame Values
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+            // SSBO All Transforms
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(2)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(10000)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+        ]
+    });
+
 /// A lightweight abstraction for rendering using the Vulkan API
 pub struct WorldRenderer {
     /// Resource Manager
     ///
     /// Contains resources for rendering and caches them
-    pub(crate) resources: ResourceManager,
+    resources: ResourceManager,
     /// Bindless
     ///
     /// Natively supported on Windows and Linux; on other platforms, falls back
     /// to arrays
-    pub(crate) bindless: Bindless,
+    bindless: Bindless,
+
+    frame_values: FrameValues,
+
     /// Render Graph
     ///
     /// The rendering graph automatically creates the necessary resources and
     /// performs topological sorting
-    pub(crate) graph: RenderGraph,
+    graph: RenderGraph,
     /// Main Camera
     ///
     /// Provides data and methods for changing it
-    pub(crate) camera: Camera,
+    camera: Camera,
     /// Render Context
     ///
     /// The rendering context provides an entry point for creating and deleting
     /// resources
-    pub(crate) ctx: ManuallyDrop<RenderContext>,
+    ctx: ManuallyDrop<RenderContext>,
     /// This structure not Send and Sync!
-    pub(crate) _marker: PhantomData<*mut ()>,
+    _marker: PhantomData<*mut ()>,
 }
 
 impl WorldRenderer {
@@ -61,20 +91,9 @@ impl WorldRenderer {
         let camera = Camera::new(&ctx.device)?;
         let resources = ResourceManager::new(&ctx.device)?;
 
-        let mut bindless = BindlessBuilder::new(&ctx.device)
-            .with(
-                0,
-                1,
-                vk::DescriptorType::UNIFORM_BUFFER,
-                vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-            )
-            .with(
-                1,
-                10000,
-                vk::DescriptorType::STORAGE_BUFFER,
-                vk::ShaderStageFlags::VERTEX,
-            )
-            .build()?;
+        let mut bindless = BindlessBuilder::new(&ctx.device, &BINDLESS_LAYOUT_INFO).build()?;
+        let mut frame_values = FrameValues::new(&ctx.device, ctx.window.frame_sync.len())?;
+        frame_values.set_resolution(ctx.window.resolution.into_array());
 
         bindless.update_buffer_set(
             &ctx.device,
@@ -88,6 +107,15 @@ impl WorldRenderer {
         bindless.update_buffer_set(
             &ctx.device,
             1,
+            vk::DescriptorType::UNIFORM_BUFFER,
+            frame_values.buffer.buffers[0].raw,
+            0,
+            size_of::<FrameData>() as u64,
+        );
+
+        bindless.update_buffer_set(
+            &ctx.device,
+            2,
             vk::DescriptorType::STORAGE_BUFFER,
             resources.assets.transform.buffer.raw,
             0,
@@ -97,6 +125,7 @@ impl WorldRenderer {
         let graph = RenderGraph::new(&ctx, &bindless)?;
 
         Ok(WorldRenderer {
+            frame_values,
             bindless,
             resources,
             camera,
@@ -106,7 +135,7 @@ impl WorldRenderer {
         })
     }
 
-    /// Gets a reference to the [`Camera`]
+    /// Gets a mut reference to the [`Camera`]
     pub fn camera_mut(&mut self) -> &mut Camera {
         &mut self.camera
     }
@@ -116,7 +145,7 @@ impl WorldRenderer {
         &self.camera
     }
 
-    /// Creates an immutable mesh
+    /// Create mesh
     ///
     /// # Panics!
     ///
@@ -176,6 +205,7 @@ impl WorldRenderer {
         }
 
         self.ctx.resize(width, height)?;
+        self.frame_values.set_resolution([width, height]);
 
         Ok(())
     }
@@ -197,7 +227,10 @@ impl WorldRenderer {
         self.graph.compile(&self.ctx, &mut self.resources)?;
 
         // Execute Graph
-        match self.graph.execute(&mut self.ctx, &mut self.resources) {
+        match self
+            .graph
+            .execute(&mut self.ctx, &mut self.resources, &mut self.frame_values)
+        {
             Ok(_) => {},
             Err(VulkanError::Swapchain(err)) => match err {
                 SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
@@ -228,12 +261,29 @@ impl Drop for WorldRenderer {
         // Wait all gpu work before destroy resources
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
 
+        // Destroy Gpu Buffers
+        // Destroy Pipelines
+        // Destroy Pipeline Layouts
+        // Destroy FrameBuffers
         self.resources.destroy(device);
+        // Destroy Uniform Buffer
         self.camera.destroy(device);
-        // self.graph.destroy(device);
+        // Destroy CommandPool
+        self.graph.destroy(device);
+        // Destroy DescriptorPool
         self.bindless.destroy(device);
-
-        // Safety: All low-level vulkan resources are destroyed before that
+        // Destroy Swapchain
+        // Destroy RenderPass
+        // Destroy DepthView
+        // Destroy DepthImage
+        // Destroy Frame Sync objects: (Semaphore, Semaphore, Fence)
+        // Destroy FrameBuffers
+        // Destroy Swapchain ImageViews
+        // Destroy Gpu Allocator
+        // Destroy Device
+        // Destroy Surface
+        // Destroy Option<DebugCallback>
+        // Destroy Instance
         unsafe { ManuallyDrop::drop(&mut self.ctx) };
     }
 }

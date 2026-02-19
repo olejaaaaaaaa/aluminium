@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::core::VulkanResult;
 use crate::render_graph::TextureHandle;
 
 #[derive(Clone, Copy)]
@@ -14,10 +15,10 @@ impl MaterialCollection {
         Self { data: vec![] }
     }
 
-    pub fn add_material(&mut self, material: Material) -> MaterialHandle {
+    pub fn add_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
         let index = self.data.len();
         self.data.push(material);
-        MaterialHandle(index)
+        Ok(MaterialHandle(index))
     }
 
     #[allow(dead_code)]

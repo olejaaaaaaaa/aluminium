@@ -1,12 +1,7 @@
 #![allow(missing_docs)]
 
-use std::path::PathBuf;
-
-use slotmap::Key;
-
-use super::{Execute, LoadOp, PassContext, Source, StoreOp};
-use crate::reflection::PipelineShaderReflection;
-use crate::render_graph::{RenderGraphResource, TextureHandle};
+use super::{Execute, PassContext, Source};
+use crate::render_graph::{PassDesc, RenderGraphResource, TextureHandle};
 use crate::resource_manager::{
     FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
 };
@@ -15,6 +10,8 @@ use crate::resource_manager::{
 pub struct RasterPipelineDesc {
     pub(crate) vertex_shader: Source,
     pub(crate) fragment_shader: Source,
+    pub(crate) dynamic_viewport: bool,
+    pub(crate) dynamic_scissors: bool,
     pub(crate) use_cache: bool,
     pub(crate) depth_test: bool,
 }
@@ -24,6 +21,8 @@ impl Default for RasterPipelineDesc {
         Self {
             vertex_shader: Source::None,
             fragment_shader: Source::None,
+            dynamic_scissors: false,
+            dynamic_viewport: false,
             use_cache: false,
             depth_test: true,
         }
@@ -34,119 +33,97 @@ pub struct RasterPassDesc {
     pub(crate) execute_fn: Box<Execute>,
     pub(crate) writes: Vec<RenderGraphResource>,
     pub(crate) reads: Vec<RenderGraphResource>,
-    pub(crate) vertex_shader: Source,
-    pub(crate) fragment_shader: Source,
-    pub(crate) use_cache: bool,
-    pub(crate) depth_test: bool,
+    pub(crate) pipeline_desc: RasterPipelineDesc,
+}
+
+impl Default for RasterPassDesc {
+    fn default() -> Self {
+        Self {
+            writes: vec![],
+            reads: vec![],
+            execute_fn: Box::new(|_, _| {}),
+            pipeline_desc: RasterPipelineDesc::default(),
+        }
+    }
 }
 
 pub struct RasterPipeline {
     pub(crate) pipeline_layout: PipelineLayoutHandle,
     pub(crate) pipeline: RasterPipelineHandle,
     pub(crate) frame_buffer: FrameBufferHandle,
-    pub(crate) vertex_shader: PathBuf,
-    pub(crate) fragment_shader: PathBuf,
-    #[allow(dead_code)]
-    pub(crate) use_cache: bool,
-    pub(crate) depth_test: bool,
 }
 
-impl RasterPipeline {
-    pub(crate) fn new() -> Self {
-        Self {
-            frame_buffer: FrameBufferHandle::null(),
-            pipeline_layout: PipelineLayoutHandle::null(),
-            pipeline: RasterPipelineHandle::null(),
-            vertex_shader: PathBuf::new(),
-            fragment_shader: PathBuf::new(),
-            use_cache: false,
-            depth_test: true,
-        }
-    }
+pub struct RasterPassBuilder {
+    pub(crate) inner: RasterPassDesc,
 }
 
-pub struct RasterPipelineBuilder {
-    pub(crate) pass: RasterPass,
-    pub(crate) pipeline: RasterPipeline,
-}
-
-impl RasterPipelineBuilder {
-    pub fn vertex(mut self, shader: impl Into<PathBuf>) -> Self {
-        self.pipeline.vertex_shader = shader.into();
-        self
-    }
-
-    pub fn fragment(mut self, shader: impl Into<PathBuf>) -> Self {
-        self.pipeline.fragment_shader = shader.into();
-        self
-    }
-
-    pub fn depth_test(mut self, enable: bool) -> Self {
-        self.pipeline.depth_test = enable;
-        self
-    }
-
-    pub fn end_pipeline(mut self) -> RasterPass {
-        self.pass.pipeline = Some(self.pipeline);
-        self.pass
-    }
-}
-
-pub struct RasterPass {
-    pub(crate) writes: Vec<RenderGraphResource>,
-    pub(crate) reads: Vec<RenderGraphResource>,
-    pub(crate) pipeline: Option<RasterPipeline>,
-    pub(crate) execute_fn: Box<Execute>,
-    pub(crate) reflection: Option<PipelineShaderReflection>,
-}
-
-impl Default for RasterPass {
+impl Default for RasterPassBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl RasterPass {
+impl RasterPassBuilder {
     pub fn new() -> Self {
         Self {
-            writes: vec![],
-            reads: vec![],
-            pipeline: None,
-            execute_fn: Box::new(|_, _| {}),
-            reflection: None,
+            inner: RasterPassDesc::default(),
         }
     }
 
-    pub fn render_target(mut self, handle: TextureHandle, load: LoadOp, store: StoreOp) -> Self {
-        self.writes.push(RenderGraphResource::RenderTarget {
-            texture: (handle, vk_sync::AccessType::Nothing),
-            ops: (load, store),
+    pub fn write_texture(mut self, handle: TextureHandle) -> Self {
+        self.inner.writes.push(RenderGraphResource::Texture {
+            handle,
+            last_access: vk_sync::AccessType::Nothing,
         });
         self
     }
 
-    pub fn pipeline(self) -> RasterPipelineBuilder {
-        RasterPipelineBuilder {
-            pass: self,
-            pipeline: RasterPipeline::new(),
-        }
-    }
+    // pub fn read<T: Into<RenderGraphResource>>(mut self, res: T) -> Self {
+    //     self.inner.reads.push(res.into());
+    //     self
+    // }
 
-    pub fn read<T: Into<RenderGraphResource>>(mut self, res: T) -> Self {
-        self.reads.push(res.into());
+    // pub fn write<T: Into<RenderGraphResource>>(mut self, res: T) -> Self {
+    //     self.inner.writes.push(res.into());
+    //     self
+    // }
+
+    pub fn vertex(mut self, src: impl Into<Source>) -> Self {
+        self.inner.pipeline_desc.vertex_shader = src.into();
         self
     }
 
-    pub fn write<T: Into<RenderGraphResource>>(mut self, res: T) -> Self {
-        self.reads.push(res.into());
+    pub fn fragment(mut self, src: impl Into<Source>) -> Self {
+        self.inner.pipeline_desc.fragment_shader = src.into();
         self
     }
 
-    pub fn render<F>(mut self, clojure: F) -> Self
+    pub fn depth_test(mut self, enable: bool) -> Self {
+        self.inner.pipeline_desc.depth_test = enable;
+        self
+    }
+
+    pub fn execute<F>(mut self, clojure: F) -> Self
     where
         F: Fn(&PassContext, &[Renderable]) + 'static,
     {
-        self.execute_fn = Box::new(clojure);
+        self.inner.execute_fn = Box::new(clojure);
         self
+    }
+
+    pub fn build(self) -> RasterPassDesc {
+        self.inner
+    }
+}
+
+pub struct RasterPass {
+    pub(crate) pipeline: RasterPipelineHandle,
+    pub(crate) layout: PipelineLayoutHandle,
+    pub(crate) execute_fn: Box<Execute>,
+}
+
+impl From<RasterPassDesc> for PassDesc {
+    fn from(val: RasterPassDesc) -> Self {
+        PassDesc::Raster(val)
     }
 }

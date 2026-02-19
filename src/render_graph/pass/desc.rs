@@ -1,7 +1,9 @@
 use super::{PresentPassDesc, Source};
+use crate::render_graph::RasterPassDesc;
 
 pub enum PassDesc {
     Present(PresentPassDesc),
+    Raster(RasterPassDesc),
 }
 
 impl PassDesc {
@@ -12,6 +14,9 @@ impl PassDesc {
                     &pass.pipeline_desc.vertex_shader,
                     &pass.pipeline_desc.fragment_shader,
                 ]
+            },
+            PassDesc::Raster(_pass) => {
+                vec![]
             },
         }
     }

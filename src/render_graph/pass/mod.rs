@@ -22,7 +22,6 @@ mod rt;
 pub use rt::RtPass;
 
 use super::PassContext;
-use crate::render_graph::RenderGraphResource;
 use crate::resource_manager::{FrameBufferHandle, Renderable, ResourceManager};
 
 pub type Execute = dyn Fn(&PassContext, &[Renderable]);
@@ -38,19 +37,9 @@ impl Pass {
     pub fn pipeline_layout(&self, resources: &mut ResourceManager) -> vk::PipelineLayout {
         match self {
             Pass::Rt(_rt_pass) => todo!(),
-            Pass::Raster(raster_pass) => {
-                resources
-                    .get_layout(raster_pass.pipeline.as_ref().unwrap().pipeline_layout)
-                    .unwrap()
-                    .raw
-            },
+            Pass::Raster(raster_pass) => resources.get_layout(raster_pass.layout).unwrap().raw,
             Pass::Compute(_compute_pass) => todo!(),
-            Pass::Present(present_pass) => {
-                resources
-                    .get_layout(present_pass.pipeline_layout)
-                    .unwrap()
-                    .raw
-            },
+            Pass::Present(present_pass) => resources.get_layout(present_pass.layout).unwrap().raw,
         }
     }
 
@@ -59,7 +48,7 @@ impl Pass {
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Raster(raster_pass) => {
                 resources
-                    .get_raster_pipeline(raster_pass.pipeline.as_ref().unwrap().pipeline)
+                    .get_raster_pipeline(raster_pass.pipeline)
                     .unwrap()
                     .raw
             },
@@ -76,7 +65,7 @@ impl Pass {
     pub fn framebuffer(&self) -> FrameBufferHandle {
         match self {
             Pass::Rt(_rt_pass) => todo!(),
-            Pass::Raster(raster_pass) => raster_pass.pipeline.as_ref().unwrap().frame_buffer,
+            Pass::Raster(_raster_pass) => todo!(),
             Pass::Compute(_compute_pass) => todo!(),
             Pass::Present(_present_pass) => todo!(),
         }
@@ -97,24 +86,6 @@ impl Pass {
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Compute(_compute_pass) => todo!(),
             Pass::Present(present_pass) => &present_pass.execute_fn,
-        }
-    }
-
-    pub fn writes(&self) -> Vec<RenderGraphResource> {
-        match self {
-            Pass::Raster(raster) => raster.writes.clone(),
-            Pass::Rt(_rt) => Vec::new(),
-            Pass::Compute(_comp) => Vec::new(),
-            Pass::Present(_) => Vec::new(),
-        }
-    }
-
-    pub fn reads(&self) -> &Vec<RenderGraphResource> {
-        match self {
-            Pass::Raster(raster) => &raster.reads,
-            Pass::Rt(_rt_pass) => todo!(),
-            Pass::Compute(_compute_pass) => todo!(),
-            Pass::Present(present_pass) => &present_pass.reads,
         }
     }
 }

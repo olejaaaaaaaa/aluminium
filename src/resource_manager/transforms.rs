@@ -13,7 +13,7 @@ pub struct TransformHandle(pub(crate) usize);
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Transform {
     /// Rot
-    pub rot: [[f32; 4]; 4],
+    pub rot: [f32; 4],
     /// Scale
     pub scale: [f32; 4],
     /// Pos
@@ -25,12 +25,7 @@ impl Transform {
     pub fn identity() -> Self {
         Self {
             scale: [1.0, 1.0, 1.0, 0.0],
-            rot: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
+            rot: [0.0, 0.0, 0.0, 0.0],
             pos: [0.0, 0.0, 0.0, 0.0],
         }
     }
@@ -83,11 +78,11 @@ impl TransformCollection {
         &self.data[handle.0]
     }
 
-    pub fn create_transform(&mut self, data: Transform) -> TransformHandle {
+    pub fn create_transform(&mut self, data: Transform) -> VulkanResult<TransformHandle> {
         self.is_dirty = true;
         let index = self.data.len();
         self.data.push(data);
-        TransformHandle(index)
+        Ok(TransformHandle(index))
     }
 
     #[allow(dead_code)]

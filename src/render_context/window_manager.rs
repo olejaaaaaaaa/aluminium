@@ -53,20 +53,18 @@ impl WindowManager {
             .format(vk::Format::R8G8B8A8_SRGB)
             .build()?;
 
-        let depth_image = ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent)
-            .build()
-            .unwrap();
+        let depth_image =
+            ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
 
-        let depth_view = ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw)
-            .build()
-            .unwrap();
+        let depth_view =
+            ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images()? {
-            let image_view = ImageViewBuilder::new_2d(device, vk::Format::R8G8B8A8_SRGB, i)
-                .build()
-                .unwrap();
+            let image_view =
+                ImageViewBuilder::new_2d(device, vk::Format::R8G8B8A8_SRGB, i).build()?;
+
             image_views.push(image_view);
         }
 
@@ -86,7 +84,7 @@ impl WindowManager {
         self.depth_view.destroy(device);
         self.depth_view = depth_view;
 
-        self.depth_image.destory(device);
+        self.depth_image.destroy(device);
         self.depth_image = depth_image;
 
         for i in &self.image_views {

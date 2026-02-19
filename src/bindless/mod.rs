@@ -15,48 +15,22 @@ pub(crate) struct Bindless {
 
 pub struct BindlessBuilder<'a> {
     device: &'a Device,
-    bind: Vec<(u32, u32, vk::DescriptorType, vk::ShaderStageFlags)>,
+    layouts: &'a [vk::DescriptorSetLayoutBinding<'static>],
 }
 
 impl<'a> BindlessBuilder<'a> {
-    pub fn new(device: &'a Device) -> Self {
-        Self {
-            device,
-            bind: vec![],
-        }
-    }
-
-    pub fn with(
-        mut self,
-        bind: u32,
-        count: u32,
-        _ty: vk::DescriptorType,
-        flags: vk::ShaderStageFlags,
-    ) -> Self {
-        self.bind.push((bind, count, _ty, flags));
-        self
+    pub fn new(device: &'a Device, layouts: &'a [vk::DescriptorSetLayoutBinding<'static>]) -> Self {
+        Self { device, layouts }
     }
 
     pub fn build(self) -> VulkanResult<Bindless> {
-        let mut bindings = vec![];
-
-        for i in self.bind {
-            let bind = vk::DescriptorSetLayoutBinding::default()
-                .binding(i.0)
-                .descriptor_count(i.1)
-                .descriptor_type(i.2)
-                .stage_flags(i.3);
-
-            bindings.push(bind);
-        }
-
         let set_layout = DescriptorSetLayoutBuilder::new(self.device)
-            .bindings(bindings.clone())
+            .bindings(self.layouts.to_vec())
             .build()?;
 
         let mut pool_sizes = vec![];
 
-        for i in bindings {
+        for i in self.layouts {
             pool_sizes.push(
                 vk::DescriptorPoolSize::default()
                     .descriptor_count(i.descriptor_count)

@@ -29,24 +29,11 @@ thiserror = { version = "2.0.17" }
 puffin = { version = "0.19.1", default-features = false }
 puffin_http = { version = "0.16.1", optional = true }
 
-egui = { version = "0.33.3", default-features = false, features = ["default_fonts"], optional = true }
-egui-ash-renderer = { version = "0.11.0", features = ["vk-mem"], optional = true }
-egui-winit = { version = "0.33.3", optional = true }
-egui_extras = { version = "0.33.3", default-features = false, features = ["all_loaders"], optional = true }
-
 [features]
 default = ["vma", "runtime-check"]
 gpu-allocator = ["dep:gpu-allocator"]
 vma = ["dep:vk-mem"]
 runtime-check = []
-
-debug-ui = [
-    "dep:egui",
-    "dep:egui-winit",
-    "dep:egui_extras",
-    "dep:egui-ash-renderer",
-]
-
 profiling = ["dep:puffin_http"]
 
 [profile.dev]

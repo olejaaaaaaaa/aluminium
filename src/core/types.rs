@@ -148,3 +148,13 @@ impl BindingDescriptions for Vertex {
         }]
     }
 }
+
+pub trait Resolution {
+    fn into_array(&self) -> [u32; 2];
+}
+
+impl Resolution for vk::Extent2D {
+    fn into_array(&self) -> [u32; 2] {
+        [self.width, self.height]
+    }
+}

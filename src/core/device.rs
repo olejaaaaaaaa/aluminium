@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::mem::ManuallyDrop;
 
 use ash::vk;
 #[cfg(not(feature = "gpu-allocator"))]
@@ -9,7 +10,7 @@ use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
     /// Gpu allocator
-    pub(crate) allocator: Allocator,
+    pub(crate) allocator: ManuallyDrop<Allocator>,
     pub(crate) phys_dev: PhysicalDevice,
     pub(crate) queue_family_props: Vec<vk::QueueFamilyProperties>,
     pub(crate) raw: ash::Device,
@@ -18,7 +19,7 @@ pub struct Device {
 impl Device {
     pub fn destroy(&mut self) {
         unsafe {
-            // ManuallyDrop::drop(&mut self.allocator);
+            ManuallyDrop::drop(&mut self.allocator);
             self.raw.destroy_device(None);
         }
     }
@@ -109,7 +110,7 @@ impl<'a> DeviceBuilder<'a> {
 
         Ok(Device {
             raw: device,
-            allocator,
+            allocator: ManuallyDrop::new(allocator),
             phys_dev,
             queue_family_props: queue_family_prop,
         })

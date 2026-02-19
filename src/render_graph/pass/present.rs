@@ -38,13 +38,13 @@ impl PresentPassBuilder {
         }
     }
 
-    pub fn vertex(mut self, shader: impl Into<Source>) -> Self {
-        self.inner.pipeline_desc.vertex_shader = shader.into();
+    pub fn vertex(mut self, src: impl Into<Source>) -> Self {
+        self.inner.pipeline_desc.vertex_shader = src.into();
         self
     }
 
-    pub fn fragment(mut self, shader: impl Into<Source>) -> Self {
-        self.inner.pipeline_desc.fragment_shader = shader.into();
+    pub fn fragment(mut self, src: impl Into<Source>) -> Self {
+        self.inner.pipeline_desc.fragment_shader = src.into();
         self
     }
 
@@ -72,8 +72,7 @@ impl PresentPassBuilder {
 }
 
 pub struct PresentPass {
-    pub(crate) reads: Vec<RenderGraphResource>,
-    pub(crate) pipeline_layout: PipelineLayoutHandle,
+    pub(crate) layout: PipelineLayoutHandle,
     pub(crate) pipeline: RasterPipelineHandle,
     pub(crate) execute_fn: Box<Execute>,
 }

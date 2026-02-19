@@ -13,7 +13,7 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn destory(&mut self, device: &Device) {
+    pub fn destroy(&mut self, device: &Device) {
         unsafe {
             device
                 .allocator

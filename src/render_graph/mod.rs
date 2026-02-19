@@ -1,4 +1,3 @@
-
 use ash::vk::{self, ClearValue};
 use puffin::profile_scope;
 
@@ -12,16 +11,13 @@ pub mod resources;
 pub use resources::*;
 
 mod texture;
+use slotmap::SlotMap;
 pub use texture::*;
 
-mod command_pool;
-pub use command_pool::CommandPoolPerFrame;
-
 use crate::bindless::Bindless;
-use crate::core::{
-    Device, SwapchainError,
-    VulkanError, VulkanResult,
-};
+use crate::buffering::CommandPoolPerFrame;
+use crate::core::{Device, SwapchainError, VulkanError, VulkanResult};
+use crate::frame_values::FrameValues;
 use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
 
@@ -31,6 +27,7 @@ pub struct RenderGraph {
     command_pool: CommandPoolPerFrame,
     execution_order: Vec<usize>,
     passes: Vec<Pass>,
+    texture_descs: SlotMap<TextureHandle, TextureDesc>,
     pass_descs: Vec<PassDesc>,
 }
 
@@ -47,6 +44,7 @@ impl RenderGraph {
             bindless_set: bindless.set,
             graphics_queue: queue,
             command_pool: CommandPoolPerFrame::new(&ctx.device)?,
+            texture_descs: SlotMap::with_key(),
             execution_order: vec![],
             pass_descs: vec![],
             passes: vec![],
@@ -57,11 +55,19 @@ impl RenderGraph {
         self.pass_descs.push(pass.into());
     }
 
-    pub fn compile(
+    pub fn create_texture(&mut self, desc: TextureDesc) -> TextureHandle {
+        self.texture_descs.insert(desc)
+    }
+
+    pub(crate) fn compile(
         &mut self,
         ctx: &RenderContext,
         resources: &mut ResourceManager,
     ) -> VulkanResult<()> {
+        profile_scope!("RenderGraph::compile");
+
+        for (_handle, _desc) in self.texture_descs.drain() {}
+
         for desc in self.pass_descs.drain(..) {
             let pass = match desc {
                 PassDesc::Present(pass) => {
@@ -70,8 +76,18 @@ impl RenderGraph {
                         .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
 
                     Pass::Present(PresentPass {
-                        reads: pass.reads,
-                        pipeline_layout: layout,
+                        pipeline,
+                        layout,
+                        execute_fn: pass.execute_fn,
+                    })
+                },
+                PassDesc::Raster(pass) => {
+                    let (pipeline, layout) = resources
+                        .low_level
+                        .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
+
+                    Pass::Raster(RasterPass {
+                        layout,
                         pipeline,
                         execute_fn: pass.execute_fn,
                     })
@@ -90,23 +106,10 @@ impl RenderGraph {
         profile_scope!("RenderGraph::topological_sort");
     }
 
-    /// Execute graph
-    pub fn execute(
-        &mut self,
-        ctx: &mut RenderContext,
-        resources: &mut ResourceManager,
-    ) -> VulkanResult<()> {
-        profile_scope!("RenderGraph::execute");
-
-        let device = &ctx.device.device;
-
-        let resolution = vk::Extent2D {
-            width: ctx.window.resolution.width,
-            height: ctx.window.resolution.height,
-        };
-
+    pub(crate) fn acquire_next_image(ctx: &RenderContext) -> VulkanResult<u32> {
         let image_index = {
-            let window = &mut ctx.window;
+            let window = &ctx.window;
+            let device = &ctx.device;
             let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
             // Wait fence for next frame or skip frame
@@ -114,7 +117,9 @@ impl RenderGraph {
                 let wait = device.wait_for_fences(&[sync.in_flight_fence.raw], true, u64::MAX);
                 if let Err(err) = wait {
                     log::error!("Error wait for fences: {:?}", err);
-                    return Ok(());
+                    return Err(VulkanError::Swapchain(
+                        SwapchainError::SwapchainCreationFailed(err),
+                    ));
                 }
                 device
                     .reset_fences(&[sync.in_flight_fence.raw])
@@ -149,13 +154,29 @@ impl RenderGraph {
             }
         };
 
+        Ok(image_index)
+    }
+
+    /// Execute graph
+    pub(crate) fn execute(
+        &mut self,
+        ctx: &mut RenderContext,
+        resources: &mut ResourceManager,
+        frame_values: &mut FrameValues,
+    ) -> VulkanResult<()> {
+        profile_scope!("RenderGraph::execute");
+
+        let image_index = Self::acquire_next_image(ctx)?;
+
+        let device = &ctx.device;
+        let resolution = ctx.window.resolution;
+
         // Get Command Buffers or skip frame
         let frame_count = ctx.window.frame_sync.len();
         let pass_count = self.passes.len();
         let command_buffers =
-            &self
-                .command_pool
-                .allocate_cmd_buffers(&ctx.device, frame_count, pass_count)?[image_index as usize];
+            self.command_pool
+                .allocate_cmd_buffers(device, image_index, frame_count, pass_count)?;
 
         // Reset Command Buffers or skip frame
         for i in command_buffers {
@@ -296,13 +317,14 @@ impl RenderGraph {
             window.current_frame
         );
 
+        frame_values.update(device, image_index, window.current_frame as u32);
         self.passes.clear();
         window.current_frame += 1;
 
         Ok(())
     }
 
-    pub fn destroy(&mut self, _device: &Device) {
-        // self.command_pool.destroy(device);
+    pub(crate) fn destroy(&mut self, device: &Device) {
+        self.command_pool.destroy(device);
     }
 }

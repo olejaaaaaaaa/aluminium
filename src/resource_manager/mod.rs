@@ -58,6 +58,11 @@ pub struct LowLevelManager {
     sampler: SlotMap<SamplerHandle, Sampler>,
 }
 
+struct PipelineLayoutDesc {
+    sets: Vec<vk::DescriptorSetLayout>,
+    push: vk::PushConstantRange,
+}
+
 impl LowLevelManager {
     pub fn new() -> Self {
         Self {
@@ -126,12 +131,6 @@ impl LowLevelManager {
             .vertex_binding_descriptions(&binds)
             .vertex_attribute_descriptions(&attr);
 
-        let _set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![vk::DescriptorSetLayoutBinding::default()
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)])
-            .build()?;
-
         let binds = vec![
             vk::DescriptorSetLayoutBinding::default()
                 .binding(0)
@@ -140,7 +139,12 @@ impl LowLevelManager {
                 .descriptor_count(1),
             vk::DescriptorSetLayoutBinding::default()
                 .binding(1)
-                .stage_flags(vk::ShaderStageFlags::VERTEX)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1),
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(2)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
                 .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
                 .descriptor_count(10000),
         ];
@@ -219,7 +223,43 @@ pub struct ResourceManager {
 }
 
 impl ResourceManager {
-    pub fn destroy(&self, _device: &Device) {}
+    pub fn destroy(&mut self, device: &Device) {
+        for i in &mut self.assets.mesh.data {
+            unsafe {
+                if let Some(index) = &mut i.index_buffer {
+                    device
+                        .allocator
+                        .destroy_buffer(index.raw, &mut index.allocation);
+                }
+                if let Some(instance) = &mut i.instance_buffer {
+                    device
+                        .allocator
+                        .destroy_buffer(instance.raw, &mut instance.allocation);
+                }
+                device
+                    .allocator
+                    .destroy_buffer(i.vertex_buffer.raw, &mut i.vertex_buffer.allocation);
+            }
+        }
+
+        self.assets.transform.destroy(device);
+
+        for (_, pipeline) in self.low_level.raster_pipeline.drain() {
+            unsafe { device.destroy_pipeline(pipeline.raw, None) };
+        }
+
+        for (_, layout) in self.low_level.pipeline_layout.drain() {
+            unsafe {
+                device.destroy_pipeline_layout(layout.raw, None);
+            }
+        }
+
+        for (_, framebuffer) in self.low_level.frame_buffer.drain() {
+            unsafe {
+                device.destroy_framebuffer(framebuffer.raw, None);
+            }
+        }
+    }
 
     pub fn new(device: &Device) -> VulkanResult<Self> {
         Ok(Self {
@@ -302,10 +342,10 @@ impl ResourceManager {
     }
 
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
-        Ok(self.assets.material.add_material(material))
+        self.assets.material.add_material(material)
     }
 
     pub fn create_transform(&mut self, transform: Transform) -> VulkanResult<TransformHandle> {
-        Ok(self.assets.transform.create_transform(transform))
+        self.assets.transform.create_transform(transform)
     }
 }

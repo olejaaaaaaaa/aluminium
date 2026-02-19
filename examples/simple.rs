@@ -3,7 +3,10 @@
 use std::error::Error;
 
 use aluminium::types::Vertex;
-use aluminium::{Material, PresentPassBuilder, Renderable, Transform, WorldRenderer};
+use aluminium::{
+    Material, PresentPassBuilder, RasterPassBuilder, Renderable, Resolution, SamplerType,
+    TextureDesc, TextureFormat, TextureUsage, Transform, WorldRenderer,
+};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -32,12 +35,37 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
+
                 let _ = world.draw_frame(|graph| {
+                    let simple = graph.create_texture(TextureDesc {
+                        resolution: Resolution::Full,
+                        format: TextureFormat::R8g8b8a8Srgb,
+                        sampler: SamplerType::Linear,
+                        usage: TextureUsage::Transient,
+                        layers: 1,
+                    });
+
+                    // graph.add_pass(
+                    //     RasterPassBuilder::new()
+                    //         .vertex("shaders/spv/raster_vs-hlsl.spv")
+                    //         .fragment("shaders/spv/raster_ps-hlsl.spv")
+                    //         .execute(|ctx, renderables| {
+                    //             ctx.bind_bindless();
+                    //             ctx.set_scissor(None);
+                    //             ctx.set_viewport(None);
+                    //             ctx.bind_pipeline();
+                    //             for i in renderables {
+                    //                 ctx.draw_mesh(i);
+                    //             }
+                    //         })
+                    //         .build()
+                    // );
+
                     graph.add_pass(
                         PresentPassBuilder::new()
-                            .vertex(r"shaders\spv\raster_vs-hlsl.spv")
-                            .fragment(r"shaders\spv\raster_ps-hlsl.spv")
-                            .execute(|ctx, renderables| {
+                            .vertex("shaders/spv/raster_vs-hlsl.spv")
+                            .fragment("shaders/spv/raster_ps-hlsl.spv")
+                            .execute(|ctx, renderables| unsafe {
                                 ctx.bind_bindless();
                                 ctx.set_scissor(None);
                                 ctx.set_viewport(None);
@@ -73,15 +101,15 @@ impl ApplicationHandler for App {
 
         let triangle_mesh = vec![
             Vertex {
-                pos: [-0.8, -0.8, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            Vertex {
                 pos: [0.8, -0.8, 0.0],
                 color: [0.0, 1.0, 0.0],
             },
             Vertex {
                 pos: [0.0, 0.8, 0.0],
+                color: [0.0, 0.0, 1.0],
+            },
+            Vertex {
+                pos: [-0.3, 0.5, 0.0],
                 color: [0.0, 0.0, 1.0],
             },
         ];

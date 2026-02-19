@@ -1,6 +1,6 @@
 use slotmap::{new_key_type, SlotMap};
 
-use crate::render_graph::{LoadOp, StoreOp, TextureDesc};
+use crate::render_graph::TextureDesc;
 
 new_key_type! {
     pub struct DescriptorSetHandle;
@@ -13,10 +13,6 @@ pub enum RenderGraphResource {
         handle: TextureHandle,
         last_access: vk_sync::AccessType,
     },
-    RenderTarget {
-        texture: (TextureHandle, vk_sync::AccessType),
-        ops: (LoadOp, StoreOp),
-    },
 }
 
 impl RenderGraphResource {
@@ -26,7 +22,7 @@ impl RenderGraphResource {
                 handle: _,
                 last_access,
             } => *last_access,
-            RenderGraphResource::RenderTarget { texture, ops: _ } => texture.1,
+            // RenderGraphResource::RenderTarget { texture, ops: _ } => texture.1,
         }
     }
 }
@@ -55,7 +51,6 @@ impl RenderGraphResources {
         self.textures.insert(desc)
     }
 
-    #[allow(dead_code)]
     pub fn get_texture(&mut self, handle: TextureHandle) -> Option<&TextureDesc> {
         self.textures.get(handle)
     }

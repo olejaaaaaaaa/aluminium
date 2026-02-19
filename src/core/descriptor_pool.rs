@@ -20,8 +20,6 @@ impl DescriptorPool {
             .descriptor_pool(self.raw)
             .set_layouts(layouts);
 
-        
-
         unsafe { device.allocate_descriptor_sets(&desc).unwrap() }
     }
 }

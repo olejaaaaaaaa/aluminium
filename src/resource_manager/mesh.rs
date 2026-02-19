@@ -27,6 +27,10 @@ pub struct Mesh {
     pub index_buffer: Option<GpuBuffer>,
 }
 
+// Indirect Buffers
+//
+//
+
 pub struct MeshCollection {
     pub data: Vec<Mesh>,
 }

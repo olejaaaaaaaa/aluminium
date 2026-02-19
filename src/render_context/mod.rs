@@ -7,9 +7,9 @@ mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
-    AppBuilder, CommandPoolBuilder, DeviceBuilder, FrameBufferBuilder, FrameSync, ImageBuilder,
-    ImageViewBuilder, InstanceBuilder, PhysicalDevice, QueuePool, RenderPassBuilder,
-    SurfaceBuilder, SwapchainBuilder, VulkanResult,
+    AppBuilder, DeviceBuilder, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
+    InstanceBuilder, PhysicalDevice, QueuePool, RenderPassBuilder, SurfaceBuilder,
+    SwapchainBuilder, VulkanResult,
 };
 
 /// Render Context provides initialized low-level Vulkan objects ready to use.
@@ -22,7 +22,7 @@ pub struct RenderContext {
 
 impl RenderContext {
     /// Recreate
-    /// - Swapchain
+    /// - `Swapchain`
     /// - `FrameBuffers`
     /// - `ImageViews`
     pub fn resize(&mut self, width: u32, height: u32) -> VulkanResult<()> {
@@ -45,14 +45,7 @@ impl RenderContext {
         let instance = InstanceBuilder::default(&app).build()?;
         let surface = SurfaceBuilder::new(&app, &instance, window).build()?;
 
-        let phys_dev = unsafe { instance.raw.enumerate_physical_devices().unwrap() };
-        let phys_dev = phys_dev[0];
-        let phys_prop = unsafe { instance.raw.get_physical_device_properties(phys_dev) };
-
-        let phys_dev = PhysicalDevice {
-            raw: phys_dev,
-            prop: phys_prop,
-        };
+        let phys_dev = PhysicalDevice::new(&instance)?;
 
         let device = DeviceBuilder::default(&instance, phys_dev).build()?;
 
@@ -122,45 +115,6 @@ impl RenderContext {
             },
         })
     }
-
-    // Debug
-    #[allow(dead_code)]
-    fn execute_commands(&self, callback: impl FnOnce(vk::CommandBuffer)) {
-        let device = &self.device;
-
-        let queue = self
-            .device
-            .queue_pool
-            .get_queue(vk::QueueFlags::TRANSFER)
-            .unwrap();
-        let pool = CommandPoolBuilder::reset(device).build().unwrap();
-        let cbuf = pool.create_command_buffers(device, 1).unwrap()[0];
-
-        unsafe {
-            self.device
-                .begin_command_buffer(
-                    cbuf,
-                    &vk::CommandBufferBeginInfo::default()
-                        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
-                )
-                .unwrap();
-        }
-
-        callback(cbuf);
-
-        unsafe {
-            self.device.end_command_buffer(cbuf).unwrap();
-
-            let submit_info =
-                vk::SubmitInfo::default().command_buffers(std::slice::from_ref(&cbuf));
-
-            self.device
-                .queue_submit(queue, &[submit_info], vk::Fence::null())
-                .expect("queue submit failed.");
-
-            self.device.device_wait_idle().unwrap();
-        }
-    }
 }
 
 /// Destroying Vulkan objects in the correct order
@@ -172,7 +126,7 @@ impl Drop for RenderContext {
 
         self.window.render_pass.destroy(&self.device);
         self.window.depth_view.destroy(&self.device);
-        self.window.depth_image.destory(&self.device);
+        self.window.depth_image.destroy(&self.device);
 
         for i in &self.window.frame_sync {
             i.destroy(&self.device);

@@ -148,14 +148,10 @@ impl PipelineShaderReflection {
             let reflection = Self::new_from_u8(i.raw, &i.bytes)?;
 
             match reflection.stage {
-                naga::ShaderStage::Vertex => {
-                    pipeline_reflection.vertex = Some(reflection);
-                },
+                naga::ShaderStage::Vertex => pipeline_reflection.vertex = Some(reflection),
                 naga::ShaderStage::Compute => pipeline_reflection.compute = Some(reflection),
-                naga::ShaderStage::Fragment => {
-                    pipeline_reflection.fragment = Some(reflection);
-                },
-                _ => todo!(),
+                naga::ShaderStage::Fragment => pipeline_reflection.fragment = Some(reflection),
+                _ => panic!("Not supported this type of shader!"),
             }
         }
 
