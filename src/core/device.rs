@@ -2,6 +2,7 @@ use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 
 use ash::vk;
+use log::{debug, info};
 #[cfg(not(feature = "gpu-allocator"))]
 use vk_mem::Allocator;
 
@@ -46,15 +47,7 @@ impl<'a> DeviceBuilder<'a> {
             extenions: vec![c"VK_KHR_swapchain"],
         }
     }
-
-    #[allow(dead_code)]
-    pub fn with_extenions<S: Iterator<Item = &'static CStr>>(mut self, extensions: S) -> Self {
-        let extensions = extensions.into_iter().collect::<Vec<_>>();
-
-        self.extenions.extend(extensions);
-        self
-    }
-
+    
     pub fn build(self) -> VulkanResult<Device> {
         let phys_dev = self.phys_dev;
 
@@ -63,6 +56,12 @@ impl<'a> DeviceBuilder<'a> {
             .iter()
             .map(|p| p.as_ptr().cast::<i8>())
             .collect::<Vec<_>>();
+
+        let extenions = unsafe { self.instance.raw.enumerate_device_extension_properties(phys_dev.raw).unwrap() };
+        
+        for i in extenions {
+            debug!("Device extension: {:?}", i.extension_name_as_c_str().unwrap_or(c"Unknown"));
+        }
 
         let queue_family_prop = unsafe {
             self.instance

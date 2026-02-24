@@ -15,7 +15,7 @@ struct FrameValues {
     uint    frame_index;
     float   delta_time_sec;
     float   time_sec;
-    float3  pad;
+    float   pad;
 };
 
 [[vk::binding(0, 0)]] StructuredBuffer<Camera> camera;

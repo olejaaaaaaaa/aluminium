@@ -1,7 +1,7 @@
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 
-use crate::buffering::{PerFrameBuffer, PerFrameBufferBuilder};
+use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
 use crate::core::{Device, VulkanResult};
 
 #[repr(C)]
@@ -11,8 +11,10 @@ pub struct FrameData {
     frame_index: u32,
     delta_time_sec: f32,
     time_sec: f32,
-    _pad: [f32; 3],
+    _pad: f32,
 }
+
+// 0x4
 
 pub struct FrameValues {
     global_time_sec: std::time::Instant,
@@ -37,7 +39,7 @@ impl FrameValues {
                 frame_index: 0,
                 delta_time_sec: 0.0,
                 time_sec: 0.0,
-                _pad: [0.0, 0.0, 0.0],
+                _pad: 0.0,
             },
             buffer,
         })

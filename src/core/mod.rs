@@ -27,6 +27,12 @@ pub use image::*;
 mod phys_dev;
 pub use phys_dev::*;
 
+mod phys_prop;
+pub use phys_prop::*;
+
+mod phys_features;
+pub use phys_features::*;
+
 mod shader;
 pub use shader::*;
 
@@ -76,3 +82,9 @@ pub use sync::*;
 
 mod types;
 pub use types::*;
+
+mod vendor;
+pub use vendor::*;
+
+mod extensions;
+pub use extensions::*;

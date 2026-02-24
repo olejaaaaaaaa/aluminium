@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::resource_manager::{Renderable, ResourceManager};
+use crate::{core::Resolution, resource_manager::{Renderable, ResourceManager}};
 
 /// The context of the currently running pass
 pub struct PassContext<'a> {
@@ -14,6 +14,11 @@ pub struct PassContext<'a> {
 }
 
 impl<'a> PassContext<'a> {
+
+    pub unsafe fn resolution(&self) -> [u32; 2] {
+        self.resolution.into_array()
+    }
+
     pub unsafe fn set_viewport(&self, view: Option<vk::Viewport>) {
         let view = view.unwrap_or(
             vk::Viewport::default()

@@ -7,7 +7,7 @@
 pub(crate) mod bindless;
 // TODO:
 // pub(crate) mod bvh;
-pub(crate) mod buffering;
+pub(crate) mod per_frame;
 pub(crate) mod camera;
 pub(crate) mod core;
 pub(crate) mod frame_values;

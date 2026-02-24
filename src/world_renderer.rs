@@ -8,6 +8,7 @@ use puffin::{profile_scope, GlobalProfiler};
 use winit::window::Window;
 
 use super::render_context::RenderContext;
+use crate::TextureDesc;
 use crate::bindless::{Bindless, BindlessBuilder};
 use crate::camera::{Camera, CameraData};
 use crate::core::{
@@ -56,9 +57,7 @@ pub struct WorldRenderer {
     /// Natively supported on Windows and Linux; on other platforms, falls back
     /// to arrays
     bindless: Bindless,
-
     frame_values: FrameValues,
-
     /// Render Graph
     ///
     /// The rendering graph automatically creates the necessary resources and
@@ -85,8 +84,6 @@ impl WorldRenderer {
     /// If Vulkan is not found on this device or the device does not support
     /// core formats or features.
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
-        // Automatically enable required extensions/layers/features depending on the
-        // platform
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
         let resources = ResourceManager::new(&ctx.device)?;
@@ -171,6 +168,10 @@ impl WorldRenderer {
     /// - If an unexpected error occurs
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
         self.resources.create_material(material)
+    }
+
+    pub fn create_texture(&mut self, desc: TextureDesc, pixels: &[u8]) {
+
     }
 
     /// Create Transform

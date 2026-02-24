@@ -30,8 +30,9 @@ puffin = { version = "0.19.1", default-features = false }
 puffin_http = { version = "0.16.1", optional = true }
 
 [features]
-default = ["vma", "runtime-check"]
+default = ["vma", "runtime-check", "validation_layer"]
 gpu-allocator = ["dep:gpu-allocator"]
+validation_layer = []
 vma = ["dep:vk-mem"]
 runtime-check = []
 profiling = ["dep:puffin_http"]

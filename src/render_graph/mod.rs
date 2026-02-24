@@ -15,7 +15,7 @@ use slotmap::SlotMap;
 pub use texture::*;
 
 use crate::bindless::Bindless;
-use crate::buffering::CommandPoolPerFrame;
+use crate::per_frame::CommandPoolPerFrame;
 use crate::core::{Device, SwapchainError, VulkanError, VulkanResult};
 use crate::frame_values::FrameValues;
 use crate::render_context::RenderContext;
@@ -317,7 +317,7 @@ impl RenderGraph {
             window.current_frame
         );
 
-        frame_values.update(device, image_index, window.current_frame as u32);
+        frame_values.update(device, image_index, window.current_frame as u32)?;
         self.passes.clear();
         window.current_frame += 1;
 

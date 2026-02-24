@@ -7,8 +7,8 @@ mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
-    AppBuilder, DeviceBuilder, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
-    InstanceBuilder, PhysicalDevice, QueuePool, RenderPassBuilder, SurfaceBuilder,
+    App, DeviceBuilder, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
+    Instance, PhysicalDevice, QueuePool, RenderPassBuilder, SurfaceBuilder,
     SwapchainBuilder, VulkanResult,
 };
 
@@ -29,28 +29,16 @@ impl RenderContext {
         self.window.resize(&self.device, width, height)
     }
 
-    /// Create Render Context with default params
-    ///
-    /// Render Pass with Depth Image
-    ///
-    /// Choose integrated GPU
-    ///
-    /// Only Vulkan 1.0 and the most necessary extensions
+    /// Create Render Context
     pub fn new(window: &winit::window::Window) -> VulkanResult<RenderContext> {
-        let app = AppBuilder::default()
-            .with_min_api_version(vk::API_VERSION_1_0)
-            .with_max_api_version(vk::API_VERSION_1_2)
-            .build()?;
 
-        let instance = InstanceBuilder::default(&app).build()?;
+        let app = App::new()?;
+        let instance = Instance::new(window, &app)?;
         let surface = SurfaceBuilder::new(&app, &instance, window).build()?;
-
         let phys_dev = PhysicalDevice::new(&instance)?;
-
         let device = DeviceBuilder::default(&instance, phys_dev).build()?;
-
         let caps = surface.get_physical_device_surface_capabilities(*device.phys_dev);
-
+        
         let swapchain = SwapchainBuilder::default(&instance, &device, &surface)
             .extent(caps.current_extent)
             .format(vk::Format::R8G8B8A8_SRGB)
