@@ -110,6 +110,10 @@ impl LowLevelManager {
         ctx: &RenderContext,
         desc: &RasterPipelineDesc,
     ) -> VulkanResult<(RasterPipelineHandle, PipelineLayoutHandle)> {
+
+        let window = ctx.window.read().unwrap();
+        let resolution = window.resolution;
+
         if let Some((pipeline, layout)) = self.cache_raster.get(desc) {
             return Ok((*pipeline, *layout));
         }
@@ -169,18 +173,18 @@ impl LowLevelManager {
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
             .vertex_shader(reflection.vertex.as_ref().unwrap().raw)
             .fragment_shader(reflection.fragment.as_ref().unwrap().raw)
-            .render_pass(ctx.window.render_pass.raw)
+            .render_pass(window.render_pass.raw)
             .pipeline_layout(layout.raw)
             .viewport(vec![vk::Viewport::default()
                 .x(0.0)
                 .y(0.0)
-                .width(ctx.window.resolution.width as f32)
-                .height(ctx.window.resolution.height as f32)
+                .width(resolution.width as f32)
+                .height(resolution.height as f32)
                 .min_depth(0.0)
                 .max_depth(1.0)])
             .scissors(vec![vk::Rect2D::default()
                 .offset(vk::Offset2D { x: 0, y: 0 })
-                .extent(ctx.window.resolution)])
+                .extent(ctx.resolution())])
             .input_assembly(
                 vk::PipelineInputAssemblyStateCreateInfo::default()
                     .topology(vk::PrimitiveTopology::TRIANGLE_LIST)

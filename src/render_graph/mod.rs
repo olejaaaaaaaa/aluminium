@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::vk::{self, ClearValue};
 use puffin::profile_scope;
 
@@ -108,7 +110,7 @@ impl RenderGraph {
 
     pub(crate) fn acquire_next_image(ctx: &RenderContext) -> VulkanResult<u32> {
         let image_index = {
-            let window = &ctx.window;
+            let window = &ctx.window.read().unwrap();
             let device = &ctx.device;
             let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
@@ -160,19 +162,20 @@ impl RenderGraph {
     /// Execute graph
     pub(crate) fn execute(
         &mut self,
-        ctx: &mut RenderContext,
+        ctx: Arc<RenderContext>,
         resources: &mut ResourceManager,
         frame_values: &mut FrameValues,
     ) -> VulkanResult<()> {
         profile_scope!("RenderGraph::execute");
 
-        let image_index = Self::acquire_next_image(ctx)?;
+        let image_index = Self::acquire_next_image(&ctx)?;
 
         let device = &ctx.device;
-        let resolution = ctx.window.resolution;
+        let window = ctx.window.read().unwrap();
+        let resolution = window.resolution;
+        let frame_count = window.frame_buffers.len();
 
         // Get Command Buffers or skip frame
-        let frame_count = ctx.window.frame_sync.len();
         let pass_count = self.passes.len();
         let command_buffers =
             self.command_pool
@@ -230,20 +233,18 @@ impl RenderGraph {
             ];
 
             let frame_buffer = if pass.is_present() {
-                &ctx.window.frame_buffers[image_index as usize]
+                &window.frame_buffers[image_index as usize]
             } else {
                 let handle = pass.framebuffer();
                 resources.get_framebuffer(handle).unwrap()
             };
-
-            let window = &ctx.window;
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::default()
                 .render_pass(window.render_pass.raw)
                 .framebuffer(frame_buffer.raw)
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: window.resolution,
+                    extent: resolution,
                 })
                 .clear_values(&clear_values);
 
@@ -270,7 +271,9 @@ impl RenderGraph {
             }
         }
 
-        let window = &mut ctx.window;
+        drop(window);
+
+        let window = &mut ctx.window.write().unwrap();
         let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
         // Submit

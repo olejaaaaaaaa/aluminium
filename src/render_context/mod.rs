@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use ash::vk;
 
 mod features;
@@ -18,7 +20,7 @@ use crate::core::{
 /// Render Context provides initialized low-level Vulkan objects ready to use.
 pub struct RenderContext {
     /// Window and Swapchain management
-    pub(crate) window: WindowManager,
+    pub(crate) window: RwLock<WindowManager>,
     /// Main Vulkan objects
     pub(crate) device: GraphicsDevice,
 }
@@ -28,12 +30,16 @@ impl RenderContext {
     /// - `Swapchain`
     /// - `FrameBuffers`
     /// - `ImageViews`
-    pub fn resize(&mut self, width: u32, height: u32) -> VulkanResult<()> {
-        self.window.resize(&self.device, width, height)
+    pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
+        self.window.write().expect("Error lock write").resize(&self.device, width, height)
+    }
+
+    pub fn resolution(&self) -> vk::Extent2D {
+        self.window.read().expect("Error lock Window Manager").resolution
     }
 
     pub fn framebuffer_count(&self) -> usize {
-        self.window.frame_buffers.len()
+        self.window.read().expect("Error read lock Window Manager").frame_buffers.len()
     }
 
     pub fn check_features<T>(&self, features: &[T]) -> bool
@@ -71,7 +77,7 @@ impl RenderContext {
     }
 
     /// Create Render Context
-    pub fn new(window: &winit::window::Window) -> VulkanResult<RenderContext> {
+    pub fn new(window: &winit::window::Window) -> VulkanResult<Arc<Self>> {
         let app = App::new()?;
         let instance = Instance::new(window, &app)?;
         let surface = SurfaceBuilder::new(&app, &instance, window).build()?;
@@ -122,8 +128,8 @@ impl RenderContext {
             frame_sync.push(FrameSync::new(&device)?);
         }
 
-        Ok(Self {
-            window: WindowManager {
+        Ok(Arc::new(Self {
+            window: RwLock::new(WindowManager {
                 resolution: caps.current_extent,
                 frame_sync,
                 image_views,
@@ -134,7 +140,7 @@ impl RenderContext {
                 surface,
                 swapchain,
                 render_pass,
-            },
+            }),
             device: GraphicsDevice {
                 app,
                 phys_dev,
@@ -142,7 +148,7 @@ impl RenderContext {
                 logical_device: device,
                 queue_pool: pool,
             },
-        })
+        }))
     }
 }
 
@@ -151,26 +157,26 @@ impl Drop for RenderContext {
     fn drop(&mut self) {
         unsafe { self.device.device_wait_idle().expect("Error wait idle") };
 
-        self.window.swapchain.destroy();
+        // self.window.swapchain.destroy();
 
-        self.window.render_pass.destroy(&self.device);
-        self.window.depth_view.destroy(&self.device);
-        self.window.depth_image.destroy(&self.device);
+        // self.window.render_pass.destroy(&self.device);
+        // self.window.depth_view.destroy(&self.device);
+        // self.window.depth_image.destroy(&self.device);
 
-        for i in &self.window.frame_sync {
-            i.destroy(&self.device);
-        }
+        // for i in &self.window.frame_sync {
+        //     i.destroy(&self.device);
+        // }
 
-        for i in &self.window.frame_buffers {
-            i.destroy(&self.device);
-        }
+        // for i in &self.window.frame_buffers {
+        //     i.destroy(&self.device);
+        // }
 
-        for i in &self.window.image_views {
-            i.destroy(&self.device);
-        }
+        // for i in &self.window.image_views {
+        //     i.destroy(&self.device);
+        // }
 
-        self.device.logical_device.destroy();
-        self.window.surface.destroy();
-        self.device.instance.destroy();
+        // self.device.logical_device.destroy();
+        // self.window.surface.destroy();
+        // self.device.instance.destroy();
     }
 }

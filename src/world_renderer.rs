@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
@@ -72,7 +72,7 @@ pub struct WorldRenderer {
     ///
     /// The rendering context provides an entry point for creating and deleting
     /// resources
-    ctx: ManuallyDrop<RenderContext>,
+    ctx: Arc<RenderContext>,
     /// This structure not Send and Sync!
     _marker: PhantomData<*mut ()>,
 }
@@ -85,13 +85,13 @@ impl WorldRenderer {
     /// If Vulkan is not found on this device or the device does not support
     /// core formats or features.
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
+
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
         let resources = ResourceManager::new(&ctx.device)?;
-
         let bindless = Bindless::new(&ctx, &GLOBAL_BINDLESS_LAYOUT)?;
         let mut frame_values = FrameValues::new(&ctx.device, ctx.framebuffer_count())?;
-        frame_values.set_resolution(ctx.window.resolution.into_array());
+        frame_values.set_resolution(ctx.resolution().into_array());
 
         bindless.update_buffer_set(
             &ctx.device,
@@ -128,7 +128,7 @@ impl WorldRenderer {
             resources,
             camera,
             graph,
-            ctx: ManuallyDrop::new(ctx),
+            ctx,
             _marker: PhantomData,
         })
     }
@@ -227,12 +227,12 @@ impl WorldRenderer {
         // Execute Graph
         match self
             .graph
-            .execute(&mut self.ctx, &mut self.resources, &mut self.frame_values)
+            .execute(self.ctx.clone(), &mut self.resources, &mut self.frame_values)
         {
             Ok(_) => {},
             Err(VulkanError::Swapchain(err)) => match err {
                 SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
-                    let extent = self.ctx.window.resolution;
+                    let extent = self.ctx.resolution();
                     self.resize(extent.width, extent.height)?;
                 },
                 SwapchainError::SwapchainCreationFailed(err) => {
@@ -282,6 +282,6 @@ impl Drop for WorldRenderer {
         // Destroy Surface
         // Destroy Option<DebugCallback>
         // Destroy Instance
-        unsafe { ManuallyDrop::drop(&mut self.ctx) };
+        //unsafe { ManuallyDrop::drop(&mut self.ctx) };
     }
 }
