@@ -31,15 +31,25 @@ impl RenderContext {
     /// - `FrameBuffers`
     /// - `ImageViews`
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
-        self.window.write().expect("Error lock write").resize(&self.device, width, height)
+        self.window
+            .write()
+            .expect("Error lock write")
+            .resize(&self.device, width, height)
     }
 
     pub fn resolution(&self) -> vk::Extent2D {
-        self.window.read().expect("Error lock Window Manager").resolution
+        self.window
+            .read()
+            .expect("Error lock Window Manager")
+            .resolution
     }
 
     pub fn framebuffer_count(&self) -> usize {
-        self.window.read().expect("Error read lock Window Manager").frame_buffers.len()
+        self.window
+            .read()
+            .expect("Error read lock Window Manager")
+            .frame_buffers
+            .len()
     }
 
     pub fn check_features<T>(&self, features: &[T]) -> bool
@@ -49,12 +59,14 @@ impl RenderContext {
         for i in features {
             let feature: Feature = i.into();
             match feature {
-                Feature::Extension(ext) => if let Extension::Bindless = ext {
-                    let extensions = &self.device.logical_device.extensions;
-                    if extensions.contains(&c"VK_KHR_push_descriptor")
-                        && extensions.contains(&c"VK_KHR_push_descriptor")
-                    {
-                        return true;
+                Feature::Extension(ext) => {
+                    if let Extension::Bindless = ext {
+                        let extensions = &self.device.logical_device.extensions;
+                        if extensions.contains(&c"VK_KHR_push_descriptor")
+                            && extensions.contains(&c"VK_EXT_descriptor_indexing")
+                        {
+                            return true;
+                        }
                     }
                 },
                 Feature::Physical(phys) => match phys {
@@ -65,9 +77,9 @@ impl RenderContext {
                         }
                     },
                 },
-                Feature::Vendor(v) => {
-                    let vendor = self.device.phys_dev.vendor;
-                    if vendor == v {
+                Feature::Vendor(vendor_required) => {
+                    let actual_vendor = self.device.phys_dev.vendor;
+                    if actual_vendor == vendor_required {
                         return true;
                     }
                 },

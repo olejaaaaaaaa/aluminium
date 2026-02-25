@@ -115,7 +115,13 @@ impl ApplicationHandler for App {
         ];
 
         let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
-        let material = world.create_material(Material::new()).unwrap();
+        let material = world
+            .create_material(
+                Material::new()
+                    .set_value("animation_time", 0.5)
+                    .set_value("animation_speed", 0.3), //.set_value("base_color", [0.0, 0.3, 0.1])
+            )
+            .unwrap();
         let transform = world.create_transform(Transform::identity()).unwrap();
         let _ = world.create_renderable(Renderable::new(mesh, material, transform));
 

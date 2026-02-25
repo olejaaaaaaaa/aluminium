@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
 use ash::vk;
 
 use crate::core::Resolution;
 use crate::resource_manager::{Renderable, ResourceManager};
 
 /// The context of the currently running pass
-pub struct PassContext<'a> {
-    pub(crate) resources: &'a ResourceManager,
+pub struct PassContext {
+    pub(crate) resources: Arc<ResourceManager>,
     pub(crate) bindless_set: vk::DescriptorSet,
     pub(crate) resolution: vk::Extent2D,
     pub(crate) pipeline: vk::Pipeline,
@@ -14,7 +16,7 @@ pub struct PassContext<'a> {
     pub(crate) cbuf: vk::CommandBuffer,
 }
 
-impl<'a> PassContext<'a> {
+impl PassContext {
     pub unsafe fn resolution(&self) -> [u32; 2] {
         self.resolution.into_array()
     }
@@ -64,7 +66,8 @@ impl<'a> PassContext<'a> {
     pub unsafe fn dispatch(&self) {}
 
     pub unsafe fn draw_mesh(&self, renderable: &Renderable) {
-        let mesh = self.resources.get_mesh(renderable.mesh);
+        let resources = self.resources.assets.read().unwrap();
+        let mesh = resources.mesh.get_mesh(renderable.mesh);
 
         self.device
             .cmd_bind_vertex_buffers(self.cbuf, 0, &[mesh.vertex_buffer.raw], &[0]);

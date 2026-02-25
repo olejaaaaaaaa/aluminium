@@ -64,7 +64,7 @@ impl RenderGraph {
     pub(crate) fn compile(
         &mut self,
         ctx: &RenderContext,
-        resources: &mut ResourceManager,
+        resources: &ResourceManager,
     ) -> VulkanResult<()> {
         profile_scope!("RenderGraph::compile");
 
@@ -75,6 +75,8 @@ impl RenderGraph {
                 PassDesc::Present(pass) => {
                     let (pipeline, layout) = resources
                         .low_level
+                        .write()
+                        .unwrap()
                         .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
 
                     Pass::Present(PresentPass {
@@ -86,6 +88,8 @@ impl RenderGraph {
                 PassDesc::Raster(pass) => {
                     let (pipeline, layout) = resources
                         .low_level
+                        .write()
+                        .unwrap()
                         .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
 
                     Pass::Raster(RasterPass {
@@ -163,7 +167,7 @@ impl RenderGraph {
     pub(crate) fn execute(
         &mut self,
         ctx: Arc<RenderContext>,
-        resources: &mut ResourceManager,
+        resources: Arc<ResourceManager>,
         frame_values: &mut FrameValues,
     ) -> VulkanResult<()> {
         profile_scope!("RenderGraph::execute");
@@ -211,12 +215,17 @@ impl RenderGraph {
                 resolution,
                 device: device.raw.clone(),
                 cbuf: command_buffer,
-                pipeline: pass.pipeline(resources),
-                layout: pass.pipeline_layout(resources),
-                resources,
+                pipeline: pass.pipeline(&resources),
+                layout: pass.pipeline_layout(&resources),
+                resources: resources.clone(),
             };
 
-            let renderables = resources.get_renderables();
+            let renderables = resources
+                .assets
+                .read()
+                .unwrap()
+                .renderable
+                .get_renderables();
 
             let clear_values = vec![
                 ClearValue {
@@ -232,11 +241,14 @@ impl RenderGraph {
                 },
             ];
 
+            let s = resources.low_level.read().unwrap();
+
             let frame_buffer = if pass.is_present() {
                 &window.frame_buffers[image_index as usize]
             } else {
                 let handle = pass.framebuffer();
-                resources.get_framebuffer(handle).unwrap()
+
+                s.frame_buffer.get(handle).unwrap()
             };
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::default()

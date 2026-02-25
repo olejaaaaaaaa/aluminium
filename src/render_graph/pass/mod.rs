@@ -34,12 +34,30 @@ pub enum Pass {
 }
 
 impl Pass {
-    pub fn pipeline_layout(&self, resources: &mut ResourceManager) -> vk::PipelineLayout {
+    pub fn pipeline_layout(&self, resources: &ResourceManager) -> vk::PipelineLayout {
         match self {
             Pass::Rt(_rt_pass) => todo!(),
-            Pass::Raster(raster_pass) => resources.get_layout(raster_pass.layout).unwrap().raw,
+            Pass::Raster(raster_pass) => {
+                resources
+                    .low_level
+                    .read()
+                    .unwrap()
+                    .pipeline_layout
+                    .get(raster_pass.layout)
+                    .unwrap()
+                    .raw
+            },
             Pass::Compute(_compute_pass) => todo!(),
-            Pass::Present(present_pass) => resources.get_layout(present_pass.layout).unwrap().raw,
+            Pass::Present(present_pass) => {
+                resources
+                    .low_level
+                    .read()
+                    .unwrap()
+                    .pipeline_layout
+                    .get(present_pass.layout)
+                    .unwrap()
+                    .raw
+            },
         }
     }
 
@@ -48,14 +66,22 @@ impl Pass {
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Raster(raster_pass) => {
                 resources
-                    .get_raster_pipeline(raster_pass.pipeline)
+                    .low_level
+                    .read()
+                    .unwrap()
+                    .raster_pipeline
+                    .get(raster_pass.pipeline)
                     .unwrap()
                     .raw
             },
             Pass::Compute(_compute_pass) => todo!(),
             Pass::Present(present_pass) => {
                 resources
-                    .get_raster_pipeline(present_pass.pipeline)
+                    .low_level
+                    .read()
+                    .unwrap()
+                    .raster_pipeline
+                    .get(present_pass.pipeline)
                     .unwrap()
                     .raw
             },

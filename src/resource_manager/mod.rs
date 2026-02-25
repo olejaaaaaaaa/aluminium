@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
@@ -54,11 +55,11 @@ impl AssetManager {
 }
 
 pub struct LowLevelManager {
-    cache_raster: HashMap<RasterPipelineDesc, (RasterPipelineHandle, PipelineLayoutHandle)>,
-    raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
-    pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,
-    frame_buffer: SlotMap<FrameBufferHandle, FrameBuffer>,
-    sampler: SlotMap<SamplerHandle, Sampler>,
+    pub cache_raster: HashMap<RasterPipelineDesc, (RasterPipelineHandle, PipelineLayoutHandle)>,
+    pub raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
+    pub pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,
+    pub frame_buffer: SlotMap<FrameBufferHandle, FrameBuffer>,
+    pub sampler: SlotMap<SamplerHandle, Sampler>,
 }
 
 struct PipelineLayoutDesc {
@@ -110,7 +111,6 @@ impl LowLevelManager {
         ctx: &RenderContext,
         desc: &RasterPipelineDesc,
     ) -> VulkanResult<(RasterPipelineHandle, PipelineLayoutHandle)> {
-
         let window = ctx.window.read().unwrap();
         let resolution = window.resolution;
 
@@ -225,88 +225,60 @@ impl LowLevelManager {
 }
 
 pub struct ResourceManager {
-    pub(crate) assets: AssetManager,
-    pub(crate) low_level: LowLevelManager,
+    pub assets: RwLock<AssetManager>,
+    pub low_level: RwLock<LowLevelManager>,
 }
 
 impl ResourceManager {
     pub fn destroy(&mut self, device: &Device) {
-        for i in &mut self.assets.mesh.data {
-            unsafe {
-                if let Some(index) = &mut i.index_buffer {
-                    device
-                        .allocator
-                        .destroy_buffer(index.raw, &mut index.allocation);
-                }
-                if let Some(instance) = &mut i.instance_buffer {
-                    device
-                        .allocator
-                        .destroy_buffer(instance.raw, &mut instance.allocation);
-                }
-                device
-                    .allocator
-                    .destroy_buffer(i.vertex_buffer.raw, &mut i.vertex_buffer.allocation);
-            }
-        }
+        // for i in &mut self.assets.mesh.data {
+        //     unsafe {
+        //         if let Some(index) = &mut i.index_buffer {
+        //             device
+        //                 .allocator
+        //                 .destroy_buffer(index.raw, &mut index.allocation);
+        //         }
+        //         if let Some(instance) = &mut i.instance_buffer {
+        //             device
+        //                 .allocator
+        //                 .destroy_buffer(instance.raw, &mut
+        // instance.allocation);         }
+        //         device
+        //             .allocator
+        //             .destroy_buffer(i.vertex_buffer.raw, &mut
+        // i.vertex_buffer.allocation);     }
+        // }
 
-        self.assets.transform.destroy(device);
+        // self.assets.transform.destroy(device);
 
-        for (_, pipeline) in self.low_level.raster_pipeline.drain() {
-            unsafe { device.destroy_pipeline(pipeline.raw, None) };
-        }
+        // for (_, pipeline) in self.low_level.raster_pipeline.drain() {
+        //     unsafe { device.destroy_pipeline(pipeline.raw, None) };
+        // }
 
-        for (_, layout) in self.low_level.pipeline_layout.drain() {
-            unsafe {
-                device.destroy_pipeline_layout(layout.raw, None);
-            }
-        }
+        // for (_, layout) in self.low_level.pipeline_layout.drain() {
+        //     unsafe {
+        //         device.destroy_pipeline_layout(layout.raw, None);
+        //     }
+        // }
 
-        for (_, framebuffer) in self.low_level.frame_buffer.drain() {
-            unsafe {
-                device.destroy_framebuffer(framebuffer.raw, None);
-            }
-        }
+        // for (_, framebuffer) in self.low_level.frame_buffer.drain() {
+        //     unsafe {
+        //         device.destroy_framebuffer(framebuffer.raw, None);
+        //     }
+        // }
     }
 
-    pub fn new(device: &Device) -> VulkanResult<Self> {
-        Ok(Self {
-            assets: AssetManager::new(device)?,
-            low_level: LowLevelManager::new(),
-        })
-    }
-
-    pub fn get_renderables(&self) -> Vec<Renderable> {
-        self.assets.renderable.get_renderables().clone()
-    }
-
-    pub fn get_mesh(&self, handle: MeshHandle) -> &Mesh {
-        self.assets.mesh.get_mesh(handle)
-    }
-
-    pub fn add_raster_pipeline(&mut self, pipeline: GraphicsPipeline) -> RasterPipelineHandle {
-        self.low_level.raster_pipeline.insert(pipeline)
-    }
-
-    pub fn add_layout(&mut self, pipeline: PipelineLayout) -> PipelineLayoutHandle {
-        self.low_level.pipeline_layout.insert(pipeline)
-    }
-
-    pub fn get_layout(&mut self, pipeline: PipelineLayoutHandle) -> Option<&PipelineLayout> {
-        self.low_level.pipeline_layout.get(pipeline)
-    }
-
-    pub fn get_raster_pipeline(&self, pipeline: RasterPipelineHandle) -> Option<&GraphicsPipeline> {
-        self.low_level.raster_pipeline.get(pipeline)
-    }
-
-    pub fn get_framebuffer(&self, frame_buffer: FrameBufferHandle) -> Option<&FrameBuffer> {
-        self.low_level.frame_buffer.get(frame_buffer)
+    pub fn new(device: &Device) -> VulkanResult<Arc<Self>> {
+        Ok(Arc::new(Self {
+            assets: RwLock::new(AssetManager::new(device)?),
+            low_level: RwLock::new(LowLevelManager::new()),
+        }))
     }
 
     pub fn create_static_mesh_immediately<
         T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
     >(
-        &mut self,
+        &self,
         ctx: &RenderContext,
         mesh: &[T],
         indices: Option<&[u32]>,
@@ -333,26 +305,39 @@ impl ResourceManager {
             None
         };
 
-        Ok(self.assets.mesh.add_mesh(Mesh {
-            instance_offset: 0,
-            instance_count: 1,
-            vertex_offset: 0,
-            instance_buffer: None,
-            vertex_buffer,
-            indices: indices.map(|x| x.to_vec()),
-            index_buffer,
-        }))
+        Ok(self
+            .assets
+            .write()
+            .expect("Error lock asset manager")
+            .mesh
+            .add_mesh(Mesh {
+                instance_offset: 0,
+                instance_count: 1,
+                vertex_offset: 0,
+                instance_buffer: None,
+                vertex_buffer,
+                indices: indices.map(|x| x.to_vec()),
+                index_buffer,
+            }))
     }
 
-    pub fn create_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
-        self.assets.renderable.add_renderable(renderable)
+    pub fn create_renderable(&self, renderable: Renderable) -> RenderableHandle {
+        self.assets
+            .write()
+            .unwrap()
+            .renderable
+            .add_renderable(renderable)
     }
 
-    pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
-        self.assets.material.add_material(material)
+    pub fn create_material(&self, material: Material) -> VulkanResult<MaterialHandle> {
+        self.assets.write().unwrap().material.add_material(material)
     }
 
-    pub fn create_transform(&mut self, transform: Transform) -> VulkanResult<TransformHandle> {
-        self.assets.transform.create_transform(transform)
+    pub fn create_transform(&self, transform: Transform) -> VulkanResult<TransformHandle> {
+        self.assets
+            .write()
+            .unwrap()
+            .transform
+            .create_transform(transform)
     }
 }

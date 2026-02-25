@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
 use std::sync::{Arc, LazyLock};
 
 use ash::vk;
@@ -50,13 +49,7 @@ pub struct WorldRenderer {
     /// Resource Manager
     ///
     /// Contains resources for rendering and caches them
-    resources: ResourceManager,
-    /// Bindless
-    ///
-    /// Natively supported on Windows and Linux; on other platforms, falls back
-    /// to arrays
-    #[allow(dead_code)]
-    bindless: Bindless,
+    resources: Arc<ResourceManager>,
     /// Value updates every frame
     frame_values: FrameValues,
     /// Render Graph
@@ -72,6 +65,8 @@ pub struct WorldRenderer {
     ///
     /// The rendering context provides an entry point for creating and deleting
     /// resources
+    ///
+    /// Only one thread can change the Render Context when the window changes
     ctx: Arc<RenderContext>,
     /// This structure not Send and Sync!
     _marker: PhantomData<*mut ()>,
@@ -85,7 +80,6 @@ impl WorldRenderer {
     /// If Vulkan is not found on this device or the device does not support
     /// core formats or features.
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
-
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
         let resources = ResourceManager::new(&ctx.device)?;
@@ -115,16 +109,15 @@ impl WorldRenderer {
             &ctx.device,
             2,
             vk::DescriptorType::STORAGE_BUFFER,
-            resources.assets.transform.buffer.raw,
+            resources.assets.read().unwrap().transform.buffer.raw,
             0,
             size_of::<Transform>() as u64 * 10000,
         );
 
-        let graph = RenderGraph::new(&ctx, bindless.clone())?;
+        let graph = RenderGraph::new(&ctx, bindless)?;
 
         Ok(WorldRenderer {
             frame_values,
-            bindless,
             resources,
             camera,
             graph,
@@ -225,10 +218,11 @@ impl WorldRenderer {
         self.graph.compile(&self.ctx, &mut self.resources)?;
 
         // Execute Graph
-        match self
-            .graph
-            .execute(self.ctx.clone(), &mut self.resources, &mut self.frame_values)
-        {
+        match self.graph.execute(
+            self.ctx.clone(),
+            self.resources.clone(),
+            &mut self.frame_values,
+        ) {
             Ok(_) => {},
             Err(VulkanError::Swapchain(err)) => match err {
                 SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
@@ -263,7 +257,7 @@ impl Drop for WorldRenderer {
         // Destroy Pipelines
         // Destroy Pipeline Layouts
         // Destroy FrameBuffers
-        self.resources.destroy(device);
+        // self.resources.destroy(device);
         // Destroy Uniform Buffer
         self.camera.destroy(device);
         // Destroy CommandPool
@@ -282,6 +276,6 @@ impl Drop for WorldRenderer {
         // Destroy Surface
         // Destroy Option<DebugCallback>
         // Destroy Instance
-        //unsafe { ManuallyDrop::drop(&mut self.ctx) };
+        // unsafe { ManuallyDrop::drop(&mut self.ctx) };
     }
 }
