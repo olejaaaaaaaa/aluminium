@@ -114,7 +114,7 @@ impl WorldRenderer {
             size_of::<Transform>() as u64 * 10000,
         );
 
-        let graph = RenderGraph::new(&ctx, bindless)?;
+        let graph = RenderGraph::new(ctx.clone(), resources.clone(), bindless)?;
 
         Ok(WorldRenderer {
             frame_values,
@@ -215,12 +215,10 @@ impl WorldRenderer {
         setup(&mut self.graph);
 
         // Compile Graph
-        self.graph.compile(&self.ctx, &mut self.resources)?;
+        self.graph.compile()?;
 
         // Execute Graph
         match self.graph.execute(
-            self.ctx.clone(),
-            self.resources.clone(),
             &mut self.frame_values,
         ) {
             Ok(_) => {},

@@ -24,6 +24,8 @@ use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
 
 pub struct RenderGraph {
+    ctx: Arc<RenderContext>,
+    resources: Arc<ResourceManager>,
     bindless: Bindless,
     graphics_queue: vk::Queue,
     command_pool: CommandPoolPerFrame,
@@ -35,7 +37,7 @@ pub struct RenderGraph {
 
 impl RenderGraph {
     /// Create new [`RenderGraph`]
-    pub(crate) fn new(ctx: &RenderContext, bindless: Bindless) -> VulkanResult<Self> {
+    pub(crate) fn new(ctx: Arc<RenderContext>, resources: Arc<ResourceManager>, bindless: Bindless) -> VulkanResult<Self> {
         let queue = ctx
             .device
             .queue_pool
@@ -43,9 +45,11 @@ impl RenderGraph {
             .unwrap();
 
         Ok(RenderGraph {
+            resources,
             bindless,
             graphics_queue: queue,
             command_pool: CommandPoolPerFrame::new(&ctx.device)?,
+            ctx,
             texture_descs: SlotMap::with_key(),
             execution_order: vec![],
             pass_descs: vec![],
@@ -63,8 +67,6 @@ impl RenderGraph {
 
     pub(crate) fn compile(
         &mut self,
-        ctx: &RenderContext,
-        resources: &ResourceManager,
     ) -> VulkanResult<()> {
         profile_scope!("RenderGraph::compile");
 
@@ -73,11 +75,11 @@ impl RenderGraph {
         for desc in self.pass_descs.drain(..) {
             let pass = match desc {
                 PassDesc::Present(pass) => {
-                    let (pipeline, layout) = resources
+                    let (pipeline, layout) = self.resources
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
+                        .create_raster_pipeline(&self.ctx, &pass.pipeline_desc)?;
 
                     Pass::Present(PresentPass {
                         pipeline,
@@ -86,11 +88,11 @@ impl RenderGraph {
                     })
                 },
                 PassDesc::Raster(pass) => {
-                    let (pipeline, layout) = resources
+                    let (pipeline, layout) = self.resources
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(ctx, &pass.pipeline_desc)?;
+                        .create_raster_pipeline(&self.ctx, &pass.pipeline_desc)?;
 
                     Pass::Raster(RasterPass {
                         layout,
@@ -166,16 +168,14 @@ impl RenderGraph {
     /// Execute graph
     pub(crate) fn execute(
         &mut self,
-        ctx: Arc<RenderContext>,
-        resources: Arc<ResourceManager>,
         frame_values: &mut FrameValues,
     ) -> VulkanResult<()> {
         profile_scope!("RenderGraph::execute");
 
-        let image_index = Self::acquire_next_image(&ctx)?;
+        let image_index = Self::acquire_next_image(&self.ctx)?;
 
-        let device = &ctx.device;
-        let window = ctx.window.read().unwrap();
+        let device = &self.ctx.device;
+        let window = self.ctx.window.read().unwrap();
         let resolution = window.resolution;
         let frame_count = window.frame_buffers.len();
 
@@ -215,12 +215,13 @@ impl RenderGraph {
                 resolution,
                 device: device.raw.clone(),
                 cbuf: command_buffer,
-                pipeline: pass.pipeline(&resources),
-                layout: pass.pipeline_layout(&resources),
-                resources: resources.clone(),
+                pipeline: pass.pipeline(&self.resources),
+                layout: pass.pipeline_layout(&self.resources),
+                resources: self.resources.clone(),
             };
 
-            let renderables = resources
+            let renderables = self
+                .resources
                 .assets
                 .read()
                 .unwrap()
@@ -241,7 +242,7 @@ impl RenderGraph {
                 },
             ];
 
-            let s = resources.low_level.read().unwrap();
+            let s = self.resources.low_level.read().unwrap();
 
             let frame_buffer = if pass.is_present() {
                 &window.frame_buffers[image_index as usize]
@@ -285,7 +286,7 @@ impl RenderGraph {
 
         drop(window);
 
-        let window = &mut ctx.window.write().unwrap();
+        let window = &mut self.ctx.window.write().unwrap();
         let sync = &window.frame_sync[window.current_frame % window.frame_buffers.len()];
 
         // Submit
