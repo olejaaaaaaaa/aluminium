@@ -5,9 +5,7 @@ pub struct TriangleVertex {
 }
 
 #[repr(C)]
-pub struct Bvh {
-    
-}
+pub struct Bvh {}
 
 impl Bvh {
     pub fn new() -> Self {

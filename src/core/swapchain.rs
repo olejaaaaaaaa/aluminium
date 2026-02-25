@@ -54,7 +54,7 @@ impl<'a> SwapchainBuilder<'a> {
 
         let create_info = self.create_info.surface(self.surface.raw);
 
-        debug!("Swapchain: {:?}", create_info);
+        debug!("Swapchain: {:#?}", create_info);
 
         let swapchain_loader =
             ash::khr::swapchain::Device::new(&self.instance.raw, &self.device.raw);

@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::{DescriptorPool, DescriptorPoolBuilder, Device, GpuBuffer, VulkanResult};
+use crate::core::{DescriptorPool, DescriptorPoolBuilder, Device, GpuBuffer, VulkanResult};
 
 const MAX_DESCRIPTOR_SET: usize = 10000;
 

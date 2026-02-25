@@ -8,8 +8,7 @@ use puffin::{profile_scope, GlobalProfiler};
 use winit::window::Window;
 
 use super::render_context::RenderContext;
-use crate::TextureDesc;
-use crate::bindless::{Bindless, BindlessBuilder};
+use crate::bindless::Bindless;
 use crate::camera::{Camera, CameraData};
 use crate::core::{
     AttributeDescriptions, BindingDescriptions, Resolution, SwapchainError, VulkanError,
@@ -22,7 +21,7 @@ use crate::resource_manager::{
     TransformHandle,
 };
 
-static BINDLESS_LAYOUT_INFO: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
+static GLOBAL_BINDLESS_LAYOUT: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
     LazyLock::new(|| {
         vec![
             // Main Camera
@@ -56,7 +55,9 @@ pub struct WorldRenderer {
     ///
     /// Natively supported on Windows and Linux; on other platforms, falls back
     /// to arrays
+    #[allow(dead_code)]
     bindless: Bindless,
+    /// Value updates every frame
     frame_values: FrameValues,
     /// Render Graph
     ///
@@ -88,8 +89,8 @@ impl WorldRenderer {
         let camera = Camera::new(&ctx.device)?;
         let resources = ResourceManager::new(&ctx.device)?;
 
-        let mut bindless = BindlessBuilder::new(&ctx.device, &BINDLESS_LAYOUT_INFO).build()?;
-        let mut frame_values = FrameValues::new(&ctx.device, ctx.window.frame_sync.len())?;
+        let bindless = Bindless::new(&ctx, &GLOBAL_BINDLESS_LAYOUT)?;
+        let mut frame_values = FrameValues::new(&ctx.device, ctx.framebuffer_count())?;
         frame_values.set_resolution(ctx.window.resolution.into_array());
 
         bindless.update_buffer_set(
@@ -119,7 +120,7 @@ impl WorldRenderer {
             size_of::<Transform>() as u64 * 10000,
         );
 
-        let graph = RenderGraph::new(&ctx, &bindless)?;
+        let graph = RenderGraph::new(&ctx, bindless.clone())?;
 
         Ok(WorldRenderer {
             frame_values,
@@ -168,10 +169,6 @@ impl WorldRenderer {
     /// - If an unexpected error occurs
     pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
         self.resources.create_material(material)
-    }
-
-    pub fn create_texture(&mut self, desc: TextureDesc, pixels: &[u8]) {
-
     }
 
     /// Create Transform
@@ -272,7 +269,7 @@ impl Drop for WorldRenderer {
         // Destroy CommandPool
         self.graph.destroy(device);
         // Destroy DescriptorPool
-        self.bindless.destroy(device);
+        // self.bindless.destroy(device);
         // Destroy Swapchain
         // Destroy RenderPass
         // Destroy DepthView

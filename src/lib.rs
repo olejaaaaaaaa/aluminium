@@ -5,12 +5,11 @@
 //! - gpu-allocator (Traverse Research Gpu Allocator without С/C++ dependencies)
 //! - runtime-check (Runtime check used by default)
 pub(crate) mod bindless;
-// TODO:
-// pub(crate) mod bvh;
-pub(crate) mod per_frame;
+pub(crate) mod bvh;
 pub(crate) mod camera;
 pub(crate) mod core;
 pub(crate) mod frame_values;
+pub(crate) mod per_frame;
 pub(crate) mod reflection;
 pub(crate) mod render_context;
 pub(crate) mod render_graph;

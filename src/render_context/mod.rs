@@ -1,5 +1,8 @@
 use ash::vk;
 
+mod features;
+pub use features::*;
+
 mod window_manager;
 pub use window_manager::WindowManager;
 
@@ -7,8 +10,8 @@ mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
-    App, DeviceBuilder, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
-    Instance, PhysicalDevice, QueuePool, RenderPassBuilder, SurfaceBuilder,
+    App, Device, Extension, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
+    Instance, PhysicalDevice, PhysicalFeature, QueuePool, RenderPassBuilder, SurfaceBuilder,
     SwapchainBuilder, VulkanResult,
 };
 
@@ -29,16 +32,53 @@ impl RenderContext {
         self.window.resize(&self.device, width, height)
     }
 
+    pub fn framebuffer_count(&self) -> usize {
+        self.window.frame_buffers.len()
+    }
+
+    pub fn check_features<T>(&self, features: &[T]) -> bool
+    where
+        for<'a> &'a T: Into<Feature>,
+    {
+        for i in features {
+            let feature: Feature = i.into();
+            match feature {
+                Feature::Extension(ext) => if let Extension::Bindless = ext {
+                    let extensions = &self.device.logical_device.extensions;
+                    if extensions.contains(&c"VK_KHR_push_descriptor")
+                        && extensions.contains(&c"VK_KHR_push_descriptor")
+                    {
+                        return true;
+                    }
+                },
+                Feature::Physical(phys) => match phys {
+                    PhysicalFeature::PushConstant256 => {
+                        let limits = self.device.phys_dev.prop.limits;
+                        if limits.max_push_constants_size == 256 {
+                            return true;
+                        }
+                    },
+                },
+                Feature::Vendor(v) => {
+                    let vendor = self.device.phys_dev.vendor;
+                    if vendor == v {
+                        return true;
+                    }
+                },
+            }
+        }
+        false
+    }
+
     /// Create Render Context
     pub fn new(window: &winit::window::Window) -> VulkanResult<RenderContext> {
-
         let app = App::new()?;
         let instance = Instance::new(window, &app)?;
         let surface = SurfaceBuilder::new(&app, &instance, window).build()?;
         let phys_dev = PhysicalDevice::new(&instance)?;
-        let device = DeviceBuilder::default(&instance, phys_dev).build()?;
-        let caps = surface.get_physical_device_surface_capabilities(*device.phys_dev);
-        
+        let device = Device::new(&instance, &phys_dev)?;
+        let caps = surface.get_physical_device_surface_capabilities(phys_dev.raw);
+
         let swapchain = SwapchainBuilder::default(&instance, &device, &surface)
             .extent(caps.current_extent)
             .format(vk::Format::R8G8B8A8_SRGB)
@@ -97,8 +137,9 @@ impl RenderContext {
             },
             device: GraphicsDevice {
                 app,
+                phys_dev,
                 instance,
-                device,
+                logical_device: device,
                 queue_pool: pool,
             },
         })
@@ -128,7 +169,7 @@ impl Drop for RenderContext {
             i.destroy(&self.device);
         }
 
-        self.device.device.destroy();
+        self.device.logical_device.destroy();
         self.window.surface.destroy();
         self.device.instance.destroy();
     }

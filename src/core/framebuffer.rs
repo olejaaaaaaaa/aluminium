@@ -45,7 +45,6 @@ impl<'a> FrameBufferBuilder<'a> {
         self
     }
 
-    #[allow(dead_code)]
     pub fn render_pass(mut self, pass: vk::RenderPass) -> Self {
         self.create_info = self.create_info.render_pass(pass);
         self
@@ -57,20 +56,20 @@ impl<'a> FrameBufferBuilder<'a> {
         self.create_info.attachment_count = self.attachments.len() as u32;
         self.create_info.p_attachments = self.attachments.as_ptr();
 
-        #[cfg(feature = "runtime-check")]
-        {
-            let limits = self.device.phys_dev.prop.limits;
+        // #[cfg(feature = "runtime-check")]
+        // {
+        //     let limits = self.device.phys_dev.prop.limits;
 
-            if self.create_info.width > limits.max_framebuffer_width {
-                return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
-            }
+        //     if self.create_info.width > limits.max_framebuffer_width {
+        //         return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
+        //     }
 
-            if self.create_info.height > limits.max_framebuffer_height {
-                return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
-            }
-        }
+        //     if self.create_info.height > limits.max_framebuffer_height {
+        //         return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
+        //     }
+        // }
 
-        debug!("FrameBuffer: {:?}", self.create_info);
+        debug!("FrameBuffer: {:#?}", self.create_info);
 
         let frame_buffer = unsafe {
             self.device

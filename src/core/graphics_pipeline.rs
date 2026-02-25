@@ -1,4 +1,5 @@
 use ash::vk;
+use log::debug;
 use puffin::profile_scope;
 
 use super::device::Device;
@@ -228,6 +229,8 @@ impl<'n> GraphicsPipelineBuilder<'n> {
                 )
                 .expect("Error create Graphics Pipeline")[0]
         };
+
+        debug!("Create Graphics Pipeline: {:#?}", create_info);
 
         for i in shader_states_infos {
             unsafe { self.device.destroy_shader_module(i.module, None) };

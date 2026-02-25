@@ -40,7 +40,7 @@ impl<'a> PipelineLayoutBuilder<'a> {
             .push_constant_ranges(&self.push)
             .set_layouts(&self.layout);
 
-        debug!("Pipeline Layout: {:?}", create_info);
+        debug!("Pipeline Layout: {:#?}", create_info);
 
         let layout = unsafe {
             self.device

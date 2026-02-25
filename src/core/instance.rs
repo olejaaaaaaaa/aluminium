@@ -4,17 +4,17 @@ use ash::vk;
 use log::{debug, info};
 use winit::raw_window_handle::HasDisplayHandle;
 
-use crate::core::Extension;
-
 use super::app::App;
 use super::debug::DebugCallback;
 use super::{VulkanError, VulkanResult};
+use crate::core::Extension;
 
 /// Unsafe Wrapper around [`vk::Instance`]
 /// Required manually destroy before Drop
 pub struct Instance {
     pub(crate) raw: ash::Instance,
-    pub(crate) extensions: Vec<Extension>,
+    pub(crate) extensions: Vec<&'static CStr>,
+    pub(crate) layers: Vec<&'static CStr>,
     pub debug_callback: Option<DebugCallback>,
 }
 
@@ -29,12 +29,18 @@ impl Instance {
 }
 
 impl Instance {
+    pub fn check_extensions(&self, extensions: &[&'static CStr]) -> bool {
+        for i in extensions {
+            if !self.extensions.contains(i) {
+                return false;
+            }
+        }
+        true
+    }
 
     pub fn new(window: &winit::window::Window, app: &App) -> VulkanResult<Instance> {
-
         let available_extensions = unsafe {
-            app
-                .entry
+            app.entry
                 .enumerate_instance_extension_properties(None)
                 .map_err(VulkanError::Unknown)
         }?;
@@ -47,9 +53,13 @@ impl Instance {
             }
         }
 
+        debug!(
+            "Available Instance Extensions: {:#?}",
+            available_extension_names
+        );
+
         let available_layers = unsafe {
-            app
-                .entry
+            app.entry
                 .enumerate_instance_layer_properties()
                 .map_err(VulkanError::Unknown)
         }?;
@@ -62,6 +72,8 @@ impl Instance {
             }
         }
 
+        log::debug!("Available Instance layers: {:#?}", available_layer_names);
+
         let mut layers = vec![];
 
         #[cfg(feature = "validation_layer")]
@@ -69,18 +81,40 @@ impl Instance {
             layers.push(c"VK_LAYER_KHRONOS_validation");
         }
 
-        let window_extensions = ash_window::enumerate_required_extensions(window.display_handle().unwrap().into())
-            .map_err(VulkanError::Unknown)?
-            .iter()
-            .map(|ptr| unsafe { CStr::from_ptr(*ptr) })
-            .collect::<Vec<_>>();
+        let window_extensions =
+            ash_window::enumerate_required_extensions(window.display_handle().unwrap().into())
+                .map_err(VulkanError::Unknown)?
+                .iter()
+                .map(|ptr| unsafe { CStr::from_ptr(*ptr) })
+                .collect::<Vec<_>>();
 
         let mut extensions = vec![];
 
         #[cfg(feature = "validation_layer")]
-        if available_extension_names.contains(&ash::ext::debug_utils::NAME) {
-            extensions.push(ash::ext::debug_utils::NAME);
+        if available_extension_names.contains(&c"VK_EXT_debug_utils") {
+            extensions.push(c"VK_EXT_debug_utils");
         }
+
+        if available_extension_names.contains(&c"VK_KHR_get_physical_device_properties2") {
+            extensions.push(c"VK_KHR_get_physical_device_properties2");
+        }
+
+        if available_extension_names.contains(&c"VK_KHR_device_group_creation") {
+            extensions.push(c"VK_KHR_device_group_creation");
+        }
+
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        if available_extension_names.contains(&c"VK_KHR_portability_enumeration")
+            && available_extension_names.contains(&c"VK_KHR_get_physical_device_properties2")
+        {
+            extensions.push(c"VK_KHR_portability_enumeration");
+        }
+
+        let flags = if cfg!(any(target_os = "macos", target_os = "ios")) {
+            vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
+        } else {
+            vk::InstanceCreateFlags::default()
+        };
 
         extensions.extend(window_extensions);
 
@@ -97,24 +131,31 @@ impl Instance {
         let create_info = vk::InstanceCreateInfo::default()
             .enabled_layer_names(&p_layers)
             .enabled_extension_names(&p_extensions)
-            .application_info(&app.create_info);
+            .application_info(&app.create_info)
+            .flags(flags);
 
         let instance = unsafe {
-            app
-                .entry
+            app.entry
                 .create_instance(&create_info, None)
                 .map_err(VulkanError::Unknown)
         }?;
 
-        let debug_callback = if extensions.contains(&ash::ext::debug_utils::NAME) && layers.contains(&c"VK_LAYER_KHRONOS_validation") {
+        // Warn! Only 33% Android devices supported VK_EXT_debug_utils
+        let debug_callback = if extensions.contains(&c"VK_EXT_debug_utils")
+            && layers.contains(&c"VK_LAYER_KHRONOS_validation")
+        {
             Some(DebugCallback::new(&app.entry, &instance))
         } else {
             None
         };
 
+        debug!("Enabled Instance Extensions: {:#?}", extensions);
+        debug!("Enabled Instance Layers: {:#?}", layers);
+
         Ok(Instance {
             raw: instance,
-            extensions: vec![],
+            layers,
+            extensions,
             debug_callback,
         })
     }

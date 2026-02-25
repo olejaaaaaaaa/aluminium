@@ -100,7 +100,7 @@ impl<'a> RenderPassBuilder<'a> {
             .dependencies(&binding2)
             .subpasses(&raw_subpasses);
 
-        debug!("Render Pass: {:?}", create_info);
+        debug!("Render Pass: {:#?}", create_info);
 
         let render_pass = unsafe {
             device

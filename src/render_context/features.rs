@@ -3,7 +3,7 @@ use crate::core::{Extension, PhysicalFeature, Vendor};
 pub enum Feature {
     Physical(PhysicalFeature),
     Vendor(Vendor),
-    Extension(Extension)
+    Extension(Extension),
 }
 
 impl From<PhysicalFeature> for Feature {

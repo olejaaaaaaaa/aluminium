@@ -13,6 +13,9 @@ use crate::reflection::PipelineShaderReflection;
 use crate::render_context::RenderContext;
 use crate::render_graph::{RasterPipelineDesc, Source};
 
+mod descriptor_manager;
+pub use descriptor_manager::*;
+
 mod mesh;
 pub use mesh::*;
 

@@ -31,7 +31,7 @@ impl QueuePool {
             let mut v = vec![];
             for j in 0..prop.queue_count {
                 let queue = unsafe { device.get_device_queue(i as u32, j) };
-                log::debug!(
+                log::info!(
                     "Queue Family: {} Queue: {} Flags: {:?}",
                     i,
                     j,

@@ -47,11 +47,12 @@ impl WindowManager {
             .surface
             .get_physical_device_surface_capabilities(*device.phys_dev);
 
-        let swapchain = SwapchainBuilder::default(&device.instance, &device.device, &self.surface)
-            .old_swapchain(self.swapchain.raw)
-            .extent(caps.current_extent)
-            .format(vk::Format::R8G8B8A8_SRGB)
-            .build()?;
+        let swapchain =
+            SwapchainBuilder::default(&device.instance, &device.logical_device, &self.surface)
+                .old_swapchain(self.swapchain.raw)
+                .extent(caps.current_extent)
+                .format(vk::Format::R8G8B8A8_SRGB)
+                .build()?;
 
         let depth_image =
             ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;

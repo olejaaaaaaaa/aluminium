@@ -1,4 +1,4 @@
-use crate::core::{App, Device, Instance, QueuePool};
+use crate::core::{App, Device, Instance, PhysicalDevice, QueuePool};
 
 /// Wraps Vulkan device and instance with application-specific data
 /// Provides convenient access to queues and device properties
@@ -10,13 +10,15 @@ pub struct GraphicsDevice {
     pub(crate) queue_pool: QueuePool,
     /// Vulkan instance
     pub(crate) instance: Instance,
+    // Physical
+    pub(crate) phys_dev: PhysicalDevice,
     /// Logical device
-    pub(crate) device: Device,
+    pub(crate) logical_device: Device,
 }
 
 impl std::ops::Deref for GraphicsDevice {
     type Target = Device;
     fn deref(&self) -> &Self::Target {
-        &self.device
+        &self.logical_device
     }
 }

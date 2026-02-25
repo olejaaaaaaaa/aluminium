@@ -4,6 +4,7 @@ use ash::vk;
 use log::{debug, info};
 
 use super::{VulkanError, VulkanResult};
+use crate::core::ApiVersion;
 
 const MAX_VK_API_VERSION: u32 = vk::API_VERSION_1_0;
 const ENGINE_VERSION: u32 = 0;
@@ -17,9 +18,7 @@ pub struct App {
 }
 
 impl App {
-
     pub fn new() -> VulkanResult<App> {
-
         let entry = unsafe {
             ash::Entry::load()
                 .map_err(|e| VulkanError::App(crate::core::errors::app::AppError::LoadingVulkan(e)))
@@ -32,7 +31,7 @@ impl App {
             .engine_name(ENGINE_NAME)
             .engine_version(ENGINE_VERSION);
 
-        info!("VK_API_VERSION: {:?}", MAX_VK_API_VERSION);
+        info!("VK_API_VERSION: {:?}", MAX_VK_API_VERSION.version());
 
         Ok(App { create_info, entry })
     }

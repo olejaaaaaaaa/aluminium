@@ -15,14 +15,14 @@ use slotmap::SlotMap;
 pub use texture::*;
 
 use crate::bindless::Bindless;
-use crate::per_frame::CommandPoolPerFrame;
 use crate::core::{Device, SwapchainError, VulkanError, VulkanResult};
 use crate::frame_values::FrameValues;
+use crate::per_frame::CommandPoolPerFrame;
 use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
 
 pub struct RenderGraph {
-    bindless_set: vk::DescriptorSet,
+    bindless: Bindless,
     graphics_queue: vk::Queue,
     command_pool: CommandPoolPerFrame,
     execution_order: Vec<usize>,
@@ -33,7 +33,7 @@ pub struct RenderGraph {
 
 impl RenderGraph {
     /// Create new [`RenderGraph`]
-    pub(crate) fn new(ctx: &RenderContext, bindless: &Bindless) -> VulkanResult<Self> {
+    pub(crate) fn new(ctx: &RenderContext, bindless: Bindless) -> VulkanResult<Self> {
         let queue = ctx
             .device
             .queue_pool
@@ -41,7 +41,7 @@ impl RenderGraph {
             .unwrap();
 
         Ok(RenderGraph {
-            bindless_set: bindless.set,
+            bindless,
             graphics_queue: queue,
             command_pool: CommandPoolPerFrame::new(&ctx.device)?,
             texture_descs: SlotMap::with_key(),
@@ -204,7 +204,7 @@ impl RenderGraph {
             // pass.begin_sync(command_buffer);
 
             let pass_ctx = PassContext {
-                bindless_set: self.bindless_set,
+                bindless_set: self.bindless.bindless_set(),
                 resolution,
                 device: device.raw.clone(),
                 cbuf: command_buffer,
@@ -311,11 +311,11 @@ impl RenderGraph {
                 .expect("Error present");
         }
 
-        log::debug!(
-            "Image index: {}, Frame: {}",
-            image_index,
-            window.current_frame
-        );
+        // log::debug!(
+        //     "Image index: {}, Frame: {}",
+        //     image_index,
+        //     window.current_frame
+        // );
 
         frame_values.update(device, image_index, window.current_frame as u32)?;
         self.passes.clear();

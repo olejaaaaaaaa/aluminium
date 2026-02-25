@@ -27,8 +27,8 @@ pub use image::*;
 mod phys_dev;
 pub use phys_dev::*;
 
-mod phys_prop;
-pub use phys_prop::*;
+mod utils;
+pub use utils::*;
 
 mod phys_features;
 pub use phys_features::*;
