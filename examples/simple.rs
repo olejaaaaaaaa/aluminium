@@ -63,8 +63,8 @@ impl ApplicationHandler for App {
 
                     graph.add_pass(
                         PresentPassBuilder::new()
-                            .vertex("shaders/spv/raster_vs-hlsl.spv")
-                            .fragment("shaders/spv/raster_ps-hlsl.spv")
+                            .vertex(r"D:\aluminium\shaders\spv\raster_vs-hlsl.spv")
+                            .fragment(r"D:\aluminium\shaders\spv\raster_ps-hlsl.spv")
                             .execute(|ctx, renderables| unsafe {
                                 ctx.bind_bindless();
                                 ctx.set_scissor(None);
@@ -97,7 +97,7 @@ impl ApplicationHandler for App {
             .create_window(window_attributes)
             .expect("Error create window");
 
-        let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
+        let world = WorldRenderer::new(&window).expect("Error create world renderer");
 
         let triangle_mesh = vec![
             Vertex {
@@ -114,16 +114,12 @@ impl ApplicationHandler for App {
             },
         ];
 
-        let mesh = world.create_mesh(&triangle_mesh, None).unwrap();
-        let material = world
-            .create_material(
-                Material::new()
-                    .set_value("animation_time", 0.5)
-                    .set_value("animation_speed", 0.3), //.set_value("base_color", [0.0, 0.3, 0.1])
-            )
-            .unwrap();
-        let transform = world.create_transform(Transform::identity()).unwrap();
-        let _ = world.create_renderable(Renderable::new(mesh, material, transform));
+        let mut assets = world.assets().write().unwrap();
+        let material = assets.create_material(Material::new()).unwrap();
+        let mesh = assets.create_mesh(&triangle_mesh, None).unwrap();
+        let transform = assets.create_transform(Transform::identity()).unwrap();
+        let _ = assets.create_renderable(Renderable::new(mesh, material, transform));
+        drop(assets);
 
         self.world = Some(world);
         self.window = Some(window);
