@@ -40,8 +40,8 @@ impl ApplicationHandler for App {
                         PresentPassBuilder::new()
                             .dynamic_scissors(true)
                             .dynamic_viewport(true)
-                            .vertex(r"D:\aluminium\shaders\spv\raster_vs-hlsl.spv")
-                            .fragment(r"D:\aluminium\shaders\spv\raster_ps-hlsl.spv")
+                            .vertex("./shaders/spv/raster_vs-hlsl.spv")
+                            .fragment("./shaders/spv/raster_ps-hlsl.spv")
                             .execute(|ctx, renderables| unsafe {
                                 ctx.bind_bindless();
                                 ctx.set_scissor(None);
