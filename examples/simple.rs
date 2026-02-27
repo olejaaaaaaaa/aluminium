@@ -4,8 +4,7 @@ use std::error::Error;
 
 use aluminium::types::Vertex;
 use aluminium::{
-    Material, PresentPassBuilder, RasterPassBuilder, Renderable, Resolution, SamplerType,
-    TextureDesc, TextureFormat, TextureUsage, Transform, WorldRenderer,
+    Material, PresentPassBuilder, RasterPassBuilder, Renderable, Resolution, SamplerType, TextureDesc, TextureFormat, TextureUsage, Transform, VulkanError, VulkanResult, WorldRenderer
 };
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -39,6 +38,8 @@ impl ApplicationHandler for App {
                 let _ = world.draw_frame(|graph| {
                     graph.add_pass(
                         PresentPassBuilder::new()
+                            .dynamic_scissors(true)
+                            .dynamic_viewport(true)
                             .vertex(r"D:\aluminium\shaders\spv\raster_vs-hlsl.spv")
                             .fragment(r"D:\aluminium\shaders\spv\raster_ps-hlsl.spv")
                             .execute(|ctx, renderables| unsafe {
@@ -90,11 +91,12 @@ impl ApplicationHandler for App {
             },
         ];
 
-        world.with_assets_mut(|assets| {
-            let material = assets.create_material(Material::new()).unwrap();
-            let mesh = assets.create_mesh(&triangle_mesh, None).unwrap();
-            let transform = assets.create_transform(Transform::identity()).unwrap();
-            let renderable = assets.create_renderable(Renderable::new(mesh, material, transform));
+        let _ = world.with_assets_mut(|assets| {
+            let material = assets.create_material(Material::new())?;
+            let mesh = assets.create_mesh(&triangle_mesh, None)?;
+            let transform = assets.create_transform(Transform::identity())?;
+            let _ = assets.create_renderable(Renderable::new(mesh, material, transform));
+            Ok(())
         });
 
         self.world = Some(world);
