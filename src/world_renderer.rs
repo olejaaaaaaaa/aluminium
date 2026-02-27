@@ -40,7 +40,7 @@ use crate::resource_manager::{
 /// 
 /// # Example
 ///
-/// ```rust,no_run
+/// ```no_run
 /// let renderer = WorldRenderer::new(&window)?;
 /// renderer.draw_frame(|graph| { ... });
 /// ```
