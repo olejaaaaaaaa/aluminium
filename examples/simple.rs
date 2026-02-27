@@ -37,30 +37,6 @@ impl ApplicationHandler for App {
                 let world = self.world.as_mut().unwrap();
 
                 let _ = world.draw_frame(|graph| {
-                    let simple = graph.create_texture(TextureDesc {
-                        resolution: Resolution::Full,
-                        format: TextureFormat::R8g8b8a8Srgb,
-                        sampler: SamplerType::Linear,
-                        usage: TextureUsage::Transient,
-                        layers: 1,
-                    });
-
-                    // graph.add_pass(
-                    //     RasterPassBuilder::new()
-                    //         .vertex("shaders/spv/raster_vs-hlsl.spv")
-                    //         .fragment("shaders/spv/raster_ps-hlsl.spv")
-                    //         .execute(|ctx, renderables| {
-                    //             ctx.bind_bindless();
-                    //             ctx.set_scissor(None);
-                    //             ctx.set_viewport(None);
-                    //             ctx.bind_pipeline();
-                    //             for i in renderables {
-                    //                 ctx.draw_mesh(i);
-                    //             }
-                    //         })
-                    //         .build()
-                    // );
-
                     graph.add_pass(
                         PresentPassBuilder::new()
                             .vertex(r"D:\aluminium\shaders\spv\raster_vs-hlsl.spv")
@@ -114,12 +90,12 @@ impl ApplicationHandler for App {
             },
         ];
 
-        let mut assets = world.assets().write().unwrap();
-        let material = assets.create_material(Material::new()).unwrap();
-        let mesh = assets.create_mesh(&triangle_mesh, None).unwrap();
-        let transform = assets.create_transform(Transform::identity()).unwrap();
-        let _ = assets.create_renderable(Renderable::new(mesh, material, transform));
-        drop(assets);
+        world.with_assets_mut(|assets| {
+            let material = assets.create_material(Material::new()).unwrap();
+            let mesh = assets.create_mesh(&triangle_mesh, None).unwrap();
+            let transform = assets.create_transform(Transform::identity()).unwrap();
+            let renderable = assets.create_renderable(Renderable::new(mesh, material, transform));
+        });
 
         self.world = Some(world);
         self.window = Some(window);
