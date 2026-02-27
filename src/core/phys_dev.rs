@@ -32,8 +32,9 @@ impl PhysicalDevice {
 
                 if prop.device_type == ty {
                     let limits = prop.limits;
+                    let vendor = Into::<Vendor>::into(prop.vendor_id);
                     info!("GPU Type: {:?}", prop.device_type);
-                    info!("Vendor: {:?}", Into::<Vendor>::into(prop.vendor_id));
+                    info!("Vendor: {:?}", vendor);
                     info!(
                         "Max Storage Buffers: {}",
                         limits.max_descriptor_set_storage_buffers
@@ -44,9 +45,13 @@ impl PhysicalDevice {
                         "Max Dynamic Uniforms: {}",
                         limits.max_descriptor_set_uniform_buffers_dynamic
                     );
+                    info!(
+                        "Max Uniform Buffers: {}",
+                        limits.max_descriptor_set_uniform_buffers
+                    );
 
                     return Ok(Self {
-                        vendor: Into::<Vendor>::into(prop.vendor_id),
+                        vendor,
                         raw: *dev,
                         prop,
                     });

@@ -8,16 +8,14 @@ use native::*;
 mod software;
 use software::*;
 
-use crate::core::{Device, VulkanResult};
+use crate::core::{Device, Extension, VulkanResult};
 use crate::render_context::{Feature, RenderContext};
 
 /// Abstraction for bindless rendering
 /// The GPU may not support this natively
 #[derive(Clone)]
 pub enum Bindless {
-    /// One Descriptor Set
     Native(Arc<NativeBindless>),
-    /// Per Frame Descriptor Set
     Software(Arc<SoftwareBindless>),
 }
 
@@ -26,7 +24,7 @@ impl Bindless {
         ctx: &RenderContext,
         layouts: &[vk::DescriptorSetLayoutBinding<'static>],
     ) -> VulkanResult<Self> {
-        if false {
+        if !ctx.check_features(&[Extension::Bindless]) {
             todo!()
         } else {
             Ok(Bindless::Software(Arc::new(SoftwareBindless::new(

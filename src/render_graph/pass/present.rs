@@ -38,6 +38,16 @@ impl PresentPassBuilder {
         }
     }
 
+    pub fn dynamic_scissors(mut self, value: bool) -> Self {
+        self.inner.pipeline_desc.dynamic_scissors = value;
+        self
+    }
+
+    pub fn dynamic_viewport(mut self, value: bool) -> Self {
+        self.inner.pipeline_desc.dynamic_viewport = value;
+        self
+    }
+
     pub fn vertex(mut self, src: impl Into<Source>) -> Self {
         self.inner.pipeline_desc.vertex_shader = src.into();
         self

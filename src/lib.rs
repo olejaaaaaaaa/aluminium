@@ -22,6 +22,7 @@ pub use render_graph::{
 };
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;
+pub use core::{VulkanError, VulkanResult};
 
 /// Basic types
 pub mod types {

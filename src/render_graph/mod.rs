@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use ash::vk::{self, ClearValue};
 use puffin::profile_scope;
@@ -17,16 +17,43 @@ use slotmap::SlotMap;
 pub use texture::*;
 
 use crate::bindless::Bindless;
-use crate::core::{Device, SwapchainError, VulkanError, VulkanResult};
-use crate::frame_values::FrameValues;
+use crate::camera::{Camera, CameraData};
+use crate::core::{Device, Resolution as _, SwapchainError, VulkanError, VulkanResult};
+use crate::frame_values::{FrameData, FrameValues};
 use crate::per_frame::CommandPoolPerFrame;
 use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
+use crate::Transform;
+
+static GLOBAL_BINDLESS_LAYOUT: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
+    LazyLock::new(|| {
+        vec![
+            // Main Camera
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+            // Frame Values
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+            // SSBO All Transforms
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(2)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(10000)
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
+        ]
+    });
 
 pub struct RenderGraph {
     ctx: Arc<RenderContext>,
-    resources: Arc<ResourceManager>,
     bindless: Bindless,
+    frame_values: FrameValues,
+    resources: Arc<ResourceManager>,
     graphics_queue: vk::Queue,
     command_pool: CommandPoolPerFrame,
     execution_order: Vec<usize>,
@@ -37,12 +64,47 @@ pub struct RenderGraph {
 
 impl RenderGraph {
     /// Create new [`RenderGraph`]
-    pub(crate) fn new(ctx: Arc<RenderContext>, resources: Arc<ResourceManager>, bindless: Bindless) -> VulkanResult<Self> {
+    pub(crate) fn new(
+        ctx: Arc<RenderContext>,
+        resources: Arc<ResourceManager>,
+        camera: &Camera,
+    ) -> VulkanResult<Self> {
         let queue = ctx
             .device
             .queue_pool
             .get_queue(vk::QueueFlags::GRAPHICS)
             .unwrap();
+
+        let bindless = Bindless::new(&ctx, &GLOBAL_BINDLESS_LAYOUT)?;
+        let mut frame_values = FrameValues::new(&ctx.device, ctx.framebuffer_count())?;
+        frame_values.set_resolution(ctx.resolution().into_array());
+
+        bindless.update_buffer_set(
+            &ctx.device,
+            0,
+            vk::DescriptorType::UNIFORM_BUFFER,
+            camera.buffer.raw,
+            0,
+            size_of::<CameraData>() as u64,
+        );
+
+        bindless.update_buffer_set(
+            &ctx.device,
+            1,
+            vk::DescriptorType::UNIFORM_BUFFER,
+            frame_values.buffer.buffers[0].raw,
+            0,
+            size_of::<FrameData>() as u64,
+        );
+
+        bindless.update_buffer_set(
+            &ctx.device,
+            2,
+            vk::DescriptorType::STORAGE_BUFFER,
+            resources.assets.read().unwrap().transform.buffer.raw,
+            0,
+            size_of::<Transform>() as u64 * 10000,
+        );
 
         Ok(RenderGraph {
             resources,
@@ -50,6 +112,7 @@ impl RenderGraph {
             graphics_queue: queue,
             command_pool: CommandPoolPerFrame::new(&ctx.device)?,
             ctx,
+            frame_values,
             texture_descs: SlotMap::with_key(),
             execution_order: vec![],
             pass_descs: vec![],
@@ -65,9 +128,7 @@ impl RenderGraph {
         self.texture_descs.insert(desc)
     }
 
-    pub(crate) fn compile(
-        &mut self,
-    ) -> VulkanResult<()> {
+    pub(crate) fn compile(&mut self) -> VulkanResult<()> {
         profile_scope!("RenderGraph::compile");
 
         for (_handle, _desc) in self.texture_descs.drain() {}
@@ -75,11 +136,12 @@ impl RenderGraph {
         for desc in self.pass_descs.drain(..) {
             let pass = match desc {
                 PassDesc::Present(pass) => {
-                    let (pipeline, layout) = self.resources
+                    let (pipeline, layout) = self
+                        .resources
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(&self.ctx, &pass.pipeline_desc)?;
+                        .create_raster_pipeline(&pass.pipeline_desc)?;
 
                     Pass::Present(PresentPass {
                         pipeline,
@@ -88,11 +150,12 @@ impl RenderGraph {
                     })
                 },
                 PassDesc::Raster(pass) => {
-                    let (pipeline, layout) = self.resources
+                    let (pipeline, layout) = self
+                        .resources
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(&self.ctx, &pass.pipeline_desc)?;
+                        .create_raster_pipeline(&pass.pipeline_desc)?;
 
                     Pass::Raster(RasterPass {
                         layout,
@@ -166,10 +229,7 @@ impl RenderGraph {
     }
 
     /// Execute graph
-    pub(crate) fn execute(
-        &mut self,
-        frame_values: &mut FrameValues,
-    ) -> VulkanResult<()> {
+    pub(crate) fn execute(&mut self) -> VulkanResult<()> {
         profile_scope!("RenderGraph::execute");
 
         let image_index = Self::acquire_next_image(&self.ctx)?;
@@ -333,7 +393,8 @@ impl RenderGraph {
         //     window.current_frame
         // );
 
-        frame_values.update(device, image_index, window.current_frame as u32)?;
+        self.frame_values
+            .update(device, image_index, window.current_frame as u32)?;
         self.passes.clear();
         window.current_frame += 1;
 

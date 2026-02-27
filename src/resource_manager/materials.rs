@@ -43,6 +43,12 @@ impl From<f32> for UniformValue {
     }
 }
 
+impl From<[f32; 3]> for UniformValue {
+    fn from(value: [f32; 3]) -> Self {
+        UniformValue::Vec3(value)
+    }
+}
+
 /// Material
 #[derive(Clone)]
 pub struct Material {

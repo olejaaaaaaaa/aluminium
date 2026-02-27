@@ -22,6 +22,12 @@ struct Transform {
     float4   pos;
 };
 
+// struct Material {
+//     uint image_indices[25];
+//     uint image_size[25];
+//     uint image_sampler_indices[25];
+// };
+
 [[vk::push_constant]]
 struct {
     // 4 bytes

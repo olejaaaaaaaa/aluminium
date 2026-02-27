@@ -37,6 +37,7 @@ new_key_type! {
 }
 
 pub struct AssetManager {
+    pub(crate) ctx: Arc<RenderContext>,
     pub(crate) mesh: MeshCollection,
     pub(crate) material: MaterialCollection,
     pub(crate) transform: TransformCollection,
@@ -44,17 +45,103 @@ pub struct AssetManager {
 }
 
 impl AssetManager {
-    pub fn new(device: &Device) -> VulkanResult<Self> {
+    pub fn new(ctx: Arc<RenderContext>) -> VulkanResult<Self> {
         Ok(Self {
             mesh: MeshCollection::new(),
             material: MaterialCollection::new(),
-            transform: TransformCollection::new(device)?,
+            transform: TransformCollection::new(&ctx.device)?,
             renderable: RenderableCollection::new(),
+            ctx,
         })
+    }
+
+    /// Create mesh
+    ///
+    /// # Panics!
+    ///
+    /// - If there is not enough memory for a new allocation
+    /// - If an unexpected error occurs
+    pub fn create_mesh<T>(
+        &mut self,
+        vertices: &[T],
+        indices: Option<&[u32]>,
+    ) -> VulkanResult<MeshHandle>
+    where
+        T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
+    {
+        self.create_static_mesh_immediately(vertices, indices)
+    }
+
+    pub fn create_static_mesh_immediately<
+        T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
+    >(
+        &mut self,
+        mesh: &[T],
+        indices: Option<&[u32]>,
+    ) -> VulkanResult<MeshHandle> {
+        let size = std::mem::size_of_val(mesh) as u64;
+
+        let mut vertex_buffer = GpuBufferBuilder::cpu_only(&self.ctx.device)
+            .size(size)
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .build()?;
+
+        vertex_buffer.upload_data(&self.ctx.device, mesh)?;
+
+        let index_buffer = if let Some(indices) = indices {
+            let mut index_buffer = GpuBufferBuilder::cpu_only(&self.ctx.device)
+                .size(std::mem::size_of_val(indices) as u64)
+                .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+                .build()?;
+
+            index_buffer.upload_data(&self.ctx.device, indices)?;
+
+            Some(index_buffer)
+        } else {
+            None
+        };
+
+        Ok(self.mesh.add_mesh(Mesh {
+            instance_offset: 0,
+            instance_count: 1,
+            vertex_offset: 0,
+            instance_buffer: None,
+            vertex_buffer,
+            indices: indices.map(|x| x.to_vec()),
+            index_buffer,
+        }))
+    }
+
+    /// Create new Material
+    /// # Panics!
+    ///
+    /// - If not success allocate descriptor set
+    /// - If the GPU has stopped responding
+    /// - If an unexpected error occurs
+    pub fn create_material(&mut self, material: Material) -> VulkanResult<MaterialHandle> {
+        self.material.add_material(material)
+    }
+
+    // pub fn get_material(&mut self, )
+    /// Create Transform
+    /// # Panics!
+    ///
+    /// - If platform not supported natively bindless and their number is
+    ///   greater than the GPU can support
+    pub fn create_transform(&mut self, transform: Transform) -> VulkanResult<TransformHandle> {
+        self.transform.create_transform(transform)
+    }
+
+    /// Create Renderable Object
+    ///
+    /// Does not require new allocations or any actions from the GPU
+    pub fn create_renderable(&mut self, renderable: Renderable) -> RenderableHandle {
+        self.renderable.add_renderable(renderable)
     }
 }
 
 pub struct LowLevelManager {
+    pub ctx: Arc<RenderContext>,
     pub cache_raster: HashMap<RasterPipelineDesc, (RasterPipelineHandle, PipelineLayoutHandle)>,
     pub raster_pipeline: SlotMap<RasterPipelineHandle, GraphicsPipeline>,
     pub pipeline_layout: SlotMap<PipelineLayoutHandle, PipelineLayout>,
@@ -68,8 +155,9 @@ struct PipelineLayoutDesc {
 }
 
 impl LowLevelManager {
-    pub fn new() -> Self {
+    pub fn new(ctx: Arc<RenderContext>) -> Self {
         Self {
+            ctx,
             cache_raster: HashMap::new(),
             raster_pipeline: SlotMap::with_key(),
             pipeline_layout: SlotMap::with_key(),
@@ -108,10 +196,9 @@ impl LowLevelManager {
 
     pub fn create_raster_pipeline(
         &mut self,
-        ctx: &RenderContext,
         desc: &RasterPipelineDesc,
     ) -> VulkanResult<(RasterPipelineHandle, PipelineLayoutHandle)> {
-        let window = ctx.window.read().unwrap();
+        let window = self.ctx.window.read().unwrap();
         let resolution = window.resolution;
 
         if let Some((pipeline, layout)) = self.cache_raster.get(desc) {
@@ -120,7 +207,7 @@ impl LowLevelManager {
 
         let sources = [&desc.vertex_shader, &desc.fragment_shader];
 
-        let reflection = Self::shader_reflection(&ctx.device, &sources)?;
+        let reflection = Self::shader_reflection(&self.ctx.device, &sources)?;
 
         let color_blend = vk::PipelineColorBlendAttachmentState::default()
             .color_write_mask(
@@ -156,11 +243,11 @@ impl LowLevelManager {
                 .descriptor_count(10000),
         ];
 
-        let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
+        let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&self.ctx.device)
             .bindings(binds)
             .build()?;
 
-        let layout = PipelineLayoutBuilder::new(&ctx.device)
+        let layout = PipelineLayoutBuilder::new(&self.ctx.device)
             .set_layouts(vec![descriptor_set_layout.raw])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
@@ -170,7 +257,7 @@ impl LowLevelManager {
                 )])
             .build()?;
 
-        let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
+        let pipeline = GraphicsPipelineBuilder::new(&self.ctx.device)
             .vertex_shader(reflection.vertex.as_ref().unwrap().raw)
             .fragment_shader(reflection.fragment.as_ref().unwrap().raw)
             .render_pass(window.render_pass.raw)
@@ -184,7 +271,7 @@ impl LowLevelManager {
                 .max_depth(1.0)])
             .scissors(vec![vk::Rect2D::default()
                 .offset(vk::Offset2D { x: 0, y: 0 })
-                .extent(ctx.resolution())])
+                .extent(resolution)])
             .input_assembly(
                 vk::PipelineInputAssemblyStateCreateInfo::default()
                     .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
@@ -268,57 +355,11 @@ impl ResourceManager {
         // }
     }
 
-    pub fn new(device: &Device) -> VulkanResult<Arc<Self>> {
+    pub fn new(ctx: Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
         Ok(Arc::new(Self {
-            assets: RwLock::new(AssetManager::new(device)?),
-            low_level: RwLock::new(LowLevelManager::new()),
+            assets: RwLock::new(AssetManager::new(ctx.clone())?),
+            low_level: RwLock::new(LowLevelManager::new(ctx.clone())),
         }))
-    }
-
-    pub fn create_static_mesh_immediately<
-        T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
-    >(
-        &self,
-        ctx: &RenderContext,
-        mesh: &[T],
-        indices: Option<&[u32]>,
-    ) -> VulkanResult<MeshHandle> {
-        let size = std::mem::size_of_val(mesh) as u64;
-
-        let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
-            .size(size)
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .build()?;
-
-        vertex_buffer.upload_data(&ctx.device, mesh)?;
-
-        let index_buffer = if let Some(indices) = indices {
-            let mut index_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
-                .size(std::mem::size_of_val(indices) as u64)
-                .usage(vk::BufferUsageFlags::INDEX_BUFFER)
-                .build()?;
-
-            index_buffer.upload_data(&ctx.device, indices)?;
-
-            Some(index_buffer)
-        } else {
-            None
-        };
-
-        Ok(self
-            .assets
-            .write()
-            .expect("Error lock asset manager")
-            .mesh
-            .add_mesh(Mesh {
-                instance_offset: 0,
-                instance_count: 1,
-                vertex_offset: 0,
-                instance_buffer: None,
-                vertex_buffer,
-                indices: indices.map(|x| x.to_vec()),
-                index_buffer,
-            }))
     }
 
     pub fn create_renderable(&self, renderable: Renderable) -> RenderableHandle {
