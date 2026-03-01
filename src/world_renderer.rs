@@ -1,9 +1,11 @@
+use std::io::Read;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
+use log::warn;
 use puffin::{profile_scope, GlobalProfiler};
 use winit::window::Window;
 
@@ -31,23 +33,25 @@ use crate::resource_manager::{
 ///
 /// Mesh, material, and transform creation is single-threaded from the caller's
 /// perspective. Internally, some Vulkan object creation may be parallelized,
-/// but this is an implementation detail and is not exposed through the public API
+/// but this is an implementation detail and is not exposed through the public
+/// API
 ///
 /// # Stability
 ///
 /// This abstraction is currently experimental. The public API may change
 /// between versions without prior notice
-/// 
+///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let renderer = WorldRenderer::new(&window)?;
 /// renderer.draw_frame(|graph| { ... });
 /// ```
 pub struct WorldRenderer {
     /// Contains resources for rendering and caches them
     resources: Arc<ResourceManager>,
-    /// Handles pass scheduling, dependency resolution, and automatic resource barriers
+    /// Handles pass scheduling, dependency resolution, and automatic resource
+    /// barriers
     graph: RenderGraph,
     /// View and projection data submitted to the GPU each frame
     camera: Camera,
@@ -87,7 +91,10 @@ impl WorldRenderer {
     }
 
     /// Get mut reference to [`AssetManager`]
-    pub fn with_assets_mut<R, F: FnOnce(&mut AssetManager) -> VulkanResult<R>>(&self, closure: F) -> VulkanResult<R> {
+    pub fn with_assets_mut<R, F: FnOnce(&mut AssetManager) -> VulkanResult<R>>(
+        &self,
+        closure: F,
+    ) -> VulkanResult<R> {
         closure(&mut self.resources.assets.write().unwrap())
     }
 
@@ -142,9 +149,12 @@ impl WorldRenderer {
         if let Err(err) = self.graph.execute() {
             if let VulkanError::Swapchain(err) = err {
                 match err {
-                    SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
+                    SwapchainError::SwapchainOutOfDateKhr => {
                         let extent = self.ctx.resolution();
                         self.resize(extent.width, extent.height)?;
+                    },
+                    SwapchainError::SwapchainSubOptimal => {
+                        warn!("Swapchain SubOptimal!");
                     },
                     SwapchainError::SwapchainCreationFailed(err) => {
                         return Err(VulkanError::Swapchain(
@@ -166,21 +176,15 @@ impl WorldRenderer {
 impl Drop for WorldRenderer {
     fn drop(&mut self) {
         let device = &self.ctx.device;
-
         // Wait all gpu work before destroy resources
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
-
+         // Destroy CommandPool
         // Destroy Gpu Buffers
         // Destroy Pipelines
         // Destroy Pipeline Layouts
         // Destroy FrameBuffers
-        // self.resources.destroy(device);
         // Destroy Uniform Buffer
-        self.camera.destroy(device);
-        // Destroy CommandPool
-        self.graph.destroy(device);
         // Destroy DescriptorPool
-        // self.bindless.destroy(device);
         // Destroy Swapchain
         // Destroy RenderPass
         // Destroy DepthView
@@ -193,6 +197,5 @@ impl Drop for WorldRenderer {
         // Destroy Surface
         // Destroy Option<DebugCallback>
         // Destroy Instance
-        // unsafe { ManuallyDrop::drop(&mut self.ctx) };
     }
 }

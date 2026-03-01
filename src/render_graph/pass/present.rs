@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
 use super::{Execute, PassContext, Source};
-use crate::render_graph::{PassDesc, RasterPipelineDesc, RenderGraphResource};
+use crate::render_graph::{PassDesc, RasterPipelineDesc, RenderGraphResource, UniformBinding};
 use crate::resource_manager::{PipelineLayoutHandle, RasterPipelineHandle};
-use crate::Renderable;
+use crate::{Renderable, ShaderType, VertexInput};
 
 pub struct PresentPassDesc {
     pub(crate) reads: Vec<RenderGraphResource>,
@@ -36,6 +36,14 @@ impl PresentPassBuilder {
         Self {
             inner: PresentPassDesc::default(),
         }
+    }
+
+    pub fn uniforms(mut self, bindings: &[UniformBinding]) -> Self {
+        self
+    }
+
+    pub fn vertex_input(mut self, inputs: &[ShaderType]) -> Self {
+        self
     }
 
     pub fn dynamic_scissors(mut self, value: bool) -> Self {

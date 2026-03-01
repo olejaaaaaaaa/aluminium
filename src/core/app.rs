@@ -1,12 +1,12 @@
 use std::ffi::CStr;
 
 use ash::vk;
-use log::{debug, info};
+use log::info;
 
 use super::{VulkanError, VulkanResult};
+use crate::core::errors::app::AppError;
 use crate::core::ApiVersion;
 
-const MAX_VK_API_VERSION: u32 = vk::API_VERSION_1_0;
 const ENGINE_VERSION: u32 = 0;
 const ENGINE_NAME: &CStr = c"Aluminium";
 const APP_NAME: &CStr = c"App";
@@ -20,18 +20,45 @@ pub struct App {
 impl App {
     pub fn new() -> VulkanResult<App> {
         let entry = unsafe {
-            ash::Entry::load()
-                .map_err(|e| VulkanError::App(crate::core::errors::app::AppError::LoadingVulkan(e)))
+            ash::Entry::load().map_err(|e| VulkanError::App(AppError::LoadingVulkan(e)))
         }?;
 
+        let available_api_version = unsafe {
+            entry
+                .try_enumerate_instance_version()
+                .map_err(|e| VulkanError::App(AppError::LoadingVulkanApiVersion(e)))?
+                .unwrap_or(vk::API_VERSION_1_0)
+        };
+
+        info!(
+            "Max Vulkan Api version: {:?}",
+            available_api_version.display_version()
+        );
+
+        // Downgrade from the highest available version
+        // Using the latest version is quite dangerous
+        let api_version = match available_api_version {
+            version if version > vk::API_VERSION_1_3 => vk::API_VERSION_1_3,
+            vk::API_VERSION_1_3 => vk::API_VERSION_1_2,
+            vk::API_VERSION_1_2 => vk::API_VERSION_1_1,
+            vk::API_VERSION_1_1 => vk::API_VERSION_1_0,
+            _ => {
+                log::warn!("GPU only supports the most minimal api version!");
+                vk::API_VERSION_1_0
+            },
+        };
+
         let create_info = vk::ApplicationInfo::default()
-            .api_version(MAX_VK_API_VERSION)
+            .api_version(api_version)
             .application_version(APP_VERSION)
             .application_name(APP_NAME)
             .engine_name(ENGINE_NAME)
             .engine_version(ENGINE_VERSION);
 
-        info!("VK_API_VERSION: {:?}", MAX_VK_API_VERSION.version());
+        info!(
+            "Selected Vulkan Api version: {:?}",
+            api_version.display_version()
+        );
 
         Ok(App { create_info, entry })
     }

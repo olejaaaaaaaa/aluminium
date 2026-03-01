@@ -318,41 +318,45 @@ pub struct ResourceManager {
 
 impl ResourceManager {
     pub fn destroy(&mut self, device: &Device) {
-        // for i in &mut self.assets.mesh.data {
-        //     unsafe {
-        //         if let Some(index) = &mut i.index_buffer {
-        //             device
-        //                 .allocator
-        //                 .destroy_buffer(index.raw, &mut index.allocation);
-        //         }
-        //         if let Some(instance) = &mut i.instance_buffer {
-        //             device
-        //                 .allocator
-        //                 .destroy_buffer(instance.raw, &mut
-        // instance.allocation);         }
-        //         device
-        //             .allocator
-        //             .destroy_buffer(i.vertex_buffer.raw, &mut
-        // i.vertex_buffer.allocation);     }
-        // }
+        let mut assets = self.assets.write().unwrap();
 
-        // self.assets.transform.destroy(device);
+        for i in &mut assets.mesh.data {
+            unsafe {
+                if let Some(index) = &mut i.index_buffer {
+                    device
+                        .allocator
+                        .destroy_buffer(index.raw, &mut index.allocation);
+                }
+                if let Some(instance) = &mut i.instance_buffer {
+                    device
+                        .allocator
+                        .destroy_buffer(instance.raw, &mut
+        instance.allocation);         }
+                device
+                    .allocator
+                    .destroy_buffer(i.vertex_buffer.raw, &mut
+        i.vertex_buffer.allocation);     }
+        }
 
-        // for (_, pipeline) in self.low_level.raster_pipeline.drain() {
-        //     unsafe { device.destroy_pipeline(pipeline.raw, None) };
-        // }
+        assets.transform.destroy(device);
 
-        // for (_, layout) in self.low_level.pipeline_layout.drain() {
-        //     unsafe {
-        //         device.destroy_pipeline_layout(layout.raw, None);
-        //     }
-        // }
+        let mut low_level = self.low_level.write().unwrap();
 
-        // for (_, framebuffer) in self.low_level.frame_buffer.drain() {
-        //     unsafe {
-        //         device.destroy_framebuffer(framebuffer.raw, None);
-        //     }
-        // }
+        for (_, pipeline) in low_level.raster_pipeline.drain() {
+            unsafe { device.destroy_pipeline(pipeline.raw, None) };
+        }
+
+        for (_, layout) in low_level.pipeline_layout.drain() {
+            unsafe {
+                device.destroy_pipeline_layout(layout.raw, None);
+            }
+        }
+
+        for (_, framebuffer) in low_level.frame_buffer.drain() {
+            unsafe {
+                device.destroy_framebuffer(framebuffer.raw, None);
+            }
+        }
     }
 
     pub fn new(ctx: Arc<RenderContext>) -> VulkanResult<Arc<Self>> {

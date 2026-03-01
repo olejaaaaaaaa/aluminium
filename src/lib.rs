@@ -16,13 +16,15 @@ pub(crate) mod render_graph;
 pub(crate) mod resource_manager;
 pub(crate) mod world_renderer;
 
+pub use core::{VulkanError, VulkanResult};
+
 pub use render_graph::{
     ComputePass, LoadOp, PresentPass, PresentPassBuilder, RasterPass, RasterPassBuilder,
-    Resolution, SamplerType, StoreOp, TextureDesc, TextureFormat, TextureUsage,
+    Resolution, SamplerType, StoreOp, TextureDesc, TextureFormat, TextureUsage, UniformBinding,
+    ShaderStage, ShaderType, VertexInput
 };
 pub use resource_manager::{Material, Renderable, Transform};
 pub use world_renderer::WorldRenderer;
-pub use core::{VulkanError, VulkanResult};
 
 /// Basic types
 pub mod types {

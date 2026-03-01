@@ -13,7 +13,7 @@ pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
     App, Device, Extension, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
-    Instance, PhysicalDevice, PhysicalFeature, QueuePool, RenderPassBuilder, SurfaceBuilder,
+    Instance, PhysicalDevice, PhysicalFeature, QueuePool, RenderPassBuilder, Surface,
     SwapchainBuilder, VulkanResult,
 };
 
@@ -78,10 +78,8 @@ impl RenderContext {
                     },
                 },
                 Feature::Vendor(vendor_required) => {
-                    let actual_vendor = self.device.phys_dev.vendor;
-                    if actual_vendor == vendor_required {
-                        return true;
-                    }
+                    let actual_vendor = self.device.vendor();
+    
                 },
             }
         }
@@ -92,14 +90,45 @@ impl RenderContext {
     pub fn new(window: &winit::window::Window) -> VulkanResult<Arc<Self>> {
         let app = App::new()?;
         let instance = Instance::new(window, &app)?;
-        let surface = SurfaceBuilder::new(&app, &instance, window).build()?;
+        let surface = Surface::new(&app, &instance, window)?;
         let phys_dev = PhysicalDevice::new(&instance)?;
         let device = Device::new(&instance, &phys_dev)?;
-        let caps = surface.get_physical_device_surface_capabilities(phys_dev.raw);
 
-        let swapchain = SwapchainBuilder::default(&instance, &device, &surface)
-            .extent(caps.current_extent)
-            .format(vk::Format::R8G8B8A8_SRGB)
+        let caps = surface.get_physical_device_surface_capabilities(phys_dev.raw)?;
+        let extent = caps.current_extent;
+        let transforms = caps.current_transform;
+
+        let formats = surface.get_physical_device_surface_formats(phys_dev.raw)?;
+
+        let format_priority = [vk::Format::R8G8B8A8_SRGB];
+
+        let color_space_priority = [
+            #[cfg(target_os = "android")]
+            vk::ColorSpaceKHR::EXTENDED_SRGB_LINEAR_EXT,
+            vk::ColorSpaceKHR::SRGB_NONLINEAR,
+        ];
+
+        let mut format = vk::Format::R8G8B8A8_SRGB;
+        let mut color_space = vk::ColorSpaceKHR::SRGB_NONLINEAR;
+
+        for (f, c) in format_priority.iter().zip(color_space_priority.iter()) {
+            for j in &formats {
+                if *f == j.format && *c == j.color_space {
+                    format = j.format;
+                    color_space = j.color_space;
+                }
+            }
+        }
+
+        let swapchain = SwapchainBuilder::new()
+            .min_image_count(2)
+            .surface(&surface)
+            .present_mode(vk::PresentModeKHR::FIFO)
+            .instance(&instance)
+            .device(&device)
+            .color_space(color_space)
+            .extent(extent)
+            .format(format)
             .build()?;
 
         let render_pass =
@@ -162,33 +191,30 @@ impl RenderContext {
             },
         }))
     }
-}
 
-/// Destroying Vulkan objects in the correct order
-impl Drop for RenderContext {
-    fn drop(&mut self) {
+    pub fn destroy(&mut self) {
         unsafe { self.device.device_wait_idle().expect("Error wait idle") };
+        let mut window = self.window.write().unwrap();
+        
+        window.swapchain.destroy();
+        window.render_pass.destroy(&self.device);
+        window.depth_view.destroy(&self.device);
+        window.depth_image.destroy(&self.device);
 
-        // self.window.swapchain.destroy();
+        for i in &window.frame_sync {
+            i.destroy(&self.device);
+        }
 
-        // self.window.render_pass.destroy(&self.device);
-        // self.window.depth_view.destroy(&self.device);
-        // self.window.depth_image.destroy(&self.device);
+        for i in &window.frame_buffers {
+            i.destroy(&self.device);
+        }
 
-        // for i in &self.window.frame_sync {
-        //     i.destroy(&self.device);
-        // }
+        for i in &window.image_views {
+            i.destroy(&self.device);
+        }
 
-        // for i in &self.window.frame_buffers {
-        //     i.destroy(&self.device);
-        // }
-
-        // for i in &self.window.image_views {
-        //     i.destroy(&self.device);
-        // }
-
-        // self.device.logical_device.destroy();
-        // self.window.surface.destroy();
-        // self.device.instance.destroy();
+        self.device.logical_device.destroy();
+        window.surface.destroy();
+        self.device.instance.destroy();
     }
 }

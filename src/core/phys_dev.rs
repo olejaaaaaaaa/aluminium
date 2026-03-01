@@ -13,7 +13,6 @@ const GPU_PRIORITY: [vk::PhysicalDeviceType; 5] = [
 
 pub struct PhysicalDevice {
     pub(crate) raw: vk::PhysicalDevice,
-    pub(crate) vendor: Vendor,
     pub(crate) prop: vk::PhysicalDeviceProperties,
 }
 
@@ -32,26 +31,18 @@ impl PhysicalDevice {
 
                 if prop.device_type == ty {
                     let limits = prop.limits;
-                    let vendor = Into::<Vendor>::into(prop.vendor_id);
-                    info!("GPU Type: {:?}", prop.device_type);
-                    info!("Vendor: {:?}", vendor);
                     info!(
-                        "Max Storage Buffers: {}",
-                        limits.max_descriptor_set_storage_buffers
-                    );
-                    info!("Max Push Constants: {}", limits.max_push_constants_size);
-                    info!("Max Indirect Draw: {}", limits.max_draw_indirect_count);
-                    info!(
-                        "Max Dynamic Uniforms: {}",
-                        limits.max_descriptor_set_uniform_buffers_dynamic
-                    );
-                    info!(
-                        "Max Uniform Buffers: {}",
+                        "\nGpu Type: {:?}\nMax Storage Buffers: {}\nPush Constants: \
+                         {}\nIndirect Draw: {}\nDynamic Uniforms: {}\nUniform Buffers: {}",
+                        prop.device_type,
+                        limits.max_descriptor_set_storage_buffers,
+                        limits.max_push_constants_size,
+                        limits.max_draw_indirect_count,
+                        limits.max_descriptor_set_uniform_buffers_dynamic,
                         limits.max_descriptor_set_uniform_buffers
                     );
 
                     return Ok(Self {
-                        vendor,
                         raw: *dev,
                         prop,
                     });

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 
@@ -8,16 +9,24 @@ use vk_mem::Allocator;
 
 use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 
+
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
     /// Gpu allocator
     pub(crate) allocator: ManuallyDrop<Allocator>,
-    pub(crate) extensions: Vec<&'static CStr>,
+    pub(crate) extensions: HashSet<&'static CStr>,
+    pub(crate) features2: vk::PhysicalDeviceFeatures2<'static>,
+    pub(crate) driver_props: vk::PhysicalDeviceDriverProperties<'static>,
     pub(crate) queue_family_props: Vec<vk::QueueFamilyProperties>,
     pub(crate) raw: ash::Device,
 }
 
 impl Device {
+
+    pub fn vendor(&self) -> vk::DriverId {
+        self.driver_props.driver_id
+    }
+
     pub fn check_extensions(&self, extensions: &[&'static CStr]) -> bool {
         for i in extensions {
             if !self.extensions.contains(i) {
@@ -43,7 +52,13 @@ impl std::ops::Deref for Device {
 }
 
 impl Device {
-    pub fn new(instance: &Instance, phys_dev: &PhysicalDevice) -> VulkanResult<Self> {
+
+    pub fn get_device_extensions(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> VulkanResult<HashSet<&'static CStr>> {
+        let mut extensions = HashSet::new();
+
         let available_extensions = unsafe {
             instance
                 .raw
@@ -64,88 +79,100 @@ impl Device {
             available_extension_names
         );
 
-        if !available_extension_names.contains(&c"VK_KHR_swapchain") {
-            panic!("Not supported VK_KHR_swapchain")
+        let required_extensions = [
+            c"VK_KHR_swapchain",
+            c"VK_KHR_driver_properties",
+            c"VK_KHR_maintenance4",
+            c"VK_KHR_synchronization2",
+            c"VK_KHR_timeline_semaphore"
+        ];
+
+        for i in required_extensions {
+            if !available_extension_names.contains(&i) {
+                return Err(VulkanError::LogicalDevice(
+                    crate::core::LogicalDeviceError::MissingRequiredExtension(
+                        i.to_str().unwrap().to_string(),
+                    ),
+                ));
+            } else {
+                extensions.insert(i);
+            }
         }
 
-        let mut extensions = vec![c"VK_KHR_swapchain"];
+        let optional_extensions = [
+            // Bindless
+            vec![
+                c"VK_KHR_push_descriptor",
+                c"VK_KHR_maintenance3",
+                c"VK_EXT_descriptor_indexing"
+            ],
+            // Dynamic Rendering
+            vec![
+                c"VK_KHR_dynamic_rendering",
+                c"VK_KHR_create_renderpass2",
+                c"VK_KHR_multiview",
+                c"VK_KHR_maintenance2",
+                c"VK_KHR_depth_stencil_resolve"
+            ],
+            // Buffer Device Address
+            vec![
+                c"VK_KHR_buffer_device_address",
+                c"VK_KHR_device_group",
+            ],
+            // Ray-Tracing
+            vec![
+                c"VK_KHR_acceleration_structure",
+                c"VK_KHR_ray_tracing_pipeline"
+            ],
+            // Ray-Query
+            vec![
+                c"VK_KHR_ray_query"
+            ]
+        ];
 
-        #[cfg(target_os = "windows")]
-        {
-            let mut is_bindless_supported = false;
-            if available_extension_names.contains(&c"VK_KHR_push_descriptor")
-                && available_extension_names.contains(&c"VK_KHR_maintenance3")
-                && available_extension_names.contains(&c"VK_EXT_descriptor_indexing")
-            {
-                // Bindless
-                extensions.push(c"VK_KHR_maintenance3");
-                extensions.push(c"VK_EXT_descriptor_indexing");
-                extensions.push(c"VK_KHR_push_descriptor");
-                is_bindless_supported = true;
+        for i in &optional_extensions {
+            let mut is_supported = true;
+            for j in i {
+                if !available_extension_names.contains(j) {
+                    is_supported = false;
+                }
             }
-
-            info!("Bindless supported: {}", is_bindless_supported);
-
-            let mut is_sync2_supported = false;
-            if available_extension_names.contains(&c"VK_KHR_synchronization2") {
-                // Sync2
-                extensions.push(c"VK_KHR_synchronization2");
-                is_sync2_supported = true;
+            if is_supported {
+                extensions.extend(i);
             }
-
-            info!("Sync2 supported: {}", is_sync2_supported);
-
-            let mut is_timeline_semaphore_supported = false;
-            if available_extension_names.contains(&c"VK_KHR_timeline_semaphore") {
-                // Timeline
-                extensions.push(c"VK_KHR_timeline_semaphore");
-                is_timeline_semaphore_supported = true;
-            }
-
-            info!(
-                "Timeline Semaphore supported: {}",
-                is_timeline_semaphore_supported
-            );
-
-            let mut is_dynamic_rendering_supported = false;
-            if available_extension_names.contains(&c"VK_KHR_dynamic_rendering")
-                && available_extension_names.contains(&c"VK_KHR_create_renderpass2")
-                && available_extension_names.contains(&c"VK_KHR_multiview")
-                && available_extension_names.contains(&c"VK_KHR_maintenance2")
-                && available_extension_names.contains(&c"VK_KHR_depth_stencil_resolve")
-            {
-                // Dynamic Rendering
-                extensions.push(c"VK_KHR_multiview");
-                extensions.push(c"VK_KHR_maintenance2");
-                extensions.push(c"VK_KHR_create_renderpass2");
-                extensions.push(c"VK_KHR_depth_stencil_resolve");
-                extensions.push(c"VK_KHR_dynamic_rendering");
-                is_dynamic_rendering_supported = true;
-            }
-
-            info!(
-                "Dynamic Rendering supported: {}",
-                is_dynamic_rendering_supported
-            );
-
-            let mut is_buffer_device_address_supported = false;
-            if available_extension_names.contains(&c"VK_KHR_buffer_device_address")
-                && instance
-                    .extensions
-                    .contains(&c"VK_KHR_device_group_creation")
-                && available_extension_names.contains(&c"VK_KHR_device_group")
-            {
-                // Buffer Device Address
-                extensions.push(c"VK_KHR_device_group");
-                extensions.push(c"VK_KHR_buffer_device_address");
-                is_buffer_device_address_supported = true;
-            }
-
-            info!(
-                "Buffer Device Address supported: {}",
-                is_buffer_device_address_supported
-            );
         }
+
+        Ok(extensions)
+    }
+
+    fn get_driver_properties(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
+        let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
+
+        let mut props2 = vk::PhysicalDeviceProperties2::default()
+            .push_next(&mut driver_props);
+
+        unsafe { instance.raw.get_physical_device_properties2(phys_dev.raw, &mut props2) };
+
+        let version = driver_props.conformance_version;
+        let conformance_version = format!("0.{}.{}.{}", version.major, version.minor, version.patch);
+
+        log::info!("Conformance Version {:?}", conformance_version);
+
+        driver_props
+    }
+
+    fn get_features2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceFeatures2<'static> {
+        let mut features2 = vk::PhysicalDeviceFeatures2::default();
+        unsafe { instance.raw.get_physical_device_features2(phys_dev.raw, &mut features2) };
+        features2
+    }
+
+    pub fn new(instance: &Instance, phys_dev: &PhysicalDevice) -> VulkanResult<Self> {
+        let extensions = Self::get_device_extensions(instance, phys_dev)?;
+        let p_extensions = extensions
+            .iter()
+            .map(|p| p.as_ptr().cast::<i8>())
+            .collect::<Vec<_>>();
 
         let queue_family_prop = unsafe {
             instance
@@ -173,11 +200,6 @@ impl Device {
             queue_infos.push(queue_info);
         }
 
-        let p_extensions = extensions
-            .iter()
-            .map(|p| p.as_ptr().cast::<i8>())
-            .collect::<Vec<_>>();
-
         let create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&p_extensions);
@@ -197,10 +219,15 @@ impl Device {
             vk_mem::Allocator::new(create_info)
                 .map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))
         }?;
+        
+        let features2 = Self::get_features2(instance, phys_dev);
+        let driver_props = Self::get_driver_properties(instance, phys_dev);
 
         Ok(Device {
             raw: device,
             extensions,
+            driver_props,
+            features2,
             allocator: ManuallyDrop::new(allocator),
             queue_family_props: queue_family_prop,
         })

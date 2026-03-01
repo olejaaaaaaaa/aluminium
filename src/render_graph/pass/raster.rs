@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use super::{Execute, PassContext, Source};
-use crate::render_graph::{PassDesc, RenderGraphResource, TextureHandle};
+use crate::render_graph::{PassDesc, RenderGraphResource, TextureHandle, UniformBinding};
 use crate::resource_manager::{
     FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
 };
@@ -10,6 +10,7 @@ use crate::resource_manager::{
 pub struct RasterPipelineDesc {
     pub(crate) vertex_shader: Source,
     pub(crate) fragment_shader: Source,
+    pub(crate) uniform_layouts: Vec<UniformBinding>,
     pub(crate) dynamic_viewport: bool,
     pub(crate) dynamic_scissors: bool,
     pub(crate) use_cache: bool,
@@ -19,6 +20,7 @@ pub struct RasterPipelineDesc {
 impl Default for RasterPipelineDesc {
     fn default() -> Self {
         Self {
+            uniform_layouts: vec![],
             vertex_shader: Source::None,
             fragment_shader: Source::None,
             dynamic_scissors: false,

@@ -1,4 +1,3 @@
-
 use ash::vk;
 
 use crate::core::{
@@ -8,7 +7,5 @@ use crate::core::{
 use crate::render_context::{Feature, RenderContext};
 
 pub struct NativeBindless {
-    descriptor_set: vk::DescriptorSet 
+    descriptor_set: vk::DescriptorSet,
 }
-
-

@@ -3,6 +3,12 @@ use std::sync::{Arc, LazyLock};
 use ash::vk::{self, ClearValue};
 use puffin::profile_scope;
 
+mod vertex_input;
+pub use vertex_input::*;
+
+mod bindings;
+pub use bindings::*;
+
 mod pass;
 pub use pass::*;
 

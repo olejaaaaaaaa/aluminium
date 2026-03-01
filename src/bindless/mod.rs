@@ -24,14 +24,10 @@ impl Bindless {
         ctx: &RenderContext,
         layouts: &[vk::DescriptorSetLayoutBinding<'static>],
     ) -> VulkanResult<Self> {
-        if !ctx.check_features(&[Extension::Bindless]) {
-            todo!()
-        } else {
-            Ok(Bindless::Software(Arc::new(SoftwareBindless::new(
-                &ctx.device,
-                layouts,
-            )?)))
-        }
+        Ok(Bindless::Software(Arc::new(SoftwareBindless::new(
+            &ctx.device,
+            layouts,
+        )?)))
     }
 
     pub fn bindless_set(&self) -> vk::DescriptorSet {
