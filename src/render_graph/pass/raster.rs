@@ -5,14 +5,17 @@ use crate::render_graph::{PassDesc, RenderGraphResource, TextureHandle, UniformB
 use crate::resource_manager::{
     FrameBufferHandle, PipelineLayoutHandle, RasterPipelineHandle, Renderable,
 };
+use crate::ShaderType;
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 pub struct RasterPipelineDesc {
     pub(crate) vertex_shader: Source,
     pub(crate) fragment_shader: Source,
-    pub(crate) uniform_layouts: Vec<UniformBinding>,
+    pub(crate) uniforms: Vec<UniformBinding>,
+    pub(crate) vertex_attributes: Vec<ShaderType>,
     pub(crate) dynamic_viewport: bool,
     pub(crate) dynamic_scissors: bool,
+    pub(crate) use_bindless: bool,
     pub(crate) use_cache: bool,
     pub(crate) depth_test: bool,
 }
@@ -20,11 +23,13 @@ pub struct RasterPipelineDesc {
 impl Default for RasterPipelineDesc {
     fn default() -> Self {
         Self {
-            uniform_layouts: vec![],
+            uniforms: vec![],
+            vertex_attributes: vec![],
             vertex_shader: Source::None,
             fragment_shader: Source::None,
             dynamic_scissors: false,
             dynamic_viewport: false,
+            use_bindless: false,
             use_cache: false,
             depth_test: true,
         }

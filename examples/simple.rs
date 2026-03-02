@@ -4,16 +4,25 @@ use std::error::Error;
 
 use aluminium::types::Vertex;
 use aluminium::{
-    Material, PresentPassBuilder, RasterPassBuilder, Renderable, Resolution, SamplerType, ShaderStage, ShaderType, TextureDesc, TextureFormat, TextureUsage, Transform, UniformBinding, VertexInput, VulkanError, VulkanResult, WorldRenderer
+    Material, MaterialHandle, MeshHandle, PresentPassBuilder, RasterPassBuilder, Renderable, RenderableHandle, Resolution, SamplerType, ShaderStage, ShaderType, TextureDesc, TextureFormat, TextureUsage, Transform, TransformHandle, UniformBinding, UniformValue, VertexInput, VulkanError, VulkanResult, WorldRenderer
 };
+use bytemuck::{Pod, Zeroable};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use winit::*;
 
+struct GameObject {
+    transform: TransformHandle,
+    mesh: MeshHandle,
+    color: MaterialHandle,
+    renderable: RenderableHandle
+}
+
 #[derive(Default)]
 struct App {
+    game_object: Option<GameObject>,
     world: Option<WorldRenderer>,
     window: Option<winit::window::Window>,
 }
@@ -34,28 +43,55 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
+                let game_object = self.game_object.as_ref().unwrap();
+
+                world.with_assets_mut(|assets| {
+                    let color = assets.get_mut_material(game_object.color).unwrap();
+                    let value = color.get_mut::<&str, UniformValue>("Time").unwrap();
+                    match value {
+                        UniformValue::Float(f) => {
+                            *f += 0.01;  
+                        },
+                        _ => eprintln!("Not a float"),
+                    }
+                    Ok(())
+                }).unwrap();
 
                 let _ = world.draw_frame(|graph| {
                     graph.add_pass(
                         PresentPassBuilder::new()
-                            .dynamic_scissors(true)
-                            .dynamic_viewport(true)
+                            .use_bindless()
+                            .dynamic_scissors()
+                            .dynamic_viewport()
                             .vertex("./shaders/spv/raster_vs-hlsl.spv")
                             .fragment("./shaders/spv/raster_ps-hlsl.spv")
-                            .vertex_input(&[
-                                ShaderType::Float,
-                                ShaderType::Float
+                            .vertex_attributes(&[
+                                // Pos
+                                ShaderType::Float3,
+                                // Color
+                                ShaderType::Float3,
+                                // Time
+                                ShaderType::Float3,
                             ])
-                            .execute(|ctx, renderables| unsafe {
+                            .uniforms(&[
+                                // Time
+                                UniformBinding {
+                                    set: 1,
+                                    bind: 0,
+                                    ty: ShaderType::Float,
+                                    stage: ShaderStage::Vertex,
+                                },
+                            ])
+                            .custom(|ctx, renderables| unsafe {
                                 ctx.bind_bindless();
                                 ctx.set_scissor(None);
                                 ctx.set_viewport(None);
                                 ctx.bind_pipeline();
                                 for i in renderables {
+                                    ctx.bind_materials(i);
                                     ctx.draw_mesh(i);
                                 }
-                            })
-                            .build(),
+                            }),
                     );
                 });
             },
@@ -80,32 +116,50 @@ impl ApplicationHandler for App {
 
         let world = WorldRenderer::new(&window).expect("Error create world renderer");
 
-        let triangle_mesh = vec![
-            Vertex {
-                pos: [0.8, -0.8, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            Vertex {
-                pos: [0.0, 0.8, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            Vertex {
-                pos: [-0.3, 0.5, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-        ];
+        let game_object = world.with_assets_mut(|assets| {
 
-        let _ = world.with_assets_mut(|assets| {
-            let material = assets.create_material(
-                Material::new()
-                    .set_value("base_color", [0.3, 0.2, 0.0])
-            )?;
+            #[repr(C)]
+            #[derive(Pod, Zeroable, Copy, Clone)]
+            pub struct CustomVertex {
+                pos: [f32; 3],
+                color: [f32; 3],
+                time: [f32; 3]
+            }
+
+            let triangle_mesh = vec![
+                CustomVertex {
+                    pos: [0.0, 0.5, 0.0],
+                    color: [0.0, 1.0, 0.0],
+                    time: [1.0, 0.0, 0.0]
+                },
+                CustomVertex {
+                    pos: [-0.5, -0.5, 0.0],
+                    color: [0.0, 0.0, 1.0],
+                    time: [0.0, 1.0, 0.0]
+                },
+                CustomVertex {
+                    pos: [0.5, -0.5, 0.0],
+                    color: [0.0, 0.0, 1.0],
+                    time: [0.0, 0.0, 1.0]
+                },
+            ];
+
+            let color = assets
+                .create_material(Material::new(1).set_value("Time", 0.0))?;
+
             let mesh = assets.create_mesh(&triangle_mesh, None)?;
             let transform = assets.create_transform(Transform::identity())?;
-            let _ = assets.create_renderable(Renderable::new(mesh, material, transform));
-            Ok(())
-        });
+            let renderable = assets.create_renderable(Renderable::new(mesh, &[color], transform));
 
+            Ok(GameObject {
+                color,
+                mesh,
+                transform,
+                renderable
+            })
+        }).unwrap();
+
+        self.game_object = Some(game_object);
         self.world = Some(world);
         self.window = Some(window);
     }
@@ -113,7 +167,7 @@ impl ApplicationHandler for App {
 
 fn main() -> Result<(), Box<dyn Error>> {
     unsafe {
-        std::env::set_var("RUST_LOG", "Info");
+        std::env::set_var("RUST_LOG", "Debug");
     }
 
     env_logger::builder().init();

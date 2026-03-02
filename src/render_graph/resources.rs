@@ -22,7 +22,6 @@ impl RenderGraphResource {
                 handle: _,
                 last_access,
             } => *last_access,
-            // RenderGraphResource::RenderTarget { texture, ops: _ } => texture.1,
         }
     }
 }

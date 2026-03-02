@@ -37,6 +37,11 @@ impl<'a> DescriptorPoolBuilder<'a> {
         }
     }
 
+    pub fn flags(mut self, flags: vk::DescriptorPoolCreateFlags) -> Self {
+        self.create_info = self.create_info.flags(flags);
+        self
+    }
+
     pub fn pool_sizes(mut self, sizes: &'a [vk::DescriptorPoolSize]) -> Self {
         self.create_info = self.create_info.pool_sizes(sizes);
         self

@@ -5,6 +5,7 @@ use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use slotmap::*;
 
+use crate::ShaderType;
 use crate::core::{
     load_spv, AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, Device,
     FrameBuffer, GpuBufferBuilder, GraphicsPipeline, GraphicsPipelineBuilder, PipelineLayout,
@@ -12,7 +13,7 @@ use crate::core::{
 };
 use crate::reflection::PipelineShaderReflection;
 use crate::render_context::RenderContext;
-use crate::render_graph::{RasterPipelineDesc, Source};
+use crate::render_graph::{RasterPipelineDesc, Source, GLOBAL_BINDLESS_LAYOUT};
 
 mod descriptor_manager;
 pub use descriptor_manager::*;
@@ -67,13 +68,13 @@ impl AssetManager {
         indices: Option<&[u32]>,
     ) -> VulkanResult<MeshHandle>
     where
-        T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
+        T: Pod + Zeroable,
     {
         self.create_static_mesh_immediately(vertices, indices)
     }
 
     pub fn create_static_mesh_immediately<
-        T: AttributeDescriptions + BindingDescriptions + Pod + Zeroable,
+        T: Pod + Zeroable,
     >(
         &mut self,
         mesh: &[T],
@@ -122,7 +123,10 @@ impl AssetManager {
         self.material.add_material(material)
     }
 
-    // pub fn get_material(&mut self, )
+    pub fn get_mut_material(&mut self, handle: MaterialHandle) -> Option<&mut Material> {
+        Some(self.material.get_mut_material(handle))
+    }
+
     /// Create Transform
     /// # Panics!
     ///
@@ -196,6 +200,7 @@ impl LowLevelManager {
 
     pub fn create_raster_pipeline(
         &mut self,
+        bindless_layout: Option<vk::DescriptorSetLayout>,
         desc: &RasterPipelineDesc,
     ) -> VulkanResult<(RasterPipelineHandle, PipelineLayoutHandle)> {
         let window = self.ctx.window.read().unwrap();
@@ -218,37 +223,71 @@ impl LowLevelManager {
             )
             .blend_enable(false);
 
-        let binds = Vertex::bind_desc();
-        let attr = Vertex::attr_desc();
+        let mut bind: vk::VertexInputBindingDescription = vk::VertexInputBindingDescription::default();
+
+        let mut stride = 0;
+        for ty in &desc.vertex_attributes {
+            match ty {
+                ShaderType::Float => {
+                    stride += 4;
+                },
+                ShaderType::Float4 => {
+                    stride += 16;
+                },
+                ShaderType::Float3 => {
+                    stride += 12;
+                },
+                _ => todo!()
+            }
+        }
+
+        bind = bind
+            .binding(0)
+            .input_rate(vk::VertexInputRate::VERTEX)
+            .stride(stride);
+
+        let mut attrs: Vec<vk::VertexInputAttributeDescription> = vec![];
+
+        let mut offset = 0;
+        let mut location = 0;
+
+        for ty in &desc.vertex_attributes {
+            match ty {
+                ShaderType::Float => {
+                    attrs.push(
+                        vk::VertexInputAttributeDescription::default()
+                            .binding(0)
+                            .format(vk::Format::R32_SFLOAT)
+                            .location(location as u32)
+                            .offset(offset)
+                    );
+                    offset += 4;
+                    location += 1;
+                },
+                ShaderType::Float3 => {
+                    attrs.push(
+                        vk::VertexInputAttributeDescription::default()
+                            .binding(0)
+                            .format(vk::Format::R32G32B32_SFLOAT)
+                            .location(location as u32)
+                            .offset(offset)
+                    );
+                    // 3 float * 4 bytes = 12 bytes
+                    offset += 12;
+                    location += 1;
+                }
+                _ => todo!()
+            }
+        }
+
+        let binding = [bind];
 
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
-            .vertex_binding_descriptions(&binds)
-            .vertex_attribute_descriptions(&attr);
-
-        let binds = vec![
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(0)
-                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(1)
-                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(2)
-                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(10000),
-        ];
-
-        let descriptor_set_layout = DescriptorSetLayoutBuilder::new(&self.ctx.device)
-            .bindings(binds)
-            .build()?;
+            .vertex_binding_descriptions(&binding)
+            .vertex_attribute_descriptions(&attrs);
 
         let layout = PipelineLayoutBuilder::new(&self.ctx.device)
-            .set_layouts(vec![descriptor_set_layout.raw])
+            .set_layouts(vec![bindless_layout.unwrap()])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
@@ -330,12 +369,12 @@ impl ResourceManager {
                 if let Some(instance) = &mut i.instance_buffer {
                     device
                         .allocator
-                        .destroy_buffer(instance.raw, &mut
-        instance.allocation);         }
+                        .destroy_buffer(instance.raw, &mut instance.allocation);
+                }
                 device
                     .allocator
-                    .destroy_buffer(i.vertex_buffer.raw, &mut
-        i.vertex_buffer.allocation);     }
+                    .destroy_buffer(i.vertex_buffer.raw, &mut i.vertex_buffer.allocation);
+            }
         }
 
         assets.transform.destroy(device);

@@ -5,7 +5,8 @@
 //! - gpu-allocator (Traverse Research Gpu Allocator without С/C++ dependencies)
 //! - runtime-check (Runtime check used by default)
 pub(crate) mod bindless;
-pub(crate) mod bvh;
+pub(crate) mod ring_buffer;
+pub(crate) mod acceleration;
 pub(crate) mod camera;
 pub(crate) mod core;
 pub(crate) mod frame_values;
@@ -20,10 +21,10 @@ pub use core::{VulkanError, VulkanResult};
 
 pub use render_graph::{
     ComputePass, LoadOp, PresentPass, PresentPassBuilder, RasterPass, RasterPassBuilder,
-    Resolution, SamplerType, StoreOp, TextureDesc, TextureFormat, TextureUsage, UniformBinding,
-    ShaderStage, ShaderType, VertexInput
+    Resolution, SamplerType, ShaderStage, ShaderType, StoreOp, TextureDesc, TextureFormat,
+    TextureUsage, UniformBinding, VertexInput
 };
-pub use resource_manager::{Material, Renderable, Transform};
+pub use resource_manager::{Material, Renderable, Transform, MaterialHandle, RenderableHandle, TransformHandle, MeshHandle, UniformValue};
 pub use world_renderer::WorldRenderer;
 
 /// Basic types

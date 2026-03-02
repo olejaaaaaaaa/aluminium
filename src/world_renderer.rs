@@ -149,12 +149,9 @@ impl WorldRenderer {
         if let Err(err) = self.graph.execute() {
             if let VulkanError::Swapchain(err) = err {
                 match err {
-                    SwapchainError::SwapchainOutOfDateKhr => {
+                    SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
                         let extent = self.ctx.resolution();
                         self.resize(extent.width, extent.height)?;
-                    },
-                    SwapchainError::SwapchainSubOptimal => {
-                        warn!("Swapchain SubOptimal!");
                     },
                     SwapchainError::SwapchainCreationFailed(err) => {
                         return Err(VulkanError::Swapchain(
@@ -178,7 +175,7 @@ impl Drop for WorldRenderer {
         let device = &self.ctx.device;
         // Wait all gpu work before destroy resources
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
-         // Destroy CommandPool
+        // Destroy CommandPool
         // Destroy Gpu Buffers
         // Destroy Pipelines
         // Destroy Pipeline Layouts

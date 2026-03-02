@@ -32,8 +32,8 @@ impl PhysicalDevice {
                 if prop.device_type == ty {
                     let limits = prop.limits;
                     info!(
-                        "\nGpu Type: {:?}\nMax Storage Buffers: {}\nPush Constants: \
-                         {}\nIndirect Draw: {}\nDynamic Uniforms: {}\nUniform Buffers: {}",
+                        "\nGpu Type: {:?}\nMax Storage Buffers: {}\nPush Constants: {}\nIndirect \
+                         Draw: {}\nDynamic Uniforms: {}\nUniform Buffers: {}",
                         prop.device_type,
                         limits.max_descriptor_set_storage_buffers,
                         limits.max_push_constants_size,
@@ -42,10 +42,7 @@ impl PhysicalDevice {
                         limits.max_descriptor_set_uniform_buffers
                     );
 
-                    return Ok(Self {
-                        raw: *dev,
-                        prop,
-                    });
+                    return Ok(Self { raw: *dev, prop });
                 }
             }
         }

@@ -31,7 +31,7 @@ use crate::render_context::RenderContext;
 use crate::resource_manager::ResourceManager;
 use crate::Transform;
 
-static GLOBAL_BINDLESS_LAYOUT: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
+pub static GLOBAL_BINDLESS_LAYOUT: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
     LazyLock::new(|| {
         vec![
             // Main Camera
@@ -147,7 +147,7 @@ impl RenderGraph {
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(&pass.pipeline_desc)?;
+                        .create_raster_pipeline(Some(self.bindless.bindless_set_layout()), &pass.pipeline_desc)?;
 
                     Pass::Present(PresentPass {
                         pipeline,
@@ -161,7 +161,7 @@ impl RenderGraph {
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(&pass.pipeline_desc)?;
+                        .create_raster_pipeline(Some(self.bindless.bindless_set_layout()), &pass.pipeline_desc)?;
 
                     Pass::Raster(RasterPass {
                         layout,

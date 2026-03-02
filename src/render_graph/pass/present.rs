@@ -38,21 +38,28 @@ impl PresentPassBuilder {
         }
     }
 
+    pub fn use_bindless(mut self) -> Self {
+        self.inner.pipeline_desc.use_bindless = true;
+        self
+    }
+
     pub fn uniforms(mut self, bindings: &[UniformBinding]) -> Self {
+        self.inner.pipeline_desc.uniforms = bindings.to_vec();
         self
     }
 
-    pub fn vertex_input(mut self, inputs: &[ShaderType]) -> Self {
+    pub fn vertex_attributes(mut self, inputs: &[ShaderType]) -> Self {
+        self.inner.pipeline_desc.vertex_attributes = inputs.to_vec();
         self
     }
 
-    pub fn dynamic_scissors(mut self, value: bool) -> Self {
-        self.inner.pipeline_desc.dynamic_scissors = value;
+    pub fn dynamic_scissors(mut self) -> Self {
+        self.inner.pipeline_desc.dynamic_scissors = true;
         self
     }
 
-    pub fn dynamic_viewport(mut self, value: bool) -> Self {
-        self.inner.pipeline_desc.dynamic_viewport = value;
+    pub fn dynamic_viewport(mut self) -> Self {
+        self.inner.pipeline_desc.dynamic_viewport = true;
         self
     }
 
@@ -66,8 +73,8 @@ impl PresentPassBuilder {
         self
     }
 
-    pub fn depth_test(mut self, enable: bool) -> Self {
-        self.inner.pipeline_desc.depth_test = enable;
+    pub fn depth_test(mut self, value: bool) -> Self {
+        self.inner.pipeline_desc.depth_test = value;
         self
     }
 
@@ -76,15 +83,11 @@ impl PresentPassBuilder {
         self
     }
 
-    pub fn execute<F>(mut self, clojure: F) -> Self
+    pub fn custom<F>(mut self, clojure: F) -> PresentPassDesc
     where
         F: Fn(&PassContext, &[Renderable]) + 'static,
     {
         self.inner.execute_fn = Box::new(clojure);
-        self
-    }
-
-    pub fn build(self) -> PresentPassDesc {
         self.inner
     }
 }

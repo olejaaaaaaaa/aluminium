@@ -77,16 +77,18 @@ impl Instance {
         let required_extensions = [
             c"VK_KHR_get_physical_device_properties2",
             c"VK_KHR_device_group_creation",
-            #[cfg(feature = "validation_layer")]
-            c"VK_EXT_debug_utils"
+            #[cfg(all(feature = "validation_layer", not(target_os = "android")))]
+            c"VK_EXT_debug_utils",
+            #[cfg(all(feature = "validation_layer", target_os = "android"))]
+            c"VK_EXT_debug_report",
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            c"VK_KHR_portability_enumeration",
         ];
 
         for i in required_extensions {
             if !available_extension_names.contains(i) {
                 return Err(VulkanError::Instance(
-                    InstanceError::MissingRequiredExtension(
-                        i.to_str().unwrap().to_string(),
-                    ),
+                    InstanceError::MissingRequiredExtension(i.to_str().unwrap().to_string()),
                 ));
             } else {
                 extensions.insert(i);
@@ -107,19 +109,12 @@ impl Instance {
         for i in &window_extensions {
             if !available_extension_names.contains(i) {
                 return Err(VulkanError::Instance(
-                    InstanceError::MissingRequiredExtension(
-                        i.to_str().unwrap().to_string(),
-                    ),
+                    InstanceError::MissingRequiredExtension(i.to_str().unwrap().to_string()),
                 ));
             }
         }
 
         extensions.extend(window_extensions);
-
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
-        if available_extension_names.contains(&c"VK_KHR_portability_enumeration") {
-            extensions.insert(c"VK_KHR_portability_enumeration");
-        }
 
         Ok(extensions)
     }
@@ -144,16 +139,14 @@ impl Instance {
 
         let required_layers = [
             #[cfg(feature = "validation_layer")]
-            c"VK_LAYER_KHRONOS_validation"
+            c"VK_LAYER_KHRONOS_validation",
         ];
 
         for i in required_layers {
             if !available_layer_names.contains(i) {
-                return Err(VulkanError::Instance(
-                    InstanceError::MissingRequiredLayer(
-                        i.to_str().unwrap().to_string(),
-                    ),
-                ));
+                return Err(VulkanError::Instance(InstanceError::MissingRequiredLayer(
+                    i.to_str().unwrap().to_string(),
+                )));
             }
         }
 

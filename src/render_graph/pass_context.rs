@@ -61,9 +61,9 @@ impl PassContext {
         );
     }
 
-    pub unsafe fn bind_material(&self, _renderable: &Renderable) {}
+    pub unsafe fn bind_materials(&self, renderable: &Renderable) {}
 
-    pub unsafe fn dispatch(&self) {}
+    pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {}
 
     pub unsafe fn draw_mesh(&self, renderable: &Renderable) {
         let resources = self.resources.assets.read().unwrap();

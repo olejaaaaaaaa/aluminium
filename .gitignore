@@ -2,4 +2,5 @@
 /cache
 /shaders/spv
 /kajiya-shaders
+/.vscode
 *.txt

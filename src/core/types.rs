@@ -29,26 +29,9 @@ impl Vertex {
 
         vertices
     }
-}
 
-impl AttributeDescriptions for Vertex {
-    fn attr_desc() -> Vec<vk::VertexInputAttributeDescription> {
-        let attributes = vec![
-            vk::VertexInputAttributeDescription {
-                location: 0,
-                binding: 0,
-                format: vk::Format::R32G32B32_SFLOAT,
-                offset: std::mem::offset_of!(Vertex, pos) as u32,
-            },
-            vk::VertexInputAttributeDescription {
-                binding: 0,
-                location: 1,
-                format: vk::Format::R32G32B32_SFLOAT,
-                offset: std::mem::offset_of!(Vertex, color) as u32,
-            },
-        ];
-
-        attributes
+    pub fn triangle(x: f32, y: f32, z: f32) -> Vec<Vertex> {
+        vec![]
     }
 }
 
@@ -146,5 +129,27 @@ impl BindingDescriptions for Vertex {
             stride: std::mem::size_of::<Vertex>() as u32,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
+    }
+}
+
+
+impl AttributeDescriptions for Vertex {
+    fn attr_desc() -> Vec<vk::VertexInputAttributeDescription> {
+        let attributes = vec![
+            vk::VertexInputAttributeDescription {
+                location: 0,
+                binding: 0,
+                format: vk::Format::R32G32B32_SFLOAT,
+                offset: std::mem::offset_of!(Vertex, pos) as u32,
+            },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 1,
+                format: vk::Format::R32G32B32_SFLOAT,
+                offset: std::mem::offset_of!(Vertex, color) as u32,
+            },
+        ];
+
+        attributes
     }
 }

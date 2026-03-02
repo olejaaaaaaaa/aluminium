@@ -20,7 +20,7 @@ impl RenderableCollection {
     pub fn get_renderables(&self) -> Vec<Renderable> {
         let mut v = vec![];
         for i in &self.data {
-            v.push(*i.1);
+            v.push(i.1.clone());
         }
         v
     }
@@ -31,22 +31,19 @@ impl RenderableCollection {
 }
 
 /// Renderable Object
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Renderable {
-    #[allow(dead_code)]
-    pub material: MaterialHandle,
-    #[allow(dead_code)]
+    pub materials: Vec<MaterialHandle>,
     pub transform: TransformHandle,
-    #[allow(dead_code)]
     pub mesh: MeshHandle,
 }
 
 impl Renderable {
     /// Create new Renderable Object
-    pub fn new(mesh: MeshHandle, material: MaterialHandle, transform: TransformHandle) -> Self {
+    pub fn new(mesh: MeshHandle, materials: &[MaterialHandle], transform: TransformHandle) -> Self {
         Self {
             mesh,
-            material,
+            materials: materials.to_vec(),
             transform,
         }
     }

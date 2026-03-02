@@ -79,7 +79,6 @@ impl RenderContext {
                 },
                 Feature::Vendor(vendor_required) => {
                     let actual_vendor = self.device.vendor();
-    
                 },
             }
         }
@@ -195,7 +194,7 @@ impl RenderContext {
     pub fn destroy(&mut self) {
         unsafe { self.device.device_wait_idle().expect("Error wait idle") };
         let mut window = self.window.write().unwrap();
-        
+
         window.swapchain.destroy();
         window.render_pass.destroy(&self.device);
         window.depth_view.destroy(&self.device);

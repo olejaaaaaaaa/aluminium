@@ -9,7 +9,6 @@ use vk_mem::Allocator;
 
 use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 
-
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
     /// Gpu allocator
@@ -22,7 +21,6 @@ pub struct Device {
 }
 
 impl Device {
-
     pub fn vendor(&self) -> vk::DriverId {
         self.driver_props.driver_id
     }
@@ -52,7 +50,6 @@ impl std::ops::Deref for Device {
 }
 
 impl Device {
-
     pub fn get_device_extensions(
         instance: &Instance,
         phys_dev: &PhysicalDevice,
@@ -82,9 +79,9 @@ impl Device {
         let required_extensions = [
             c"VK_KHR_swapchain",
             c"VK_KHR_driver_properties",
-            c"VK_KHR_maintenance4",
+            c"VK_KHR_maintenance3",
             c"VK_KHR_synchronization2",
-            c"VK_KHR_timeline_semaphore"
+            c"VK_KHR_timeline_semaphore",
         ];
 
         for i in required_extensions {
@@ -103,8 +100,7 @@ impl Device {
             // Bindless
             vec![
                 c"VK_KHR_push_descriptor",
-                c"VK_KHR_maintenance3",
-                c"VK_EXT_descriptor_indexing"
+                c"VK_EXT_descriptor_indexing",
             ],
             // Dynamic Rendering
             vec![
@@ -112,22 +108,19 @@ impl Device {
                 c"VK_KHR_create_renderpass2",
                 c"VK_KHR_multiview",
                 c"VK_KHR_maintenance2",
-                c"VK_KHR_depth_stencil_resolve"
+                c"VK_KHR_depth_stencil_resolve",
             ],
             // Buffer Device Address
-            vec![
-                c"VK_KHR_buffer_device_address",
-                c"VK_KHR_device_group",
-            ],
+            vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
             // Ray-Tracing
             vec![
                 c"VK_KHR_acceleration_structure",
-                c"VK_KHR_ray_tracing_pipeline"
+                c"VK_KHR_ray_tracing_pipeline",
             ],
             // Ray-Query
-            vec![
-                c"VK_KHR_ray_query"
-            ]
+            vec![c"VK_KHR_ray_query"],
+            // Helper
+            vec![c"VK_KHR_maintenance4"]
         ];
 
         for i in &optional_extensions {
@@ -145,25 +138,39 @@ impl Device {
         Ok(extensions)
     }
 
-    fn get_driver_properties(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
+    fn get_driver_properties(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> vk::PhysicalDeviceDriverProperties<'static> {
         let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
 
-        let mut props2 = vk::PhysicalDeviceProperties2::default()
-            .push_next(&mut driver_props);
+        let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(&mut driver_props);
 
-        unsafe { instance.raw.get_physical_device_properties2(phys_dev.raw, &mut props2) };
+        unsafe {
+            instance
+                .raw
+                .get_physical_device_properties2(phys_dev.raw, &mut props2);
+        }
 
         let version = driver_props.conformance_version;
-        let conformance_version = format!("0.{}.{}.{}", version.major, version.minor, version.patch);
+        let conformance_version =
+            format!("0.{}.{}.{}", version.major, version.minor, version.patch);
 
         log::info!("Conformance Version {:?}", conformance_version);
 
         driver_props
     }
 
-    fn get_features2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceFeatures2<'static> {
+    fn get_features2(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> vk::PhysicalDeviceFeatures2<'static> {
         let mut features2 = vk::PhysicalDeviceFeatures2::default();
-        unsafe { instance.raw.get_physical_device_features2(phys_dev.raw, &mut features2) };
+        unsafe {
+            instance
+                .raw
+                .get_physical_device_features2(phys_dev.raw, &mut features2);
+        }
         features2
     }
 
@@ -200,9 +207,19 @@ impl Device {
             queue_infos.push(queue_info);
         }
 
+        let mut descriptor_indexing = vk::PhysicalDeviceDescriptorIndexingFeatures::default()
+            .descriptor_binding_partially_bound(true)
+            .descriptor_binding_update_unused_while_pending(true)
+            .descriptor_binding_sampled_image_update_after_bind(true)
+            .descriptor_binding_storage_image_update_after_bind(true)
+            .descriptor_binding_storage_buffer_update_after_bind(true)
+            .descriptor_binding_uniform_buffer_update_after_bind(true)
+            .runtime_descriptor_array(true);
+
         let create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_infos)
-            .enabled_extension_names(&p_extensions);
+            .enabled_extension_names(&p_extensions)
+            .push_next(&mut descriptor_indexing);
 
         let device = unsafe {
             instance
@@ -211,6 +228,7 @@ impl Device {
                 .map_err(VulkanError::Unknown)?
         };
 
+        debug!("Descriptor indexing feature: {:#?}", descriptor_indexing);
         debug!("Enabled Device Extensions: {:#?}", extensions);
 
         let allocator = unsafe {
@@ -219,7 +237,7 @@ impl Device {
             vk_mem::Allocator::new(create_info)
                 .map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))
         }?;
-        
+
         let features2 = Self::get_features2(instance, phys_dev);
         let driver_props = Self::get_driver_properties(instance, phys_dev);
 
