@@ -22,7 +22,7 @@ mod rt;
 pub use rt::RtPass;
 
 use super::PassContext;
-use crate::resource_manager::{FrameBufferHandle, Renderable, ResourceManager};
+use crate::resource_manager::{FrameBufferHandle, Renderable, Resources};
 
 pub type Execute = dyn Fn(&PassContext, &[Renderable]);
 
@@ -34,7 +34,7 @@ pub enum Pass {
 }
 
 impl Pass {
-    pub fn pipeline_layout(&self, resources: &ResourceManager) -> vk::PipelineLayout {
+    pub fn pipeline_layout(&self, resources: &Resources) -> vk::PipelineLayout {
         match self {
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Raster(raster_pass) => {
@@ -61,7 +61,7 @@ impl Pass {
         }
     }
 
-    pub fn pipeline(&self, resources: &ResourceManager) -> vk::Pipeline {
+    pub fn pipeline(&self, resources: &Resources) -> vk::Pipeline {
         match self {
             Pass::Rt(_rt_pass) => todo!(),
             Pass::Raster(raster_pass) => {

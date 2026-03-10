@@ -43,7 +43,7 @@ impl std::ops::Add<f32> for UniformValue {
     fn add(self, other: f32) -> Self::Output {
         match self {
             UniformValue::Float(a) => Some(UniformValue::Float(a + other)),
-            _ => None
+            _ => None,
         }
     }
 }

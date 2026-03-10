@@ -19,8 +19,7 @@ use crate::core::{
 use crate::frame_values::{FrameData, FrameValues};
 use crate::render_graph::RenderGraph;
 use crate::resource_manager::{
-    AssetManager, Material, MaterialHandle, MeshHandle, Renderable, RenderableHandle,
-    ResourceManager, Transform, TransformHandle,
+    AssetManager, Create, Get, GetMut, Handle, Material, MaterialHandle, MeshHandle, Renderable, RenderableHandle, Resources, Transform, TransformHandle
 };
 
 /// A lightweight, performance-oriented abstraction over the Vulkan API
@@ -49,7 +48,7 @@ use crate::resource_manager::{
 /// ```
 pub struct WorldRenderer {
     /// Contains resources for rendering and caches them
-    resources: Arc<ResourceManager>,
+    resources: Arc<Resources>,
     /// Handles pass scheduling, dependency resolution, and automatic resource
     /// barriers
     graph: RenderGraph,
@@ -73,7 +72,7 @@ impl WorldRenderer {
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         let ctx = RenderContext::new(window)?;
         let camera = Camera::new(&ctx.device)?;
-        let resources = ResourceManager::new(ctx.clone())?;
+        let resources = Resources::new(ctx.clone())?;
         let graph = RenderGraph::new(ctx.clone(), resources.clone(), &camera)?;
 
         Ok(WorldRenderer {
@@ -85,17 +84,29 @@ impl WorldRenderer {
         })
     }
 
-    /// Get a reference to [`AssetManager`]
-    pub fn with_assets<R, F: FnOnce(&AssetManager) -> R>(&self, closure: F) -> R {
-        closure(&self.resources.assets.read().unwrap())
+    /// Create a new resource of type `T` with the given description and return a handle to it
+    pub fn create<T: Create>(&mut self, desc: T::Desc) -> VulkanResult<Handle<T>> {
+        T::create(&self.ctx, &self.resources, desc)
     }
 
-    /// Get mut reference to [`AssetManager`]
-    pub fn with_assets_mut<R, F: FnOnce(&mut AssetManager) -> VulkanResult<R>>(
-        &self,
-        closure: F,
-    ) -> VulkanResult<R> {
-        closure(&mut self.resources.assets.write().unwrap())
+    /// Get a mutable reference to a resource of type `T` with the given handle, or panic if it doesn't exist
+    pub fn get_mut<T: GetMut>(&mut self, handle: Handle<T>) -> &mut T {
+        self.try_get_mut(handle).unwrap()
+    }
+
+    /// Try to get a mutable reference to a resource of type `T` with the given handle
+    pub fn try_get_mut<T: GetMut>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        T::try_get_mut(&self.resources, handle)
+    }
+
+    /// Get a reference to a resource of type `T` with the given handle, or panic if it doesn't exist
+    pub fn get<T: Get>(&mut self, handle: Handle<T>) -> &T {
+        self.try_get(handle).unwrap()
+    }
+
+    /// Try to get a reference to a resource of type `T` with the given handle
+    pub fn try_get<T: Get>(&mut self, handle: Handle<T>) -> Option<&T> {
+        T::try_get(&self.resources, handle)
     }
 
     /// Gets a mut reference to the [`Camera`]
@@ -149,14 +160,17 @@ impl WorldRenderer {
         if let Err(err) = self.graph.execute() {
             if let VulkanError::Swapchain(err) = err {
                 match err {
-                    SwapchainError::SwapchainOutOfDateKhr | SwapchainError::SwapchainSubOptimal => {
-                        let extent = self.ctx.resolution();
+                    SwapchainError::SwapchainOutOfDateKhr => {
+                        let extent = self.ctx.window.read().unwrap().resolution;
                         self.resize(extent.width, extent.height)?;
                     },
                     SwapchainError::SwapchainCreationFailed(err) => {
                         return Err(VulkanError::Swapchain(
                             SwapchainError::SwapchainCreationFailed(err),
                         ));
+                    },
+                    _ => {
+                        warn!("Swapchain error during frame execution: {:?}", err);
                     },
                 }
             } else {

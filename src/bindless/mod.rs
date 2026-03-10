@@ -9,9 +9,10 @@ mod software;
 use software::*;
 
 use crate::core::{Device, Extension, VulkanResult};
-use crate::render_context::{RenderContext};
+use crate::render_context::RenderContext;
 
-/// Abstraction over Bindless technology, even if the device does not natively support it
+/// Abstraction over Bindless technology, even if the device does not natively
+/// support it
 #[derive(Clone)]
 pub enum Bindless {
     // Only one Descriptor Set
@@ -29,8 +30,8 @@ impl Bindless {
     ) -> VulkanResult<Self> {
         if ctx.check_features(&[Extension::Bindless]) {
             Ok(Bindless::Native(Arc::new(NativeBindless::new(
-                &ctx.device, 
-                layouts
+                &ctx.device,
+                layouts,
             )?)))
         } else {
             Ok(Bindless::Software(Arc::new(SoftwareBindless::new(
@@ -43,14 +44,14 @@ impl Bindless {
     pub fn bindless_set_layout(&self) -> vk::DescriptorSetLayout {
         match self {
             Bindless::Software(software) => software.set_layout.raw,
-            Bindless::Native(native) => native.set_layout.raw
+            Bindless::Native(native) => native.set_layout.raw,
         }
     }
 
     pub fn bindless_set(&self) -> vk::DescriptorSet {
         match self {
             Bindless::Software(software) => software.set,
-            Bindless::Native(native) => native.set
+            Bindless::Native(native) => native.set,
         }
     }
 

@@ -5,7 +5,6 @@ use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use slotmap::*;
 
-use crate::ShaderType;
 use crate::core::{
     load_spv, AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, Device,
     FrameBuffer, GpuBufferBuilder, GraphicsPipeline, GraphicsPipelineBuilder, PipelineLayout,
@@ -14,9 +13,13 @@ use crate::core::{
 use crate::reflection::PipelineShaderReflection;
 use crate::render_context::RenderContext;
 use crate::render_graph::{RasterPipelineDesc, Source, GLOBAL_BINDLESS_LAYOUT};
+use crate::{ShaderType, VulkanError};
 
 mod descriptor_manager;
 pub use descriptor_manager::*;
+
+mod pool;
+pub use pool::*;
 
 mod mesh;
 pub use mesh::*;
@@ -35,6 +38,29 @@ new_key_type! {
     pub struct SamplerHandle;
     pub struct RasterPipelineHandle;
     pub struct FrameBufferHandle;
+}
+
+pub trait Create: Sized {
+    type Desc;
+    fn create(
+        ctx: &RenderContext,
+        resources: &Resources,
+        desc: Self::Desc,
+    ) -> VulkanResult<Handle<Self>>;
+}
+
+pub trait Get: Sized {
+    fn try_get<'a>(
+        resources: &'a Resources,
+        handle: Handle<Self>,
+    ) -> Option<&'a Self>;
+}
+
+pub trait GetMut: Sized {
+    fn try_get_mut<'a>(
+        resources: &'a Resources,
+        handle: Handle<Self>,
+    ) -> Option<&'a mut Self>;
 }
 
 pub struct AssetManager {
@@ -73,9 +99,7 @@ impl AssetManager {
         self.create_static_mesh_immediately(vertices, indices)
     }
 
-    pub fn create_static_mesh_immediately<
-        T: Pod + Zeroable,
-    >(
+    pub fn create_static_mesh_immediately<T: Pod + Zeroable>(
         &mut self,
         mesh: &[T],
         indices: Option<&[u32]>,
@@ -223,7 +247,8 @@ impl LowLevelManager {
             )
             .blend_enable(false);
 
-        let mut bind: vk::VertexInputBindingDescription = vk::VertexInputBindingDescription::default();
+        let mut bind: vk::VertexInputBindingDescription =
+            vk::VertexInputBindingDescription::default();
 
         let mut stride = 0;
         for ty in &desc.vertex_attributes {
@@ -237,7 +262,7 @@ impl LowLevelManager {
                 ShaderType::Float3 => {
                     stride += 12;
                 },
-                _ => todo!()
+                _ => todo!(),
             }
         }
 
@@ -259,7 +284,7 @@ impl LowLevelManager {
                             .binding(0)
                             .format(vk::Format::R32_SFLOAT)
                             .location(location as u32)
-                            .offset(offset)
+                            .offset(offset),
                     );
                     offset += 4;
                     location += 1;
@@ -270,13 +295,13 @@ impl LowLevelManager {
                             .binding(0)
                             .format(vk::Format::R32G32B32_SFLOAT)
                             .location(location as u32)
-                            .offset(offset)
+                            .offset(offset),
                     );
                     // 3 float * 4 bytes = 12 bytes
                     offset += 12;
                     location += 1;
-                }
-                _ => todo!()
+                },
+                _ => todo!(),
             }
         }
 
@@ -350,12 +375,12 @@ impl LowLevelManager {
     }
 }
 
-pub struct ResourceManager {
+pub struct Resources {
     pub assets: RwLock<AssetManager>,
     pub low_level: RwLock<LowLevelManager>,
 }
 
-impl ResourceManager {
+impl Resources {
     pub fn destroy(&mut self, device: &Device) {
         let mut assets = self.assets.write().unwrap();
 

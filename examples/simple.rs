@@ -4,7 +4,10 @@ use std::error::Error;
 
 use aluminium::types::Vertex;
 use aluminium::{
-    Material, MaterialHandle, MeshHandle, PresentPassBuilder, RasterPassBuilder, Renderable, RenderableHandle, Resolution, SamplerType, ShaderStage, ShaderType, TextureDesc, TextureFormat, TextureUsage, Transform, TransformHandle, UniformBinding, UniformValue, VertexInput, VulkanError, VulkanResult, WorldRenderer
+    Material, MaterialHandle, MeshHandle, PresentPassBuilder, RasterPassBuilder, Renderable,
+    RenderableHandle, Resolution, SamplerType, ShaderStage, ShaderType, TextureDesc, TextureFormat,
+    TextureUsage, Transform, TransformHandle, UniformBinding, UniformValue, VertexInput,
+    VulkanError, VulkanResult, WorldRenderer,
 };
 use bytemuck::{Pod, Zeroable};
 use winit::application::ApplicationHandler;
@@ -17,7 +20,7 @@ struct GameObject {
     transform: TransformHandle,
     mesh: MeshHandle,
     color: MaterialHandle,
-    renderable: RenderableHandle
+    renderable: RenderableHandle,
 }
 
 #[derive(Default)]
@@ -43,19 +46,6 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
-                let game_object = self.game_object.as_ref().unwrap();
-
-                world.with_assets_mut(|assets| {
-                    let color = assets.get_mut_material(game_object.color).unwrap();
-                    let value = color.get_mut::<&str, UniformValue>("Time").unwrap();
-                    match value {
-                        UniformValue::Float(f) => {
-                            *f += 0.01;  
-                        },
-                        _ => eprintln!("Not a float"),
-                    }
-                    Ok(())
-                }).unwrap();
 
                 let _ = world.draw_frame(|graph| {
                     graph.add_pass(
@@ -116,50 +106,32 @@ impl ApplicationHandler for App {
 
         let world = WorldRenderer::new(&window).expect("Error create world renderer");
 
-        let game_object = world.with_assets_mut(|assets| {
+        #[repr(C)]
+        #[derive(Pod, Zeroable, Copy, Clone)]
+        pub struct CustomVertex {
+            pos: [f32; 3],
+            color: [f32; 3],
+            time: [f32; 3],
+        }
 
-            #[repr(C)]
-            #[derive(Pod, Zeroable, Copy, Clone)]
-            pub struct CustomVertex {
-                pos: [f32; 3],
-                color: [f32; 3],
-                time: [f32; 3]
-            }
+        let triangle_mesh = vec![
+            CustomVertex {
+                pos: [0.0, 0.5, 0.0],
+                color: [0.0, 1.0, 0.0],
+                time: [1.0, 0.0, 0.0],
+            },
+            CustomVertex {
+                pos: [-0.5, -0.5, 0.0],
+                color: [0.0, 0.0, 1.0],
+                time: [0.0, 1.0, 0.0],
+            },
+            CustomVertex {
+                pos: [0.5, -0.5, 0.0],
+                color: [0.0, 0.0, 1.0],
+                time: [0.0, 0.0, 1.0],
+            },
+        ];
 
-            let triangle_mesh = vec![
-                CustomVertex {
-                    pos: [0.0, 0.5, 0.0],
-                    color: [0.0, 1.0, 0.0],
-                    time: [1.0, 0.0, 0.0]
-                },
-                CustomVertex {
-                    pos: [-0.5, -0.5, 0.0],
-                    color: [0.0, 0.0, 1.0],
-                    time: [0.0, 1.0, 0.0]
-                },
-                CustomVertex {
-                    pos: [0.5, -0.5, 0.0],
-                    color: [0.0, 0.0, 1.0],
-                    time: [0.0, 0.0, 1.0]
-                },
-            ];
-
-            let color = assets
-                .create_material(Material::new(1).set_value("Time", 0.0))?;
-
-            let mesh = assets.create_mesh(&triangle_mesh, None)?;
-            let transform = assets.create_transform(Transform::identity())?;
-            let renderable = assets.create_renderable(Renderable::new(mesh, &[color], transform));
-
-            Ok(GameObject {
-                color,
-                mesh,
-                transform,
-                renderable
-            })
-        }).unwrap();
-
-        self.game_object = Some(game_object);
         self.world = Some(world);
         self.window = Some(window);
     }

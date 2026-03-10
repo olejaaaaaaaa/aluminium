@@ -132,7 +132,6 @@ impl BindingDescriptions for Vertex {
     }
 }
 
-
 impl AttributeDescriptions for Vertex {
     fn attr_desc() -> Vec<vk::VertexInputAttributeDescription> {
         let attributes = vec![

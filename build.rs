@@ -5,7 +5,6 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_root = Path::new(&manifest_dir);
 

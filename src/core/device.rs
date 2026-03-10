@@ -98,10 +98,7 @@ impl Device {
 
         let optional_extensions = [
             // Bindless
-            vec![
-                c"VK_KHR_push_descriptor",
-                c"VK_EXT_descriptor_indexing",
-            ],
+            vec![c"VK_KHR_push_descriptor", c"VK_EXT_descriptor_indexing"],
             // Dynamic Rendering
             vec![
                 c"VK_KHR_dynamic_rendering",
@@ -120,7 +117,7 @@ impl Device {
             // Ray-Query
             vec![c"VK_KHR_ray_query"],
             // Helper
-            vec![c"VK_KHR_maintenance4"]
+            vec![c"VK_KHR_maintenance4"],
         ];
 
         for i in &optional_extensions {

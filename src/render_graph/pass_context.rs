@@ -3,11 +3,11 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::Resolution;
-use crate::resource_manager::{Renderable, ResourceManager};
+use crate::resource_manager::{Renderable, Resources};
 
 /// The context of the currently running pass
 pub struct PassContext {
-    pub(crate) resources: Arc<ResourceManager>,
+    pub(crate) resources: Arc<Resources>,
     pub(crate) bindless_set: vk::DescriptorSet,
     pub(crate) resolution: vk::Extent2D,
     pub(crate) pipeline: vk::Pipeline,

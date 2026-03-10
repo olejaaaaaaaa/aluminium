@@ -6,9 +6,6 @@ use crate::core::{
 };
 use crate::render_context::{Feature, RenderContext};
 
-
-
-
 pub(crate) struct NativeBindless {
     pub(crate) set_layout: DescriptorSetLayout,
     pub(crate) set: vk::DescriptorSet,
@@ -20,7 +17,6 @@ impl NativeBindless {
         device: &Device,
         layouts: &[vk::DescriptorSetLayoutBinding<'static>],
     ) -> VulkanResult<Self> {
-
         let binding_flags: Vec<vk::DescriptorBindingFlags> = layouts
             .iter()
             .map(|_| {
@@ -30,13 +26,13 @@ impl NativeBindless {
             })
             .collect();
 
-        let mut binding_flags_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::default()
-            .binding_flags(&binding_flags);
+        let mut binding_flags_info =
+            vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&binding_flags);
 
         let set_layout = DescriptorSetLayoutBuilder::new(device)
             .bindings(layouts.to_vec())
-            .flags(vk::DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL) 
-            .push_next(&mut binding_flags_info)                             
+            .flags(vk::DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL)
+            .push_next(&mut binding_flags_info)
             .build()?;
 
         let mut pool_sizes = vec![];

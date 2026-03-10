@@ -28,7 +28,7 @@ use crate::core::{Device, Resolution as _, SwapchainError, VulkanError, VulkanRe
 use crate::frame_values::{FrameData, FrameValues};
 use crate::per_frame::CommandPoolPerFrame;
 use crate::render_context::RenderContext;
-use crate::resource_manager::ResourceManager;
+use crate::resource_manager::Resources;
 use crate::Transform;
 
 pub static GLOBAL_BINDLESS_LAYOUT: LazyLock<Vec<vk::DescriptorSetLayoutBinding<'static>>> =
@@ -59,7 +59,7 @@ pub struct RenderGraph {
     ctx: Arc<RenderContext>,
     bindless: Bindless,
     frame_values: FrameValues,
-    resources: Arc<ResourceManager>,
+    resources: Arc<Resources>,
     graphics_queue: vk::Queue,
     command_pool: CommandPoolPerFrame,
     execution_order: Vec<usize>,
@@ -72,7 +72,7 @@ impl RenderGraph {
     /// Create new [`RenderGraph`]
     pub(crate) fn new(
         ctx: Arc<RenderContext>,
-        resources: Arc<ResourceManager>,
+        resources: Arc<Resources>,
         camera: &Camera,
     ) -> VulkanResult<Self> {
         let queue = ctx
@@ -147,7 +147,10 @@ impl RenderGraph {
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(Some(self.bindless.bindless_set_layout()), &pass.pipeline_desc)?;
+                        .create_raster_pipeline(
+                            Some(self.bindless.bindless_set_layout()),
+                            &pass.pipeline_desc,
+                        )?;
 
                     Pass::Present(PresentPass {
                         pipeline,
@@ -161,7 +164,10 @@ impl RenderGraph {
                         .low_level
                         .write()
                         .unwrap()
-                        .create_raster_pipeline(Some(self.bindless.bindless_set_layout()), &pass.pipeline_desc)?;
+                        .create_raster_pipeline(
+                            Some(self.bindless.bindless_set_layout()),
+                            &pass.pipeline_desc,
+                        )?;
 
                     Pass::Raster(RasterPass {
                         layout,

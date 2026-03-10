@@ -46,7 +46,7 @@ VSOutput main(VSInput input)
     );
 
     output.position = float4(pos, 1.0f);
-    output.color = float4(input.color * cos(frame_values.time_sec) * sin(frame_values.time_sec), 1.0);
+    output.color = float4(input.color.x * cos(frame_values.time_sec), input.color.y * sin(frame_values.time_sec), cos(frame_values.time_sec), 1.0);
 
     return output;
 }
