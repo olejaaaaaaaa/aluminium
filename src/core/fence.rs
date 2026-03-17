@@ -1,4 +1,5 @@
 use ash::vk;
+
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -20,7 +21,6 @@ impl<'a> FenceBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Fence> {
-        
         let fence = unsafe {
             profiling::scope!("vkCreateFence");
             self.device

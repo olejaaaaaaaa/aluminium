@@ -42,7 +42,7 @@ impl RingBuffer {
         })
     }
 
-    pub fn write<T: Pod + Zeroable>(&self, device: &Device, data: &[T]) -> VulkanResult<u64> {
+    pub unsafe fn write<T: Pod + Zeroable>(&self, device: &Device, data: &[T]) -> VulkanResult<u64> {
         let buffer_size = std::mem::size_of_val(data) as u64;
         let offset = self.current_offset();
 

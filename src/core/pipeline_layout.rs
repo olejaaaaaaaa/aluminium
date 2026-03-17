@@ -33,7 +33,6 @@ impl<'a> PipelineLayoutBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<PipelineLayout> {
-       
         let create_info = vk::PipelineLayoutCreateInfo::default()
             .push_constant_ranges(&self.push)
             .set_layouts(&self.layout);

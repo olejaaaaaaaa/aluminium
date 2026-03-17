@@ -9,7 +9,7 @@ use winit::raw_window_handle::HasDisplayHandle;
 use super::app::App;
 use super::debug::DebugCallback;
 use super::{VulkanError, VulkanResult};
-use crate::core::{InstanceError};
+use crate::core::InstanceError;
 
 /// Unsafe Wrapper around [`vk::Instance`]
 /// Required manually destroy before Drop

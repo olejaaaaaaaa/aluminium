@@ -1,6 +1,9 @@
 use ash::vk;
 
-use crate::{VulkanResult, core::{GraphicsPipelineBuilder, PipelineLayoutBuilder}, resources::{Create, Destroy, Res, Resources, ShaderType, pipeline_cache::Source}};
+use crate::core::{GraphicsPipelineBuilder, PipelineLayoutBuilder};
+use crate::resources::pipeline_cache::Source;
+use crate::resources::{Create, Destroy, Res, Resources, ShaderType};
+use crate::VulkanResult;
 
 pub struct RasterPipelineDesc {
     use_cache: bool,
@@ -13,19 +16,18 @@ pub struct RasterPipelineDesc {
 
 impl Default for RasterPipelineDesc {
     fn default() -> Self {
-        Self { 
+        Self {
             use_cache: false,
-            dynamic_viewport: true, 
-            dynamic_scissors: true, 
-            vertex_shader: Source::None, 
-            fragment_shader: Source::None, 
-            vertex_attributes: vec![]
+            dynamic_viewport: true,
+            dynamic_scissors: true,
+            vertex_shader: Source::None,
+            fragment_shader: Source::None,
+            vertex_attributes: vec![],
         }
     }
 }
 
 impl RasterPipelineDesc {
-
     pub fn new() -> Self {
         Self::default()
     }
@@ -61,31 +63,20 @@ impl RasterPipelineDesc {
     }
 }
 
-pub struct RasterPipeline {
-    
-}
+pub struct RasterPipeline {}
 
 impl Destroy for RasterPipeline {
     fn destroy(key: crate::resources::ResourceKey, resources: &crate::resources::Resources) {
-            // nothing
+        // nothing
     }
 }
 
 impl Create for RasterPipeline {
-    fn create(
-        resources: &Resources,
-        desc: Self::Desc<'_>,
-    ) -> VulkanResult<Res<Self>> {
-
+    fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
         let ctx = &resources.ctx;
 
         let color_blend = vk::PipelineColorBlendAttachmentState::default()
-            .color_write_mask(
-                vk::ColorComponentFlags::R
-                    | vk::ColorComponentFlags::G
-                    | vk::ColorComponentFlags::B
-                    | vk::ColorComponentFlags::A,
-            )
+            .color_write_mask(vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A)
             .blend_enable(false);
 
         let mut bind: vk::VertexInputBindingDescription = vk::VertexInputBindingDescription::default();
@@ -156,9 +147,7 @@ impl Create for RasterPipeline {
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
-                .stage_flags(
-                    vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                )])
+                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)])
             .build()?;
 
         // let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
@@ -203,8 +192,8 @@ impl Create for RasterPipeline {
         //             .logic_op(vk::LogicOp::COPY)
         //             .attachments(&[color_blend]),
         //     )
-        //     .dynamic_state(vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR])
-        //     .vertex_input_info(vertex_input_info)
+        //     .dynamic_state(vec![vk::DynamicState::VIEWPORT,
+        // vk::DynamicState::SCISSOR])     .vertex_input_info(vertex_input_info)
         //     .build()?;
 
         todo!()

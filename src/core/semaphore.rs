@@ -20,7 +20,6 @@ impl<'a> SemaphoreBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Semaphore> {
-
         let sem = unsafe {
             profiling::scope!("vkCreateSemaphore");
             self.device

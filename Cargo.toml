@@ -12,8 +12,8 @@ build = "build.rs"
 
 [workspace]
 members = [
-    ".",
-    "examples/simple",
+    ".", 
+    "examples/*",
 ]
 resolver = "2"
 

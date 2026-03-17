@@ -14,8 +14,6 @@ pub struct FrameData {
     _pad: f32,
 }
 
-// 0x4
-
 pub struct FrameValues {
     global_time_sec: std::time::Instant,
     delta_time_sec: std::time::Instant,
@@ -43,10 +41,6 @@ impl FrameValues {
             },
             buffer,
         })
-    }
-
-    pub fn set_resolution(&mut self, resolution: [u32; 2]) {
-        self.data.resolution = resolution;
     }
 
     pub fn update(&mut self, device: &Device, image_index: u32, frame_index: u32) -> VulkanResult<()> {

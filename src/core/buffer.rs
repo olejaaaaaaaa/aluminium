@@ -11,9 +11,8 @@ compile_error!("Not supported at the moment");
 #[cfg(not(any(feature = "vma", feature = "gpu-allocator")))]
 compile_error!("At least one allocator feature must be enabled: 'vma' or 'gpu-allocator'");
 
-use crate::core::buffer;
-
 use super::{Device, VulkanError, VulkanResult};
+use crate::core::buffer;
 
 pub struct GpuBuffer {
     pub raw: vk::Buffer,
@@ -27,11 +26,10 @@ impl GpuBuffer {
         self.vertex_count = data.len() as u32;
         let buffer_size = std::mem::size_of_val(data) as u64;
 
-        profiling::scope!("Upload bytes");
-
         let allocation = device.allocator.get_allocation_info(&self.allocation);
 
         unsafe {
+            profiling::scope!("Upload bytes");
             std::ptr::copy_nonoverlapping(data.as_ptr().cast::<u8>(), allocation.mapped_data.cast::<u8>(), buffer_size as usize);
         }
 
@@ -92,9 +90,8 @@ impl<'a> GpuBufferBuilder<'a> {
     }
 
     pub fn build(&self) -> VulkanResult<GpuBuffer> {
-
-        let size = self.size.expect("Missing size for buffer");
-        let usage = self.usage.expect("Missing usage for buffer");
+        let size = self.size.expect("Missing size");
+        let usage = self.usage.expect("Missing usage");
 
         #[cfg(debug_assertions)]
         {
@@ -106,10 +103,8 @@ impl<'a> GpuBufferBuilder<'a> {
             }
         }
 
-        let buffer_info = vk::BufferCreateInfo::default()
-            .size(size)
-            .usage(usage);
-        
+        let buffer_info = vk::BufferCreateInfo::default().size(size).usage(usage);
+
         let (buffer, allocation) = unsafe {
             profiling::scope!("vmaCreateBuffer");
             self.device

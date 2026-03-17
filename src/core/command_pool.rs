@@ -1,4 +1,5 @@
 use ash::vk;
+
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -12,7 +13,6 @@ impl CommandPool {
     }
 
     pub fn create_command_buffers(&self, device: &Device, count: u32) -> VulkanResult<Vec<vk::CommandBuffer>> {
-        
         #[cfg(debug_assertions)]
         {
             if count == 0 {
@@ -50,7 +50,6 @@ impl<'a> CommandPoolBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<CommandPool> {
-        
         let create_info = vk::CommandPoolCreateInfo::default().flags(self.flags);
 
         let pool = unsafe {

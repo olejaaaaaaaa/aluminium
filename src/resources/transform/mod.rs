@@ -6,7 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
 use crate::resources::{Create, Destroy, LinearPool, Res, Resources};
 use crate::ring_buffer::RingBuffer;
-use crate::{VulkanError};
+use crate::VulkanError;
 
 pub const MAX_TRANSFORMS: usize = 1_000;
 
@@ -68,8 +68,7 @@ impl Destroy for Transform {
 impl Create for Transform {
     type Desc<'a> = TransformDesc;
     fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
-        let binding = &resources.transforms;
-        let mut transforms = binding.write().unwrap();
+        let mut transforms = resources.transforms.write();
         let res = transforms.pool.insert(Transform {
             rot: desc.rot,
             scale: desc.scale,
@@ -99,7 +98,7 @@ impl TransformPool {
 
         let data = vec![Transform::identity(); MAX_TRANSFORMS * size_of::<Transform>() * frame_count];
 
-        buffer.write(device, &data)?;
+        //buffer.write(device, &data)?;
 
         Ok(Self {
             buffer,
@@ -118,7 +117,7 @@ impl TransformPool {
 
     pub fn update(&mut self, device: &Device) -> VulkanResult<()> {
         if self.is_dirty {
-            self.buffer.write(device, self.pool.as_slice())?;
+           // self.buffer.write(device, self.pool.as_slice())?;
             self.is_dirty = false;
         }
         Ok(())

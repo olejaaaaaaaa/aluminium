@@ -102,7 +102,6 @@ impl<'a> ImageBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Image> {
-
         let (image, allocation) = unsafe {
             profiling::scope!("vmaCreateImage");
             self.device

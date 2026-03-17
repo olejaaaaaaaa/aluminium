@@ -2,6 +2,7 @@ use ash::vk;
 use bytemuck::{Pod, Zeroable};
 
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
+use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
 use crate::ring_buffer::RingBuffer;
 
 #[repr(C)]
@@ -30,7 +31,7 @@ impl CameraData {
 
 pub struct Camera {
     pub is_dirty: bool,
-    pub buffer: RingBuffer,
+    pub buffer: PerFrameBuffer,
     pub data: CameraData,
 }
 
@@ -38,33 +39,23 @@ impl Camera {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
         let size = size_of::<CameraData>() as u64;
 
-        let buffer = RingBuffer::new(device, size, frame_count, vk::BufferUsageFlags::UNIFORM_BUFFER)?;
+        let mut buffer = PerFrameBufferBuilder::new(device)
+            .buffer_size(size)
+            .frame_count(frame_count)
+            .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
+            .build()?;
 
-        let mut camera = Camera {
-            buffer,
-            is_dirty: true,
-            data: CameraData::identity(),
-        };
+        let data = CameraData::identity();
 
-        camera.buffer.write(device, &[camera.data])?;
-        camera.is_dirty = false;
-
-        Ok(camera)
-    }
-
-    pub fn buffer(&self) -> vk::Buffer {
-        self.buffer.raw
-    }
-
-    pub fn begin_frame(&mut self) {
-        self.buffer.advance();
-    }
-
-    pub fn update(&mut self, device: &Device) -> VulkanResult<()> {
-        if self.is_dirty {
-            self.buffer.write(device, &[self.data])?;
-            self.is_dirty = false;
+        for i in 0..frame_count {
+            let buffer = buffer.get_mut(i as u32);
+            buffer.upload_data(device, &[data])?;
         }
-        Ok(())
+
+        Ok(Self { 
+            is_dirty: false, 
+            buffer, 
+            data 
+        })
     }
 }

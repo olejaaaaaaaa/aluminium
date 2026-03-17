@@ -1,7 +1,7 @@
 use ash::vk;
 
 pub enum Slot {
-    Bindless{ index: u32 },
+    Bindless { index: u32 },
     Uniform { set: u32, binding: u32 },
 }
 

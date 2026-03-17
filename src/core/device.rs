@@ -15,7 +15,8 @@ pub struct Device {
     pub(crate) allocator: ManuallyDrop<Allocator>,
     pub(crate) extensions: HashSet<&'static CStr>,
     pub(crate) features2: vk::PhysicalDeviceFeatures2<'static>,
-    pub(crate) driver_props: vk::PhysicalDeviceDriverProperties<'static>,
+    pub(crate) props2: vk::PhysicalDeviceProperties2<'static>,
+    pub(crate) driver_props: Box<vk::PhysicalDeviceDriverProperties<'static>>,
     pub(crate) queue_family_props: Vec<vk::QueueFamilyProperties>,
     pub(crate) raw: ash::Device,
 }
@@ -109,25 +110,6 @@ impl Device {
         Ok(extensions)
     }
 
-    fn get_driver_properties(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
-        let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
-        let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(&mut driver_props);
-
-        unsafe {
-            profiling::scope!("vkGetPhysicalDeviceProperties2");
-            instance
-                .raw
-                .get_physical_device_properties2(phys_dev.raw, &mut props2);
-        }
-
-        let version = driver_props.conformance_version;
-        let conformance_version = format!("0.{}.{}.{}", version.major, version.minor, version.patch);
-
-        log::info!("Conformance Version {:?}", conformance_version);
-
-        driver_props
-    }
-
     fn get_features2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceFeatures2<'static> {
         let mut features2 = vk::PhysicalDeviceFeatures2::default();
         unsafe {
@@ -205,12 +187,21 @@ impl Device {
         }?;
 
         let features2 = Self::get_features2(instance, phys_dev);
-        let driver_props = Self::get_driver_properties(instance, phys_dev);
+        let driver_props = Box::new(vk::PhysicalDeviceDriverProperties::default());
+        let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(unsafe { &mut *Box::into_raw(driver_props.clone()) });
+
+        unsafe {
+            profiling::scope!("vkGetPhysicalDeviceProperties2");
+            instance
+                .raw
+                .get_physical_device_properties2(phys_dev.raw, &mut props2);
+        }
 
         Ok(Device {
             raw: device,
             extensions,
-            driver_props,
+            driver_props: driver_props.clone(),
+            props2,
             features2,
             allocator: ManuallyDrop::new(allocator),
             queue_family_props: queue_family_prop,

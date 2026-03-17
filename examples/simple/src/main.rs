@@ -11,6 +11,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use winit::*;
 
+mod gltf_loader;
+pub use gltf_loader::{GltfModel, load_gltf};
+
 #[derive(Default)]
 struct App {
     world: Option<WorldRenderer>,
@@ -34,15 +37,15 @@ impl ApplicationHandler for App {
 
                 let world = self.world.as_mut().unwrap();
 
-                // let _ = world.draw_frame(|graph| {
-                //     graph.add_pass(
-                //         PresentPass::new("Simple")
-                //             .execute(unsafe { DrawCallback::new(|ctx| {
-                //                 ctx.bind_pipeline(pipe);
-                //                 ctx.draw(3);
-                //             })
-                //         }));
-                // });
+                let _ = world.draw_frame(|graph| {
+                    // graph.add_pass(
+                    //     PresentPass::new("Simple")
+                    //         .execute(unsafe { DrawCallback::new(|ctx| {
+                    //             ctx.bind_pipeline(pipe);
+                    //             ctx.draw(3);
+                    //         })
+                    //     }));
+                });
             },
             _ => (),
         }
@@ -80,21 +83,16 @@ impl ApplicationHandler for App {
             },
         ];
 
-        let transform = world
-            .create::<Transform>(TransformDesc::identity())
-            .unwrap();
+        let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
+        let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
 
-        let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).unwrap();
-
-        let pipeline = world
-            .create::<RasterPipeline>(
-            RasterPipelineDesc::new()
-                    .vertex_shader("../shaders/spv/raster_ps-hlsl.spv")
-                    .fragment_shader("../shaders/spv/raster_ps-hlsl.spv")
-                    .vertex_attribute(ShaderType::Float3)
-                    .vertex_attribute(ShaderType::Float3),
-            )
-            .unwrap();
+        // let pipeline = world.create::<RasterPipeline>(
+        // RasterPipelineDesc::new()
+        //         .vertex_shader("../shaders/spv/raster_ps-hlsl.spv")
+        //         .fragment_shader("../shaders/spv/raster_ps-hlsl.spv")
+        //         .vertex_attribute(ShaderType::Float3)
+        //         .vertex_attribute(ShaderType::Float3),
+        // ).expect("Error create Raster Pipeline");
 
         self.world = Some(world);
         self.window = Some(window);
@@ -102,9 +100,7 @@ impl ApplicationHandler for App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    unsafe {
-        std::env::set_var("RUST_LOG", "Info");
-    }
+    unsafe { std::env::set_var("RUST_LOG", "Info"); }
 
     env_logger::builder().init();
 

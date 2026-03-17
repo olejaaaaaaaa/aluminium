@@ -120,7 +120,6 @@ impl<'n> GraphicsPipelineBuilder<'n> {
     }
 
     pub fn build(self) -> VulkanResult<GraphicsPipeline> {
-
         let mut create_info = vk::GraphicsPipelineCreateInfo::default();
 
         // ------------- Dynamic State ------------------------

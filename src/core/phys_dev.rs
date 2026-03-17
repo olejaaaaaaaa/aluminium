@@ -28,9 +28,9 @@ impl PhysicalDevice {
 
         for ty in gpu_priority {
             for dev in &phys_devs {
-                let prop = unsafe { 
+                let prop = unsafe {
                     profiling::scope!("vkGetPhysicalDeviceProperties");
-                    instance.raw.get_physical_device_properties(*dev) 
+                    instance.raw.get_physical_device_properties(*dev)
                 };
 
                 if prop.device_type == ty {

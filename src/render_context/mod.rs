@@ -1,6 +1,7 @@
-use std::sync::{Arc};
-use parking_lot::RwLock;
+use std::sync::Arc;
+
 use ash::vk;
+use parking_lot::RwLock;
 
 mod window_manager;
 pub use window_manager::WindowManager;
@@ -23,6 +24,14 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
+    pub fn frame_count(&self) -> usize {
+        self.window.read().frame_buffers.len()
+    }
+
+    pub fn resolution(&self) -> vk::Extent2D {
+        self.window.read().resolution
+    }
+
     /// Recreate
     /// - `Swapchain`
     /// - `FrameBuffers`
@@ -66,7 +75,7 @@ impl RenderContext {
         }
 
         let swapchain = SwapchainBuilder::new()
-            .min_image_count(caps.max_image_count)
+            .min_image_count(caps.min_image_count)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)
@@ -136,7 +145,11 @@ impl Drop for RenderContext {
         unsafe {
             let device = &self.device.logical_device;
             let window = &mut self.window.write();
-            unsafe { device.device_wait_idle().expect("Failed to wait for device idle during RenderContext drop!"); }
+            unsafe {
+                device
+                    .device_wait_idle()
+                    .expect("Failed to wait for device idle during RenderContext drop!");
+            }
         }
     }
 }

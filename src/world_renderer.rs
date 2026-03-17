@@ -9,7 +9,7 @@ use log::warn;
 use winit::window::Window;
 
 use super::render_context::RenderContext;
-use crate::bindless::Bindless;
+use crate::bindless::{self, Bindless};
 use crate::camera::{Camera, CameraData};
 use crate::core::{AttributeDescriptions, BindingDescriptions, Resolution, SwapchainError, VulkanError, VulkanResult};
 use crate::frame_graph::FrameGraph;
@@ -38,8 +38,8 @@ use crate::resources::*;
 /// # Example
 ///
 /// ```ignore
-/// let renderer = WorldRenderer::new(&window)?;
-/// renderer.draw_frame(|graph| { ... });
+/// let world = WorldRenderer::new(&window)?;
+/// world.draw_frame(|graph| { ... });
 /// ```
 pub struct WorldRenderer {
     /// Owns the Vulkan instance, device, swapchain, and allocator
@@ -49,16 +49,12 @@ pub struct WorldRenderer {
     ctx: Arc<RenderContext>,
     /// Contains resources for rendering and caches them creation
     resources: Arc<Resources>,
-    /// Data that is updated every frame
-    // frame_data: FrameData,
     /// Handles pass scheduling, dependency resolution, and automatic
     /// resource barriers
     graph: FrameGraph,
     /// View and projection data submitted to the GPU each frame
     camera: Camera,
-    /// Makes `WorldRenderer` neither `Send` nor `Sync`
-    /// Vulkan objects tied to this renderer must not cross thread
-    /// boundaries
+    /// No Send and Sync for this abstraction
     _marker: PhantomData<*mut ()>,
 }
 
@@ -71,11 +67,11 @@ impl WorldRenderer {
     /// support core formats or features.
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         let ctx = RenderContext::new(window)?;
-
-        let frame_count = ctx.window.read().frame_buffers.len();
+        let frame_count = ctx.frame_count();
         let camera = Camera::new(&ctx.device, frame_count)?;
+        let bindless = Bindless::new(&ctx)?;
         let resources = Resources::new(ctx.clone())?;
-        let graph = FrameGraph::new(ctx.clone(), resources.clone(), &camera)?;
+        let graph = FrameGraph::new(&ctx, &camera)?;
 
         Ok(WorldRenderer {
             resources,
@@ -147,14 +143,14 @@ impl WorldRenderer {
         let result = setup(&mut self.graph);
 
         // Compile Graph
-        self.graph.compile()?;
+        self.graph.compile(&self.ctx, &self.resources)?;
 
         // Execute Graph
-        if let Err(err) = self.graph.execute() {
+        if let Err(err) = self.graph.execute(&self.ctx, &self.resources) {
             if let VulkanError::Swapchain(err) = err {
                 match err {
                     SwapchainError::SwapchainOutOfDateKhr => {
-                        let extent = self.ctx.window.read().resolution;
+                        let extent = self.ctx.resolution();
                         self.resize(extent.width, extent.height)?;
                     },
                     SwapchainError::SwapchainCreationFailed(err) => {

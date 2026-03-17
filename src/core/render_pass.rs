@@ -78,7 +78,6 @@ impl<'a> RenderPassBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<RenderPass> {
-
         let device = self.device;
         let raw_subpasses = self
             .subpasses

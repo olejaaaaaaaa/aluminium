@@ -68,7 +68,6 @@ impl<'a> ImageViewBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<ImageView> {
-
         let image_view = unsafe {
             profiling::scope!("vkCreateImageView");
             self.device

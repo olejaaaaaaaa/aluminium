@@ -1,5 +1,6 @@
 use ash::vk;
 use log::info;
+
 use super::GraphicsDevice;
 use crate::core::{
     FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder, RenderPass, Surface, Swapchain, SwapchainBuilder,
@@ -74,7 +75,7 @@ impl WindowManager {
 
         let swapchain = SwapchainBuilder::new()
             .old_swapchain(self.swapchain.raw)
-            .min_image_count(2)
+            .min_image_count(caps.min_image_count)
             .surface(&self.surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&device.instance)

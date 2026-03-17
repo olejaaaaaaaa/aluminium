@@ -1,10 +1,9 @@
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock, Weak};
-
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Weak};
+use parking_lot::RwLock;
 use slotmap::new_key_type;
 
-use crate::core::Device;
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
 
@@ -79,7 +78,7 @@ pub struct Resources {
     pub(crate) ctx: Arc<RenderContext>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) mesh: RwLock<MeshStore>,
-    //pub(crate) pipeline_cache: RwLock<PipelineCache>
+    // pub(crate) pipeline_cache: RwLock<PipelineCache>
 }
 
 impl Resources {
@@ -88,7 +87,7 @@ impl Resources {
         Ok(Arc::new_cyclic(|weak| Self {
             transforms: RwLock::new(TransformPool::new(&ctx.device, frame_count, weak.clone()).expect("Error creating transform pool")),
             mesh: RwLock::new(MeshStore::new(weak.clone())),
-           // pipeline_cache: RwLock::new(PipelineCache::new(weak.clone())),
+            // pipeline_cache: RwLock::new(PipelineCache::new(weak.clone())),
             ctx,
         }))
     }

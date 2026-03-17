@@ -1,4 +1,5 @@
 use ash::vk;
+
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct Sampler {
@@ -30,7 +31,6 @@ impl<'a> SamplerBuilder<'a> {
 
     #[allow(dead_code)]
     pub fn build(self) -> VulkanResult<Sampler> {
-
         let sampler = unsafe {
             profiling::scope!("vkCreateSampler");
             self.device
