@@ -5,38 +5,45 @@ struct Camera {
     float4x4 view_proj;      
     float4x4 inv_view;       
     float4x4 inv_proj;       
-    float4x4 inv_view_proj;  
+    float4x4 inv_view_proj;
 };
 
-struct FrameValues {
+struct FrameData {
     uint2   resolution;
-    uint    frame_index;
+    uint    frame_idx;
     float   delta_time_sec;
     float   time_sec;
-    float3  pad;
+    float   pad;
 };
 
 struct Transform {
     float4   rot;
     float4   scale;
     float4   pos;
+    float4   pad;
 };
 
-[[vk::push_constant]]
-struct {
-    // 4 bytes
-    uint transform_index;
-    // 4 bytes
-    uint prev_transform_index;
-    // 4 bytes * 25 = 100 bytes
-    uint image_indices[25];
-    // 4 bytes * 5 = 20 bytes
-    uint image_samplers[5];
-    // sum = 4 + 4 + 100 + 20 = 128
-} push_constants;
+[[vk::binding(0,  0)]] ConstantBuffer<Camera> camera;
+[[vk::binding(1,  0)]] ConstantBuffer<FrameData> frame_data;
+[[vk::binding(2,  0)]] StructuredBuffer<Transform> transforms;
 
-[[vk::binding(0, 0)]] StructuredBuffer<Camera> camera;
-[[vk::binding(0, 1)]] StructuredBuffer<FrameValues> value;
-[[vk::binding(0, 2)]] StructuredBuffer<Transform> transforms;
-[[vk::binding(0, 3)]] Texture2D textures[];
-[[vk::binding(0, 4)]] SamplerState samplers[];
+[[vk::binding(0, 1)]] Texture2D     textures[];
+[[vk::binding(1, 1)]] RWTexture2D   rw_textures[];
+[[vk::binding(2, 1)]] SamplerState  samplers[5];
+
+const uint SAMPLER_REPEAT = 0;
+const uint SAMPLER_CLAMP = 1;
+const uint SAMPLER_BORDER = 2;
+const uint SAMPLER_MIP_LINEAR = 3;
+const uint SAMPLER_MIP_POINT = 4;
+
+[[vk::push_constant]] struct Push {
+    // 4 bytes
+    uint transform_idx;  
+    // 4 * 8 = 32 bytes
+    uint tex_idx[8];    
+    // 4 * 7 = 28 bytes
+    uint rw_tex_idx[7];  
+    // 4 * 16 = 64 bytes
+    uint user_data[16];       
+} push;

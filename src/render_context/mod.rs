@@ -1,9 +1,6 @@
-use std::sync::{Arc, RwLock};
-
+use std::sync::{Arc};
+use parking_lot::RwLock;
 use ash::vk;
-
-mod features;
-pub use features::*;
 
 mod window_manager;
 pub use window_manager::WindowManager;
@@ -12,12 +9,12 @@ mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
-    App, Device, Extension, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder,
-    Instance, PhysicalDevice, PhysicalFeature, QueuePool, RenderPassBuilder, Surface,
+    App, Device, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder, Instance, PhysicalDevice, QueuePool, RenderPassBuilder, Surface,
     SwapchainBuilder, VulkanResult,
 };
 
-/// Render Context provides initialized low-level Vulkan objects ready to use.
+/// Render Context provides initialized low-level Vulkan objects ready
+/// to use
 pub struct RenderContext {
     /// Window and Swapchain management
     pub(crate) window: RwLock<WindowManager>,
@@ -31,58 +28,7 @@ impl RenderContext {
     /// - `FrameBuffers`
     /// - `ImageViews`
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
-        self.window
-            .write()
-            .expect("Error lock write")
-            .resize(&self.device, width, height)
-    }
-
-    pub fn resolution(&self) -> vk::Extent2D {
-        self.window
-            .read()
-            .expect("Error lock Window Manager")
-            .resolution
-    }
-
-    pub fn framebuffer_count(&self) -> usize {
-        self.window
-            .read()
-            .expect("Error read lock Window Manager")
-            .frame_buffers
-            .len()
-    }
-
-    pub fn check_features<T>(&self, features: &[T]) -> bool
-    where
-        for<'a> &'a T: Into<Feature>,
-    {
-        for i in features {
-            let feature: Feature = i.into();
-            match feature {
-                Feature::Extension(ext) => {
-                    if let Extension::Bindless = ext {
-                        let extensions = &self.device.logical_device.extensions;
-                        if extensions.contains(&c"VK_KHR_push_descriptor")
-                            && extensions.contains(&c"VK_EXT_descriptor_indexing")
-                        {
-                            return true;
-                        }
-                    }
-                },
-                Feature::Physical(phys) => match phys {
-                    PhysicalFeature::PushConstant256 => {
-                        let limits = self.device.phys_dev.prop.limits;
-                        if limits.max_push_constants_size == 256 {
-                            return true;
-                        }
-                    },
-                },
-                Feature::Vendor(vendor_required) => {
-                    let actual_vendor = self.device.vendor();
-                },
-            }
-        }
-        false
+        self.window.write().resize(&self.device, width, height)
     }
 
     /// Create Render Context
@@ -120,7 +66,7 @@ impl RenderContext {
         }
 
         let swapchain = SwapchainBuilder::new()
-            .min_image_count(2)
+            .min_image_count(caps.max_image_count)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)
@@ -130,21 +76,14 @@ impl RenderContext {
             .format(format)
             .build()?;
 
-        let render_pass =
-            RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT)
-                .build()?;
-
-        let depth_image =
-            ImageBuilder::depth(&device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
-
-        let depth_view =
-            ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
+        let render_pass = RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT).build()?;
+        let depth_image = ImageBuilder::depth(&device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
+        let depth_view = ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images().unwrap() {
-            let image_view =
-                ImageViewBuilder::new_2d(&device, vk::Format::R8G8B8A8_SRGB, i).build()?;
+            let image_view = ImageViewBuilder::new_2d(&device, vk::Format::R8G8B8A8_SRGB, i).build()?;
             image_views.push(image_view);
         }
 
@@ -190,30 +129,14 @@ impl RenderContext {
             },
         }))
     }
+}
 
-    pub fn destroy(&mut self) {
-        unsafe { self.device.device_wait_idle().expect("Error wait idle") };
-        let mut window = self.window.write().unwrap();
-
-        window.swapchain.destroy();
-        window.render_pass.destroy(&self.device);
-        window.depth_view.destroy(&self.device);
-        window.depth_image.destroy(&self.device);
-
-        for i in &window.frame_sync {
-            i.destroy(&self.device);
+impl Drop for RenderContext {
+    fn drop(&mut self) {
+        unsafe {
+            let device = &self.device.logical_device;
+            let window = &mut self.window.write();
+            unsafe { device.device_wait_idle().expect("Failed to wait for device idle during RenderContext drop!"); }
         }
-
-        for i in &window.frame_buffers {
-            i.destroy(&self.device);
-        }
-
-        for i in &window.image_views {
-            i.destroy(&self.device);
-        }
-
-        self.device.logical_device.destroy();
-        window.surface.destroy();
-        self.device.instance.destroy();
     }
 }

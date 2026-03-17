@@ -14,10 +14,7 @@ fn main() {
     create_dir_all(&spv_output_dir).unwrap();
 
     if !shaders_dir.exists() {
-        println!(
-            "cargo:warning=Shaders directory not found: {}",
-            shaders_dir.display()
-        );
+        println!("cargo:warning=Shaders directory not found: {}", shaders_dir.display());
         return;
     }
 
@@ -61,10 +58,7 @@ fn main() {
                 .unwrap();
 
             if !res.success() {
-                println!(
-                    "cargo:warning=Failed to compile glsl shader: {} -> {}",
-                    original_name, out_name
-                );
+                println!("cargo:warning=Failed to compile glsl shader: {} -> {}", original_name, out_name);
             }
         } else if format == "hlsl" {
             let out_name = format!("{}-{}.spv", name, format);
@@ -99,10 +93,7 @@ fn main() {
                 .unwrap();
 
             if !res.success() {
-                println!(
-                    "cargo:warning=Failed to compile shader: {} -> {}",
-                    original_name, out_name
-                );
+                println!("cargo:warning=Failed to compile shader: {} -> {}", original_name, out_name);
             }
         } else {
             println!("cargo:warning=Not valid shader: {}", original_name);

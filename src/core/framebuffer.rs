@@ -1,6 +1,5 @@
 use ash::vk::{self};
 use log::debug;
-use puffin::profile_scope;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -51,27 +50,11 @@ impl<'a> FrameBufferBuilder<'a> {
     }
 
     pub fn build(mut self) -> VulkanResult<FrameBuffer> {
-        profile_scope!("FrameBuffer");
-
         self.create_info.attachment_count = self.attachments.len() as u32;
         self.create_info.p_attachments = self.attachments.as_ptr();
 
-        // #[cfg(feature = "runtime-check")]
-        // {
-        //     let limits = self.device.phys_dev.prop.limits;
-
-        //     if self.create_info.width > limits.max_framebuffer_width {
-        //         return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
-        //     }
-
-        //     if self.create_info.height > limits.max_framebuffer_height {
-        //         return Err(VulkanError::Unknown(vk::Result::from_raw(0)));
-        //     }
-        // }
-
-        debug!("FrameBuffer: {:#?}", self.create_info);
-
         let frame_buffer = unsafe {
+            profiling::scope!("vkCreateFramebuffer");
             self.device
                 .create_framebuffer(&self.create_info, None)
                 .map_err(VulkanError::Unknown)?

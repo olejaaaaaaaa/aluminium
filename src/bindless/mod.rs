@@ -1,76 +1,76 @@
-use std::sync::Arc;
-
 use ash::vk;
 
-mod native;
-use native::*;
-
-mod software;
-use software::*;
-
-use crate::core::{Device, Extension, VulkanResult};
+use crate::core::{DescriptorPool, DescriptorPoolBuilder, DescriptorSetLayout, DescriptorSetLayoutBuilder, Device, VulkanResult};
 use crate::render_context::RenderContext;
 
-/// Abstraction over Bindless technology, even if the device does not natively
-/// support it
-#[derive(Clone)]
-pub enum Bindless {
-    // Only one Descriptor Set
-    // A real native bindless
-    Native(Arc<NativeBindless>),
-    // Per Frame Descriptor Set
-    // Android most likely does not have native bindless support
-    Software(Arc<SoftwareBindless>),
+pub(crate) struct Bindless {
+    pub(crate) set_layout: DescriptorSetLayout,
+    pub(crate) set: vk::DescriptorSet,
+    pub(crate) pool: DescriptorPool,
 }
 
 impl Bindless {
-    pub fn new(
-        ctx: &RenderContext,
-        layouts: &[vk::DescriptorSetLayoutBinding<'static>],
-    ) -> VulkanResult<Self> {
-        if ctx.check_features(&[Extension::Bindless]) {
-            Ok(Bindless::Native(Arc::new(NativeBindless::new(
-                &ctx.device,
-                layouts,
-            )?)))
-        } else {
-            Ok(Bindless::Software(Arc::new(SoftwareBindless::new(
-                &ctx.device,
-                layouts,
-            )?)))
+    pub fn new(device: &Device, layouts: &[vk::DescriptorSetLayoutBinding<'static>]) -> VulkanResult<Self> {
+        let binding_flags: Vec<vk::DescriptorBindingFlags> = layouts
+            .iter()
+            .map(|_| {
+                vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
+                    | vk::DescriptorBindingFlags::PARTIALLY_BOUND
+                    | vk::DescriptorBindingFlags::UPDATE_UNUSED_WHILE_PENDING
+            })
+            .collect();
+
+        let mut binding_flags_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&binding_flags);
+
+        let set_layout = DescriptorSetLayoutBuilder::new(device)
+            .bindings(layouts.to_vec())
+            .flags(vk::DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL)
+            .push_next(&mut binding_flags_info)
+            .build()?;
+
+        let mut pool_sizes = vec![];
+
+        for i in layouts {
+            pool_sizes.push(
+                vk::DescriptorPoolSize::default()
+                    .descriptor_count(i.descriptor_count)
+                    .ty(i.descriptor_type),
+            );
+        }
+
+        let pool = DescriptorPoolBuilder::new(device)
+            .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
+            .pool_sizes(&pool_sizes)
+            .max_sets(1)
+            .build()?;
+
+        let layouts = [set_layout.raw];
+        let set = pool.create_descriptor_set(device, &layouts)?[0];
+
+        Ok(Self { set_layout, set, pool })
+    }
+
+    pub fn destroy(&self, device: &Device) {
+        unsafe {
+            device.destroy_descriptor_pool(self.pool.raw, None);
+            device.destroy_descriptor_set_layout(self.set_layout.raw, None);
         }
     }
 
-    pub fn bindless_set_layout(&self) -> vk::DescriptorSetLayout {
-        match self {
-            Bindless::Software(software) => software.set_layout.raw,
-            Bindless::Native(native) => native.set_layout.raw,
-        }
-    }
+    pub fn update_buffer_set<T>(&self, device: &Device, bind: u32, ty: vk::DescriptorType, buffer: vk::Buffer) {
+        let range = std::mem::size_of::<T>() as u64;
+        let buffer_info = vk::DescriptorBufferInfo::default()
+            .buffer(buffer)
+            .offset(0)
+            .range(range);
 
-    pub fn bindless_set(&self) -> vk::DescriptorSet {
-        match self {
-            Bindless::Software(software) => software.set,
-            Bindless::Native(native) => native.set,
-        }
-    }
+        let write = vk::WriteDescriptorSet::default()
+            .dst_set(self.set)
+            .dst_binding(bind)
+            .dst_array_element(0)
+            .descriptor_type(ty)
+            .buffer_info(std::slice::from_ref(&buffer_info));
 
-    pub fn update_buffer_set(
-        &self,
-        device: &Device,
-        bind: u32,
-        ty: vk::DescriptorType,
-        buffer: vk::Buffer,
-        offset: vk::DeviceSize,
-        range: vk::DeviceSize,
-    ) {
-        match self {
-            Bindless::Native(native) => {
-                native.update_buffer_set(device, bind, ty, buffer, offset, range);
-            },
-            Bindless::Software(software) => {
-                software.update_buffer_set(device, bind, ty, buffer, offset, range);
-            },
-        }
+        unsafe { device.update_descriptor_sets(&[write], &[]) };
     }
 }

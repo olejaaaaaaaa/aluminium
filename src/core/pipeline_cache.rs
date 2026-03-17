@@ -1,9 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-
 use ash::vk;
-use puffin::profile_scope;
 
 use super::Device;
 
@@ -22,7 +20,6 @@ impl PipelineCache {
 
     #[allow(dead_code)]
     pub fn new(device: &Device) -> Result<Self, vk::Result> {
-        profile_scope!("Pipeline Cache");
 
         let cache_info = vk::PipelineCacheCreateInfo::default()
             .flags(vk::PipelineCacheCreateFlags::empty())
@@ -35,7 +32,6 @@ impl PipelineCache {
 
     #[allow(dead_code)]
     pub fn from_file(device: &Device, path: &Path) -> Result<Self, vk::Result> {
-        profile_scope!("Load Pipeline Cache from file");
 
         let initial_data = if path.exists() {
             let mut file = File::open(path).unwrap();
@@ -50,16 +46,20 @@ impl PipelineCache {
             .flags(vk::PipelineCacheCreateFlags::empty())
             .initial_data(&initial_data);
 
-        let cache = unsafe { device.create_pipeline_cache(&cache_info, None)? };
+        let cache = unsafe { 
+            profiling::scope!("vkCreatePipelineCache");
+            device.create_pipeline_cache(&cache_info, None)? 
+        };
 
         Ok(Self { raw: cache })
     }
 
     #[allow(dead_code)]
     pub fn save_to_file(&self, device: &Device, path: &Path) -> Result<(), vk::Result> {
-        profile_scope!("Save Pipeline Cache to file");
-
-        let data = unsafe { device.get_pipeline_cache_data(self.raw)? };
+        let data = unsafe { 
+            profiling::scope!("vkGetPipelineCacheData");
+            device.get_pipeline_cache_data(self.raw)? 
+        };
 
         let mut file = File::create(path).unwrap();
         file.write_all(&data).unwrap();

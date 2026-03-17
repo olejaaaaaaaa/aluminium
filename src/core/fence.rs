@@ -1,6 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
-
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -22,9 +20,9 @@ impl<'a> FenceBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Fence> {
-        profile_scope!("Fence");
-
+        
         let fence = unsafe {
+            profiling::scope!("vkCreateFence");
             self.device
                 .create_fence(&self.create_info, None)
                 .map_err(VulkanError::Unknown)

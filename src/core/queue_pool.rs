@@ -5,6 +5,13 @@ pub struct QueuePool {
     props: Vec<vk::QueueFamilyProperties>,
 }
 
+pub enum QueueFlags {
+    Present,
+    Graphics,
+    Compute,
+    Transfer,
+}
+
 impl QueuePool {
     pub fn get_queue(&self, flags: vk::QueueFlags) -> Option<vk::Queue> {
         let mut family_index = None;
@@ -31,12 +38,7 @@ impl QueuePool {
             let mut v = vec![];
             for j in 0..prop.queue_count {
                 let queue = unsafe { device.get_device_queue(i as u32, j) };
-                log::info!(
-                    "Queue Family: {} Queue: {} Flags: {:?}",
-                    i,
-                    j,
-                    prop.queue_flags
-                );
+                log::info!("Queue Family: {} Queue: {} Flags: {:?}", i, j, prop.queue_flags);
                 v.push(queue);
             }
             queues.push(v);

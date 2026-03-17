@@ -68,9 +68,9 @@ impl<'a> ImageViewBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<ImageView> {
-        puffin::profile_scope!("ImageView");
 
         let image_view = unsafe {
+            profiling::scope!("vkCreateImageView");
             self.device
                 .create_image_view(&self.create_info, None)
                 .map_err(VulkanError::Unknown)?

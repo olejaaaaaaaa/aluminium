@@ -10,32 +10,55 @@ keywords = ["vulkan", "graphics", "rendering", "gamedev"]
 categories = ["graphics", "game-engines", "rendering"]
 build = "build.rs"
 
-[dependencies]
+[workspace]
+members = [
+    ".",
+    "examples/simple",
+]
+resolver = "2"
+
+[workspace.dependencies]
 ash = "0.38.0"
 ash-window = "0.13.0"
-
-vk-mem = { version = "0.5.0", optional = true }
-gpu-allocator = { version = "0.28.0", features = ["vulkan"], optional = true }
-
+vk-mem = "0.5.0"      
+# TODO:                                         
+gpu-allocator = { version = "0.28.0", features = ["vulkan"] }     
 vk-sync = "0.1.6"
 winit = { version = "0.30.12", features = ["rwh_06"] }
-naga = { version = "28.0.0", default-features = false, features = ["spv-in"] }
 slotmap = "1.1.1"
 bytemuck = { version = "1.24.0", features = ["derive"] }
-
 log = { version = "0.4.29", default-features = false }
+thiserror = "2.0.17"
+profiling = "1.0.17"
+parking_lot = "0.12.5"
+# For reflection
+naga = { version = "28.0.0", features = ["spv-in"] }
+# Only for examples
 env_logger = { version = "0.11.8", default-features = false }
-thiserror = { version = "2.0.17" }
-puffin = { version = "0.19.1", default-features = false }
-puffin_http = { version = "0.16.1", optional = true }
+gltf = "1.4.1"
+image = "0.25.10"
+
+[dependencies]
+ash = { workspace = true }
+ash-window = { workspace = true }
+vk-mem = { workspace = true, optional = true }          
+gpu-allocator = { workspace = true, optional = true }   
+bytemuck = { workspace = true }
+vk-sync = { workspace = true }
+winit = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+slotmap = { workspace = true }
+parking_lot = { workspace = true }
+profiling = { workspace = true }
+naga = { workspace = true , optional = true }
 
 [features]
-default = ["vma", "runtime-check", "validation_layer"]
+default = ["vma", "runtime-checks"]
 gpu-allocator = ["dep:gpu-allocator"]
-validation_layer = []
 vma = ["dep:vk-mem"]
-runtime-check = []
-profiling = ["dep:puffin_http"]
+validation_layer = []
+runtime-checks = ["dep:naga"]
 
 [profile.dev]
 opt-level = 1      
@@ -46,6 +69,7 @@ debug = 1
 opt-level = 2       
 
 [profile.release]
+features = ["vma"]
 opt-level = 3
 lto = "thin"          
 codegen-units = 1      

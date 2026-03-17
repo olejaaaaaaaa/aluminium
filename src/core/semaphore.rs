@@ -1,5 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
 
 use super::{Device, VulkanError, VulkanResult};
 
@@ -21,9 +20,9 @@ impl<'a> SemaphoreBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Semaphore> {
-        profile_scope!("Semaphore");
 
         let sem = unsafe {
+            profiling::scope!("vkCreateSemaphore");
             self.device
                 .create_semaphore(&self.create_info, None)
                 .map_err(VulkanError::Unknown)

@@ -1,6 +1,5 @@
 use ash::vk;
 use log::debug;
-use puffin::profile_scope;
 
 use super::device::Device;
 use super::{Subpass, SubpassDesc, VulkanError, VulkanResult};
@@ -68,13 +67,10 @@ impl<'a> RenderPassBuilder<'a> {
             dependencies: Some(vec![vk::SubpassDependency {
                 src_subpass: vk::SUBPASS_EXTERNAL,
                 dst_subpass: 0,
-                src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
-                    | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
-                dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
-                    | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
                 src_access_mask: vk::AccessFlags::empty(),
-                dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
                 dependency_flags: vk::DependencyFlags::BY_REGION,
             }]),
             subpasses: Some(vec![subpass]),
@@ -82,7 +78,6 @@ impl<'a> RenderPassBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<RenderPass> {
-        profile_scope!("Render Pass");
 
         let device = self.device;
         let raw_subpasses = self
@@ -103,6 +98,7 @@ impl<'a> RenderPassBuilder<'a> {
         debug!("Render Pass: {:#?}", create_info);
 
         let render_pass = unsafe {
+            profiling::scope!("vkCreateRenderPass");
             device
                 .create_render_pass(&create_info, None)
                 .map_err(VulkanError::Unknown)?

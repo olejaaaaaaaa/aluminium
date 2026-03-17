@@ -1,6 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
-
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -30,10 +28,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
         self
     }
 
-    pub fn push_next(
-        mut self,
-        value: &'a mut vk::DescriptorSetLayoutBindingFlagsCreateInfo<'a>,
-    ) -> Self {
+    pub fn push_next(mut self, value: &'a mut vk::DescriptorSetLayoutBindingFlagsCreateInfo<'a>) -> Self {
         self.push_next = Some(value);
         self
     }
@@ -43,8 +38,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
         self
     }
 
-    pub fn build(mut self) -> VulkanResult<DescriptorSetLayout> {
-        profile_scope!("DescriptorSetLayout");
+    pub fn build(self) -> VulkanResult<DescriptorSetLayout> {
 
         let mut create_info = vk::DescriptorSetLayoutCreateInfo::default()
             .flags(self.flags)
@@ -55,6 +49,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
         }
 
         let layout = unsafe {
+            profiling::scope!("vkCreateDescriptorSetLayout");
             self.device
                 .create_descriptor_set_layout(&create_info, None)
                 .map_err(VulkanError::Unknown)

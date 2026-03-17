@@ -1,5 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
 #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
 use vk_mem::Alloc;
 
@@ -103,18 +102,15 @@ impl<'a> ImageBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Image> {
-        profile_scope!("Image");
 
         let (image, allocation) = unsafe {
+            profiling::scope!("vmaCreateImage");
             self.device
                 .allocator
                 .create_image(&self.create_info, &self.alloc_info)
                 .map_err(VulkanError::Unknown)?
         };
 
-        Ok(Image {
-            raw: image,
-            allocation,
-        })
+        Ok(Image { raw: image, allocation })
     }
 }

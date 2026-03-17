@@ -1,6 +1,5 @@
 use ash::vk;
 use log::debug;
-use puffin::profile_scope;
 
 use super::{Device, VulkanError, VulkanResult};
 
@@ -34,15 +33,13 @@ impl<'a> PipelineLayoutBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<PipelineLayout> {
-        profile_scope!("PipelineLayout");
-
+       
         let create_info = vk::PipelineLayoutCreateInfo::default()
             .push_constant_ranges(&self.push)
             .set_layouts(&self.layout);
 
-        debug!("Pipeline Layout: {:#?}", create_info);
-
         let layout = unsafe {
+            profiling::scope!("vkCreatePipelineLayout");
             self.device
                 .create_pipeline_layout(&create_info, None)
                 .map_err(VulkanError::Unknown)

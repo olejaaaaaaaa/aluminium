@@ -1,6 +1,5 @@
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
-use puffin::profile_scope;
 #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
 use vk_mem::Alloc;
 #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
@@ -12,6 +11,8 @@ compile_error!("Not supported at the moment");
 #[cfg(not(any(feature = "vma", feature = "gpu-allocator")))]
 compile_error!("At least one allocator feature must be enabled: 'vma' or 'gpu-allocator'");
 
+use crate::core::buffer;
+
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct GpuBuffer {
@@ -22,24 +23,16 @@ pub struct GpuBuffer {
 
 impl GpuBuffer {
     /// Copy slice as raw bytes into [`vk::Buffer`]
-    pub fn upload_data<T: Pod + Zeroable>(
-        &mut self,
-        device: &Device,
-        data: &[T],
-    ) -> VulkanResult<()> {
+    pub fn upload_data<T: Pod + Zeroable>(&mut self, device: &Device, data: &[T]) -> VulkanResult<()> {
         self.vertex_count = data.len() as u32;
         let buffer_size = std::mem::size_of_val(data) as u64;
 
-        profile_scope!("Upload bytes");
+        profiling::scope!("Upload bytes");
 
         let allocation = device.allocator.get_allocation_info(&self.allocation);
 
         unsafe {
-            std::ptr::copy_nonoverlapping(
-                data.as_ptr().cast::<u8>(),
-                allocation.mapped_data.cast::<u8>(),
-                buffer_size as usize,
-            );
+            std::ptr::copy_nonoverlapping(data.as_ptr().cast::<u8>(), allocation.mapped_data.cast::<u8>(), buffer_size as usize);
         }
 
         device
@@ -55,7 +48,8 @@ impl GpuBuffer {
 }
 
 pub struct GpuBufferBuilder<'a> {
-    buffer_info: vk::BufferCreateInfo<'static>,
+    size: Option<u64>,
+    usage: Option<vk::BufferUsageFlags>,
     alloc_info: vk_mem::AllocationCreateInfo,
     device: &'a Device,
 }
@@ -64,10 +58,10 @@ impl<'a> GpuBufferBuilder<'a> {
     pub fn cpu_only(device: &'a Device) -> Self {
         GpuBufferBuilder {
             device,
-            buffer_info: vk::BufferCreateInfo::default(),
+            usage: None,
+            size: None,
             alloc_info: vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::MAPPED
-                    | vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
+                flags: vk_mem::AllocationCreateFlags::MAPPED | vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
                 usage: vk_mem::MemoryUsage::AutoPreferHost,
                 ..Default::default()
             },
@@ -78,7 +72,8 @@ impl<'a> GpuBufferBuilder<'a> {
     pub fn gpu_only(device: &'a Device) -> Self {
         GpuBufferBuilder {
             device,
-            buffer_info: vk::BufferCreateInfo::default(),
+            usage: None,
+            size: None,
             alloc_info: vk_mem::AllocationCreateInfo {
                 usage: vk_mem::MemoryUsage::AutoPreferDevice,
                 ..Default::default()
@@ -87,22 +82,39 @@ impl<'a> GpuBufferBuilder<'a> {
     }
 
     pub fn usage(mut self, usage: vk::BufferUsageFlags) -> Self {
-        self.buffer_info = self.buffer_info.usage(usage);
+        self.usage = Some(usage);
         self
     }
 
     pub fn size(mut self, size: u64) -> Self {
-        self.buffer_info = self.buffer_info.size(size);
+        self.size = Some(size);
         self
     }
 
     pub fn build(&self) -> VulkanResult<GpuBuffer> {
-        profile_scope!("GpuBuffer");
 
+        let size = self.size.expect("Missing size for buffer");
+        let usage = self.usage.expect("Missing usage for buffer");
+
+        #[cfg(debug_assertions)]
+        {
+            if size == 0 {
+                panic!("Buffer size cannot be zero");
+            }
+            if usage.is_empty() {
+                panic!("Buffer usage cannot be empty");
+            }
+        }
+
+        let buffer_info = vk::BufferCreateInfo::default()
+            .size(size)
+            .usage(usage);
+        
         let (buffer, allocation) = unsafe {
+            profiling::scope!("vmaCreateBuffer");
             self.device
                 .allocator
-                .create_buffer(&self.buffer_info, &self.alloc_info)
+                .create_buffer(&buffer_info, &self.alloc_info)
                 .map_err(VulkanError::Unknown)
         }?;
 

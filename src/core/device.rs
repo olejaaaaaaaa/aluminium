@@ -50,13 +50,11 @@ impl std::ops::Deref for Device {
 }
 
 impl Device {
-    pub fn get_device_extensions(
-        instance: &Instance,
-        phys_dev: &PhysicalDevice,
-    ) -> VulkanResult<HashSet<&'static CStr>> {
+    pub fn get_device_extensions(instance: &Instance, phys_dev: &PhysicalDevice) -> VulkanResult<HashSet<&'static CStr>> {
         let mut extensions = HashSet::new();
 
         let available_extensions = unsafe {
+            profiling::scope!("vkEnumerateDeviceExtensionProperties");
             instance
                 .raw
                 .enumerate_device_extension_properties(phys_dev.raw)
@@ -71,53 +69,29 @@ impl Device {
             }
         }
 
-        debug!(
-            "Available device extension: {:#?}",
-            available_extension_names
-        );
+        debug!("Available device extension: {:#?}", available_extension_names);
 
         let required_extensions = [
             c"VK_KHR_swapchain",
+            c"VK_EXT_descriptor_indexing",
             c"VK_KHR_driver_properties",
-            c"VK_KHR_maintenance3",
             c"VK_KHR_synchronization2",
             c"VK_KHR_timeline_semaphore",
         ];
 
         for i in required_extensions {
             if !available_extension_names.contains(&i) {
-                return Err(VulkanError::LogicalDevice(
-                    crate::core::LogicalDeviceError::MissingRequiredExtension(
-                        i.to_str().unwrap().to_string(),
-                    ),
-                ));
+                return Err(VulkanError::LogicalDevice(crate::core::LogicalDeviceError::MissingRequiredExtension(
+                    i.to_str().unwrap().to_string(),
+                )));
             } else {
                 extensions.insert(i);
             }
         }
 
         let optional_extensions = [
-            // Bindless
-            vec![c"VK_KHR_push_descriptor", c"VK_EXT_descriptor_indexing"],
-            // Dynamic Rendering
-            vec![
-                c"VK_KHR_dynamic_rendering",
-                c"VK_KHR_create_renderpass2",
-                c"VK_KHR_multiview",
-                c"VK_KHR_maintenance2",
-                c"VK_KHR_depth_stencil_resolve",
-            ],
             // Buffer Device Address
             vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
-            // Ray-Tracing
-            vec![
-                c"VK_KHR_acceleration_structure",
-                c"VK_KHR_ray_tracing_pipeline",
-            ],
-            // Ray-Query
-            vec![c"VK_KHR_ray_query"],
-            // Helper
-            vec![c"VK_KHR_maintenance4"],
         ];
 
         for i in &optional_extensions {
@@ -135,35 +109,29 @@ impl Device {
         Ok(extensions)
     }
 
-    fn get_driver_properties(
-        instance: &Instance,
-        phys_dev: &PhysicalDevice,
-    ) -> vk::PhysicalDeviceDriverProperties<'static> {
+    fn get_driver_properties(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
         let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
-
         let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(&mut driver_props);
 
         unsafe {
+            profiling::scope!("vkGetPhysicalDeviceProperties2");
             instance
                 .raw
                 .get_physical_device_properties2(phys_dev.raw, &mut props2);
         }
 
         let version = driver_props.conformance_version;
-        let conformance_version =
-            format!("0.{}.{}.{}", version.major, version.minor, version.patch);
+        let conformance_version = format!("0.{}.{}.{}", version.major, version.minor, version.patch);
 
         log::info!("Conformance Version {:?}", conformance_version);
 
         driver_props
     }
 
-    fn get_features2(
-        instance: &Instance,
-        phys_dev: &PhysicalDevice,
-    ) -> vk::PhysicalDeviceFeatures2<'static> {
+    fn get_features2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceFeatures2<'static> {
         let mut features2 = vk::PhysicalDeviceFeatures2::default();
         unsafe {
+            profiling::scope!("vkGetPhysicalDeviceFeatures2");
             instance
                 .raw
                 .get_physical_device_features2(phys_dev.raw, &mut features2);
@@ -179,6 +147,7 @@ impl Device {
             .collect::<Vec<_>>();
 
         let queue_family_prop = unsafe {
+            profiling::scope!("vkGetPhysicalDeviceQueueFamilyProperties");
             instance
                 .raw
                 .get_physical_device_queue_family_properties(phys_dev.raw)
@@ -219,6 +188,7 @@ impl Device {
             .push_next(&mut descriptor_indexing);
 
         let device = unsafe {
+            profiling::scope!("vkCreateDevice");
             instance
                 .raw
                 .create_device(phys_dev.raw, &create_info, None)
@@ -229,10 +199,9 @@ impl Device {
         debug!("Enabled Device Extensions: {:#?}", extensions);
 
         let allocator = unsafe {
-            let create_info =
-                vk_mem::AllocatorCreateInfo::new(&instance.raw, &device, phys_dev.raw);
-            vk_mem::Allocator::new(create_info)
-                .map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))
+            profiling::scope!("vkCreateVmaAllocator");
+            let create_info = vk_mem::AllocatorCreateInfo::new(&instance.raw, &device, phys_dev.raw);
+            vk_mem::Allocator::new(create_info).map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))
         }?;
 
         let features2 = Self::get_features2(instance, phys_dev);

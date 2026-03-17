@@ -1,5 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 use super::app::App;
@@ -7,18 +6,14 @@ use super::instance::Instance;
 use super::{VulkanError, VulkanResult};
 
 pub struct Surface {
-    pub(crate) raw: vk::SurfaceKHR,
-    loader: ash::khr::surface::Instance,
+    pub raw: vk::SurfaceKHR,
+    pub loader: ash::khr::surface::Instance,
 }
 
 impl Surface {
-    pub fn new(
-        app: &App,
-        instance: &Instance,
-        window: &winit::window::Window,
-    ) -> VulkanResult<Surface> {
-        profile_scope!("Surface");
+    pub fn new(app: &App, instance: &Instance, window: &winit::window::Window) -> VulkanResult<Surface> {
         let surface = unsafe {
+            profiling::scope!("vkCreateNativeSurface");
             ash_window::create_surface(
                 &app.entry,
                 &instance.raw,
@@ -31,10 +26,7 @@ impl Surface {
 
         let loader = ash::khr::surface::Instance::new(&app.entry, &instance.raw);
 
-        Ok(Surface {
-            raw: surface,
-            loader,
-        })
+        Ok(Surface { raw: surface, loader })
     }
 }
 
@@ -43,10 +35,7 @@ impl Surface {
         unsafe { self.loader.destroy_surface(self.raw, None) };
     }
 
-    pub fn get_physical_device_surface_capabilities(
-        &self,
-        phys_dev: vk::PhysicalDevice,
-    ) -> VulkanResult<vk::SurfaceCapabilitiesKHR> {
+    pub fn get_physical_device_surface_capabilities(&self, phys_dev: vk::PhysicalDevice) -> VulkanResult<vk::SurfaceCapabilitiesKHR> {
         unsafe {
             self.loader
                 .get_physical_device_surface_capabilities(phys_dev, self.raw)
@@ -54,10 +43,7 @@ impl Surface {
         }
     }
 
-    pub fn get_physical_device_surface_formats(
-        &self,
-        phys_dev: vk::PhysicalDevice,
-    ) -> VulkanResult<Vec<vk::SurfaceFormatKHR>> {
+    pub fn get_physical_device_surface_formats(&self, phys_dev: vk::PhysicalDevice) -> VulkanResult<Vec<vk::SurfaceFormatKHR>> {
         unsafe {
             self.loader
                 .get_physical_device_surface_formats(phys_dev, self.raw)

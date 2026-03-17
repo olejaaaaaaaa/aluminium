@@ -1,6 +1,5 @@
 use ash::vk;
 use log::debug;
-use puffin::profile_scope;
 
 use super::device::Device;
 use super::VulkanResult;
@@ -14,7 +13,6 @@ pub struct GraphicsPipelineBuilder<'n> {
     pipeline_layout: Option<vk::PipelineLayout>,
     cache: Option<vk::PipelineCache>,
     render_pass: Option<vk::RenderPass>,
-    #[allow(dead_code)]
     descriptor_set_layout: Option<&'n [vk::DescriptorSetLayout]>,
     color_blending_info: Option<vk::PipelineColorBlendStateCreateInfo<'n>>,
     vertex_input_info: Option<vk::PipelineVertexInputStateCreateInfo<'n>>,
@@ -26,10 +24,6 @@ pub struct GraphicsPipelineBuilder<'n> {
     dynamic_state: Option<Vec<vk::DynamicState>>,
     vertex_shader: Option<vk::ShaderModule>,
     fragment_shader: Option<vk::ShaderModule>,
-    #[allow(dead_code)]
-    vertex_shader_path: Option<String>,
-    #[allow(dead_code)]
-    fragment_shader_path: Option<String>,
 }
 
 impl<'n> GraphicsPipelineBuilder<'n> {
@@ -47,8 +41,6 @@ impl<'n> GraphicsPipelineBuilder<'n> {
             rasterization: None,
             fragment_shader: None,
             vertex_shader: None,
-            fragment_shader_path: None,
-            vertex_shader_path: None,
             scissors: None,
             viewport: None,
             dynamic_state: None,
@@ -61,26 +53,17 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         self
     }
 
-    pub fn rasterization(
-        mut self,
-        rasterization: vk::PipelineRasterizationStateCreateInfo<'static>,
-    ) -> Self {
+    pub fn rasterization(mut self, rasterization: vk::PipelineRasterizationStateCreateInfo<'static>) -> Self {
         self.rasterization = Some(rasterization);
         self
     }
 
-    pub fn multisampling(
-        mut self,
-        multisampling: vk::PipelineMultisampleStateCreateInfo<'static>,
-    ) -> Self {
+    pub fn multisampling(mut self, multisampling: vk::PipelineMultisampleStateCreateInfo<'static>) -> Self {
         self.multisampling_info = Some(multisampling);
         self
     }
 
-    pub fn color_blending(
-        mut self,
-        color_blending: vk::PipelineColorBlendStateCreateInfo<'n>,
-    ) -> Self {
+    pub fn color_blending(mut self, color_blending: vk::PipelineColorBlendStateCreateInfo<'n>) -> Self {
         self.color_blending_info = Some(color_blending);
         self
     }
@@ -126,10 +109,7 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         self
     }
 
-    pub fn input_assembly(
-        mut self,
-        input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'static>,
-    ) -> Self {
+    pub fn input_assembly(mut self, input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'static>) -> Self {
         self.input_assembly_info = Some(input_assembly);
         self
     }
@@ -140,15 +120,13 @@ impl<'n> GraphicsPipelineBuilder<'n> {
     }
 
     pub fn build(self) -> VulkanResult<GraphicsPipeline> {
-        profile_scope!("GraphicsPipeline");
 
         let mut create_info = vk::GraphicsPipelineCreateInfo::default();
 
         // ------------- Dynamic State ------------------------
         let mut dynamic_state = None;
         if let Some(_dynamic_states) = &self.dynamic_state {
-            let _dynamic_state =
-                vk::PipelineDynamicStateCreateInfo::default().dynamic_states(_dynamic_states);
+            let _dynamic_state = vk::PipelineDynamicStateCreateInfo::default().dynamic_states(_dynamic_states);
 
             dynamic_state = Some(_dynamic_state);
         }
@@ -158,7 +136,8 @@ impl<'n> GraphicsPipelineBuilder<'n> {
         }
         // ----------------- End ------------------------------------
 
-        // ----------------- Shader States -------------------------------
+        // ----------------- Shader States
+        // -------------------------------
         let mut shader_states_infos = vec![];
 
         if let Some(vertex) = self.vertex_shader {
@@ -221,12 +200,9 @@ impl<'n> GraphicsPipelineBuilder<'n> {
             .render_pass(render_pass);
 
         let pipeline = unsafe {
+            profiling::scope!("vkCreateGraphicsPipelines");
             self.device
-                .create_graphics_pipelines(
-                    self.cache.unwrap_or(vk::PipelineCache::null()),
-                    &[create_info],
-                    None,
-                )
+                .create_graphics_pipelines(self.cache.unwrap_or(vk::PipelineCache::null()), &[create_info], None)
                 .expect("Error create Graphics Pipeline")[0]
         };
 

@@ -1,7 +1,7 @@
 use std::ffi::CStr;
 
 use ash::vk;
-use log::info;
+use log::{debug, info};
 
 use super::{VulkanError, VulkanResult};
 use crate::core::errors::app::AppError;
@@ -19,21 +19,17 @@ pub struct App {
 
 impl App {
     pub fn new() -> VulkanResult<App> {
-        let entry = unsafe {
-            ash::Entry::load().map_err(|e| VulkanError::App(AppError::LoadingVulkan(e)))
-        }?;
+        let entry = unsafe { ash::Entry::load().map_err(|e| VulkanError::App(AppError::LoadingVulkan(e))) }?;
 
         let available_api_version = unsafe {
+            profiling::scope!("vkEnumerateInstanceVersion");
             entry
                 .try_enumerate_instance_version()
                 .map_err(|e| VulkanError::App(AppError::LoadingVulkanApiVersion(e)))?
                 .unwrap_or(vk::API_VERSION_1_0)
         };
 
-        info!(
-            "Max Vulkan Api version: {:?}",
-            available_api_version.display_version()
-        );
+        debug!("Max Vulkan Api version: {:?}", available_api_version.display_version());
 
         // Downgrade from the highest available version
         // Using the latest version is quite dangerous
@@ -55,10 +51,7 @@ impl App {
             .engine_name(ENGINE_NAME)
             .engine_version(ENGINE_VERSION);
 
-        info!(
-            "Selected Vulkan Api version: {:?}",
-            api_version.display_version()
-        );
+        info!("Selected Vulkan Api version: {:?}", api_version.display_version());
 
         Ok(App { create_info, entry })
     }

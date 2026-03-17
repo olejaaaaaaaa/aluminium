@@ -62,7 +62,8 @@ pub unsafe extern "system" fn vulkan_debug_callback(
         log::error!("{}", message);
     }
 
-    // if message_severity == vk::DebugUtilsMessageSeverityFlagsEXT::INFO {
+    // if message_severity ==
+    // vk::DebugUtilsMessageSeverityFlagsEXT::INFO {
 
     // }
 

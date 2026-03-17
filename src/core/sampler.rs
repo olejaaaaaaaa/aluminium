@@ -1,6 +1,4 @@
 use ash::vk;
-use puffin::profile_scope;
-
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct Sampler {
@@ -32,9 +30,9 @@ impl<'a> SamplerBuilder<'a> {
 
     #[allow(dead_code)]
     pub fn build(self) -> VulkanResult<Sampler> {
-        profile_scope!("Sampler");
 
         let sampler = unsafe {
+            profiling::scope!("vkCreateSampler");
             self.device
                 .create_sampler(&self.sampler_info, None)
                 .map_err(VulkanError::Unknown)?

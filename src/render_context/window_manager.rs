@@ -1,15 +1,13 @@
 use ash::vk;
 use log::info;
-use puffin::profile_scope;
-
 use super::GraphicsDevice;
 use crate::core::{
-    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder,
-    RenderPass, Surface, Swapchain, SwapchainBuilder, VulkanResult,
+    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder, RenderPass, Surface, Swapchain, SwapchainBuilder,
+    VulkanResult,
 };
 
-/// Manages window-related Vulkan resources (swapchain, framebuffers, etc.)
-/// Handles window resizing and frame synchronization
+/// Manages window-related Vulkan resources (swapchain, framebuffers,
+/// etc.) Handles window resizing and frame synchronization
 pub struct WindowManager {
     /// Current window/swapchain resolution
     pub(crate) resolution: vk::Extent2D,
@@ -34,10 +32,10 @@ pub struct WindowManager {
 }
 
 impl WindowManager {
-    /// Recreate swapchain, image views, depth image, framebuffers for new
-    /// window size
+    /// Recreate swapchain, image views, depth image, framebuffers for
+    /// new window size
     pub fn resize(&mut self, device: &GraphicsDevice, width: u32, height: u32) -> VulkanResult<()> {
-        profile_scope!("WindowManager::resize");
+        profiling::scope!("WindowManager::resize");
 
         info!("New size: {:?}", (width, height));
 
@@ -86,18 +84,13 @@ impl WindowManager {
             .format(format)
             .build()?;
 
-        let depth_image =
-            ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
-
-        let depth_view =
-            ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
+        let depth_image = ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
+        let depth_view = ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images()? {
-            let image_view =
-                ImageViewBuilder::new_2d(device, vk::Format::R8G8B8A8_SRGB, i).build()?;
-
+            let image_view = ImageViewBuilder::new_2d(device, vk::Format::R8G8B8A8_SRGB, i).build()?;
             image_views.push(image_view);
         }
 

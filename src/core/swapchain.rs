@@ -1,6 +1,5 @@
 use ash::vk::{self, ColorSpaceKHR};
 use log::debug;
-use puffin::profile_scope;
 
 use super::device::Device;
 use super::{Instance, Surface, VulkanError, VulkanResult};
@@ -83,8 +82,6 @@ impl<'a> SwapchainBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Swapchain> {
-        profile_scope!("Swapchain");
-
         let device = self.device.expect("Missing device");
         let instance = self.instance.expect("Missing instance");
         let surface = self.surface.expect("Missing surface");
@@ -113,6 +110,7 @@ impl<'a> SwapchainBuilder<'a> {
             .image_color_space(color_space);
 
         let swapchain = unsafe {
+            profiling::scope!("vkCreateSwapchainKHR");
             swapchain_loader
                 .create_swapchain(&create_info, None)
                 .map_err(|e| VulkanError::Unknown(e))

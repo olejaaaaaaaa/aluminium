@@ -82,9 +82,3 @@ pub use sync::*;
 
 mod types;
 pub use types::*;
-
-mod vendor;
-pub use vendor::*;
-
-mod extensions;
-pub use extensions::*;

@@ -1,9 +1,7 @@
 use std::error::Error;
 use std::io::Read;
 use std::path::Path;
-
 use ash::vk;
-use puffin::profile_scope;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -29,10 +27,7 @@ pub struct ShaderBuilder<'a> {
 
 impl<'a> ShaderBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
-        Self {
-            device,
-            bytecode: None,
-        }
+        Self { device, bytecode: None }
     }
 
     pub fn bytecode(mut self, bytecode: &'a [u32]) -> Self {
@@ -41,14 +36,13 @@ impl<'a> ShaderBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<ShaderModule> {
-        profile_scope!("ShaderModule");
-
         let device = self.device;
         let code = self.bytecode.unwrap();
 
         let create_info = vk::ShaderModuleCreateInfo::default().code(code);
 
         let shader = unsafe {
+            profiling::scope!("vkCreateShaderModule");
             device
                 .create_shader_module(&create_info, None)
                 .map_err(VulkanError::Unknown)?
@@ -72,10 +66,7 @@ pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
     file.read_to_end(&mut text).unwrap();
 
     assert_eq!(text.len() % 4, 0);
-    assert_eq!(
-        0x07230203,
-        u32::from_le_bytes([text[0], text[1], text[2], text[3]])
-    );
+    assert_eq!(0x07230203, u32::from_le_bytes([text[0], text[1], text[2], text[3]]));
 
     read_shader_from_bytes(&text).unwrap()
 }
