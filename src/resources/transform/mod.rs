@@ -65,21 +65,21 @@ impl Destroy for Transform {
     }
 }
 
-impl Create for Transform {
-    type Desc<'a> = TransformDesc;
-    fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
-        let mut transforms = resources.transforms.write();
-        let res = transforms.pool.insert(Transform {
-            rot: desc.rot,
-            scale: desc.scale,
-            pos: desc.pos,
-            _pad: [0.0, 0.0, 0.0, 0.0],
-        });
+// impl Create for Transform {
+//     type Desc<'a> = TransformDesc;
+//     fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
+//         let mut transforms = resources.transforms.write();
+//         let res = transforms.pool.insert(Transform {
+//             rot: desc.rot,
+//             scale: desc.scale,
+//             pos: desc.pos,
+//             _pad: [0.0, 0.0, 0.0, 0.0],
+//         });
 
-        transforms.is_dirty = true;
-        Ok(res)
-    }
-}
+//         transforms.is_dirty = true;
+//         Ok(res)
+//     }
+// }
 
 pub struct TransformPool {
     pub is_dirty: bool,

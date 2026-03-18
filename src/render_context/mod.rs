@@ -109,7 +109,7 @@ impl RenderContext {
             frame_buffers.push(frame_buffer);
         }
 
-        let pool = QueuePool::new(&device.raw, &device.queue_family_props);
+        let pool = QueuePool::new(&device.raw, &phys_dev.raw, &surface, &device.queue_family_props);
         let mut frame_sync = vec![];
 
         for _ in 0..frame_buffers.len() {

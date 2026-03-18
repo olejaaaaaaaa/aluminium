@@ -4,6 +4,8 @@ use std::sync::{Arc, Weak};
 use parking_lot::RwLock;
 use slotmap::new_key_type;
 
+use crate::bindless::Bindless;
+use crate::camera::Camera;
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
 
@@ -22,6 +24,29 @@ pub use pipeline_cache::*;
 new_key_type! {
     #[allow(missing_docs)]
     pub struct ResourceKey;
+}
+
+pub struct Ref<'a, T>(pub(crate) parking_lot::RwLockReadGuard<'a, T>);
+pub struct RefMut<'a, T>(pub(crate) parking_lot::RwLockWriteGuard<'a, T>);
+
+impl<'a, T> std::ops::Deref for Ref<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<'a, T> std::ops::Deref for RefMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T { 
+        &self.0
+    }
+}
+
+impl<'a, T> std::ops::DerefMut for RefMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut T { 
+        &mut self.0
+    }
 }
 
 /// Unique identifier of the resource with delayed deletion
@@ -75,20 +100,32 @@ pub trait Destroy {
 }
 
 pub struct Resources {
-    pub(crate) ctx: Arc<RenderContext>,
-    pub(crate) transforms: RwLock<TransformPool>,
-    pub(crate) mesh: RwLock<MeshStore>,
-    // pub(crate) pipeline_cache: RwLock<PipelineCache>
+   pub(crate) bindless: Bindless,
+   pub(crate) camera: RwLock<Camera>
 }
 
 impl Resources {
-    pub fn new(ctx: Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
-        let frame_count = ctx.window.read().frame_buffers.len();
-        Ok(Arc::new_cyclic(|weak| Self {
-            transforms: RwLock::new(TransformPool::new(&ctx.device, frame_count, weak.clone()).expect("Error creating transform pool")),
-            mesh: RwLock::new(MeshStore::new(weak.clone())),
-            // pipeline_cache: RwLock::new(PipelineCache::new(weak.clone())),
-            ctx,
+    pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
+        
+        let frame_count = ctx.frame_count();
+        let camera = Camera::new(&ctx.device, frame_count)?;
+        let bindless = Bindless::new(&ctx)?;
+
+        Ok(Arc::new(Self {
+            bindless,
+            camera: RwLock::new(camera)
         }))
     }
+
+    // Always Set 0
+    pub fn bindless_set(&self) {
+
+    }
+
+    // Always Set 1
+    pub fn per_frame_set(&self) {
+
+    }
+
+
 }

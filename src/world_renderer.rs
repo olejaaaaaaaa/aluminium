@@ -42,18 +42,13 @@ use crate::resources::*;
 /// world.draw_frame(|graph| { ... });
 /// ```
 pub struct WorldRenderer {
-    /// Owns the Vulkan instance, device, swapchain, and allocator
-    /// and etc
-    ///
-    /// Swapchain recreation requires exclusive access
+    /// Main Context for creation and some resources
     ctx: Arc<RenderContext>,
     /// Contains resources for rendering and caches them creation
     resources: Arc<Resources>,
     /// Handles pass scheduling, dependency resolution, and automatic
     /// resource barriers
     graph: FrameGraph,
-    /// View and projection data submitted to the GPU each frame
-    camera: Camera,
     /// No Send and Sync for this abstraction
     _marker: PhantomData<*mut ()>,
 }
@@ -67,15 +62,11 @@ impl WorldRenderer {
     /// support core formats or features.
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         let ctx = RenderContext::new(window)?;
-        let frame_count = ctx.frame_count();
-        let camera = Camera::new(&ctx.device, frame_count)?;
-        let bindless = Bindless::new(&ctx)?;
-        let resources = Resources::new(ctx.clone())?;
-        let graph = FrameGraph::new(&ctx, &camera)?;
+        let resources = Resources::new(&ctx)?;
+        let graph = FrameGraph::new()?;
 
         Ok(WorldRenderer {
             resources,
-            camera,
             graph,
             ctx,
             _marker: PhantomData,
@@ -99,13 +90,13 @@ impl WorldRenderer {
     }
 
     /// Gets a mut reference to the [`Camera`]
-    pub fn camera_mut(&mut self) -> &mut Camera {
-        &mut self.camera
+    pub fn camera_mut(&mut self) -> RefMut<'_, Camera> {
+        RefMut(self.resources.camera.write())
     }
 
     /// Gets a reference to the [`Camera`]
-    pub fn camera(&self) -> &Camera {
-        &self.camera
+    pub fn camera(&self) -> Ref<'_, Camera> {
+        Ref(self.resources.camera.read())
     }
 
     /// Resizes the window
@@ -157,7 +148,7 @@ impl WorldRenderer {
                         return Err(VulkanError::Swapchain(SwapchainError::SwapchainCreationFailed(err)));
                     },
                     _ => {
-                        warn!("Swapchain error during frame execution: {:?}", err);
+                        log::error!("Swapchain error during frame execution: {:?}", err);
                     },
                 }
             } else {

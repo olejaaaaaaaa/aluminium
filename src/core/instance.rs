@@ -70,7 +70,6 @@ impl Instance {
 
         let required_extensions = [
             c"VK_KHR_get_physical_device_properties2",
-            c"VK_KHR_device_group_creation",
             #[cfg(all(feature = "validation_layer", not(target_os = "android")))]
             c"VK_EXT_debug_utils",
             #[cfg(all(feature = "validation_layer", target_os = "android"))]

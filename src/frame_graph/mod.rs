@@ -27,30 +27,7 @@ pub struct FrameGraph {
 
 impl FrameGraph {
     /// Create new [`FrameGraph`]
-    pub(crate) fn new(ctx: &Arc<RenderContext>, camera: &Camera) -> VulkanResult<Self> {
-        //let bindless = Bindless::new(&ctx.device, &GLOBAL_BINDLESS_LAYOUT)?;
-
-        // bindless.update_buffer_set::<CameraData>(&ctx.device, 0,
-        // vk::DescriptorType::UNIFORM_BUFFER_DYNAMIC, camera.buffer());
-
-        // bindless.update_buffer_set(
-        //     &ctx.device,
-        //     1,
-        //     vk::DescriptorType::UNIFORM_BUFFER,
-        //     frame_values.buffer.buffers[0].raw,
-        //     0,
-        //     size_of::<FrameData>() as u64,
-        // );
-
-        // bindless.update_buffer_set(
-        //     &ctx.device,
-        //     2,
-        //     vk::DescriptorType::STORAGE_BUFFER,
-        //     resources.assets.read().unwrap().transform.buffer.raw,
-        //     0,
-        //     size_of::<Transform>() as u64 * 10000,
-        // );
-
+    pub(crate) fn new() -> VulkanResult<Self> {
         Ok(FrameGraph {
             execution_order: vec![],
             passes: vec![],
@@ -219,6 +196,7 @@ impl FrameGraph {
             .signal_semaphores(&signal_semaphores);
 
         // unsafe {
+        //     profiling::scope!("vkQueueSubmit");
         //     device
         //         .queue_submit(
         //           //  self.graphics_queue,
@@ -238,6 +216,7 @@ impl FrameGraph {
             .image_indices(&image_indices);
 
         // unsafe {
+        //     profiling::scope!("vkQueuePresent");
         //     window
         //         .swapchain
         //         .loader

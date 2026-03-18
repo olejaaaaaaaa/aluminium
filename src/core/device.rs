@@ -90,9 +90,9 @@ impl Device {
             }
         }
 
-        let optional_extensions = [
+        let optional_extensions: Vec<Vec<&'static CStr>> = vec![
             // Buffer Device Address
-            vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
+            // vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
         ];
 
         for i in &optional_extensions {

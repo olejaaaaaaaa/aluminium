@@ -30,12 +30,31 @@ impl CameraData {
 }
 
 pub struct Camera {
-    pub is_dirty: bool,
-    pub buffer: PerFrameBuffer,
-    pub data: CameraData,
+    pub(crate) is_dirty: bool,
+    pub(crate) buffer: PerFrameBuffer,
+    pub(crate) data: CameraData,
 }
 
 impl Camera {
+
+    pub fn proj(&mut self) -> &[[f32; 4]; 4] {
+        &self.data.proj
+    }
+
+    pub fn view(&mut self) -> &[[f32; 4]; 4] {
+        &self.data.view
+    }
+
+    pub fn view_mut(&mut self) -> &mut [[f32; 4]; 4] {
+        self.is_dirty = true;
+        &mut self.data.view
+    }
+
+    pub fn proj_mut(&mut self) -> &mut [[f32; 4]; 4] {
+        self.is_dirty = true;
+        &mut self.data.proj
+    }
+
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
         let size = size_of::<CameraData>() as u64;
 

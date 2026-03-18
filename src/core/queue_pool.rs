@@ -1,52 +1,73 @@
 use ash::vk;
+use crate::{VulkanError, core::Surface};
 
 pub struct QueuePool {
-    queues: Vec<Vec<vk::Queue>>,
-    props: Vec<vk::QueueFamilyProperties>,
+    queues: Vec<Vec<Queue>>,
 }
 
-pub enum QueueFlags {
-    Present,
-    Graphics,
-    Compute,
-    Transfer,
-}
-
-impl QueuePool {
-    pub fn get_queue(&self, flags: vk::QueueFlags) -> Option<vk::Queue> {
-        let mut family_index = None;
-
-        for (index, prop) in self.props.iter().enumerate() {
-            if prop.queue_flags.contains(flags) {
-                family_index = Some(index);
-            }
-        }
-
-        if let Some(index) = family_index {
-            return Some(self.queues[index][0]);
-        }
-
-        None
-    }
+pub struct Queue {
+    pub raw: vk::Queue,
+    pub flags: vk::QueueFlags,
+    pub is_present: bool,
+    pub family_index: u32,
+    pub queue_index: u32
 }
 
 impl QueuePool {
-    pub fn new(device: &ash::Device, props: &[vk::QueueFamilyProperties]) -> Self {
+
+    pub fn new(device: &ash::Device, phys_dev: &vk::PhysicalDevice, surface: &Surface, props: &[vk::QueueFamilyProperties]) -> Self {
         let mut queues = vec![];
 
-        for (i, prop) in props.iter().enumerate() {
-            let mut v = vec![];
-            for j in 0..prop.queue_count {
-                let queue = unsafe { device.get_device_queue(i as u32, j) };
-                log::info!("Queue Family: {} Queue: {} Flags: {:?}", i, j, prop.queue_flags);
-                v.push(queue);
+        for (family_index, prop) in props.iter().enumerate() {
+            let mut queue_family = vec![];
+            for queue_index in 0..prop.queue_count {
+                let queue = unsafe { device.get_device_queue(family_index as u32, queue_index) };
+                let is_present = unsafe { surface.loader.get_physical_device_surface_support(*phys_dev, family_index as u32, surface.raw).map_err(VulkanError::Unknown).unwrap() };
+                log::info!("Queue Family: {} Queue: {} Flags: {:?} Present: {}", family_index, queue_index, prop.queue_flags, is_present);
+                queue_family.push(Queue {
+                    raw: queue,
+                    flags: prop.queue_flags,
+                    is_present,
+                    family_index: family_index as u32,
+                    queue_index
+                });
             }
-            queues.push(v);
+            queues.push(queue_family);
         }
 
         QueuePool {
             queues,
-            props: props.to_vec(),
         }
+    }
+
+    pub fn get(&self, flags: vk::QueueFlags) -> Option<&Queue> {
+        self.queues.iter()
+            .flatten()
+            .find(|q| q.flags.contains(flags))
+    }
+
+    pub fn get_present(&self) -> Option<&Queue> {
+        self.queues.iter()
+            .flatten()
+            .find(|q| q.is_present)
+    }
+
+    pub fn get_dedicated(&self, flags: vk::QueueFlags) -> Option<&Queue> {
+        self.queues.iter()
+            .flatten()
+            .find(|q| q.flags == flags)
+            .or_else(|| self.get(flags))
+    }
+
+    pub fn graphics(&self) -> Option<&Queue> {
+        self.get(vk::QueueFlags::GRAPHICS)
+    }
+
+    pub fn compute(&self) -> Option<&Queue> {
+        self.get_dedicated(vk::QueueFlags::COMPUTE)
+    }
+
+    pub fn transfer(&self) -> Option<&Queue> {
+        self.get_dedicated(vk::QueueFlags::TRANSFER)
     }
 }

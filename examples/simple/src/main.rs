@@ -83,8 +83,8 @@ impl ApplicationHandler for App {
             },
         ];
 
-        let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
-        let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
+        // let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
+        // let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
 
         // let pipeline = world.create::<RasterPipeline>(
         // RasterPipelineDesc::new()

@@ -39,30 +39,30 @@ impl Destroy for Mesh {
     }
 }
 
-impl Create for Mesh {
-    type Desc<'a> = MeshDesc<'a>;
-    fn create(resources: &super::Resources, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
-        let ctx = &resources.ctx;
-        let size = std::mem::size_of_val(desc.vertices) as u64;
+// impl Create for Mesh {
+//     type Desc<'a> = MeshDesc<'a>;
+//     fn create(resources: &super::Resources, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
+//         let ctx = &resources.ctx;
+//         let size = std::mem::size_of_val(desc.vertices) as u64;
 
-        let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
-            .size(size)
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .build()?;
+//         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
+//             .size(size)
+//             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+//             .build()?;
 
-        vertex_buffer.upload_data(&ctx.device, desc.vertices)?;
+//         vertex_buffer.upload_data(&ctx.device, desc.vertices)?;
 
-        let mesh = resources.mesh.write().data.insert(Mesh {
-            instance_offset: 0,
-            instance_count: 1,
-            vertex_offset: 0,
-            vertex_buffer,
-            index_buffer: None,
-        });
+//         let mesh = resources.mesh.write().data.insert(Mesh {
+//             instance_offset: 0,
+//             instance_count: 1,
+//             vertex_offset: 0,
+//             vertex_buffer,
+//             index_buffer: None,
+//         });
 
-        Ok(mesh)
-    }
-}
+//         Ok(mesh)
+//     }
+// }
 
 pub struct MeshStore {
     pub data: Pool<Mesh>,
