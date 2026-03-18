@@ -143,8 +143,7 @@ impl WorldRenderer {
     /// let camera_mut = world.camera_mut(); // hangs forever
     /// ```
     pub fn camera_mut(&mut self) -> RefMut<'_, Camera> {
-        //RefMut(self.resources.camera.write())
-        todo!()
+        RefMut(self.resources.camera.write())
     }
 
     /// Returns a read guard to the [`Camera`]
@@ -165,8 +164,7 @@ impl WorldRenderer {
     /// let camera_mut = world.camera_mut(); // hangs forever
     /// ```
     pub fn camera(&self) -> Ref<'_, Camera> {
-        //Ref(self.resources.camera.read())
-        todo!()
+        Ref(self.resources.camera.read())
     }
 
     /// Resizes the window

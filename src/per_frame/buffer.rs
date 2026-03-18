@@ -63,4 +63,10 @@ impl PerFrameBuffer {
         let len = self.buffers.len();
         &mut self.buffers[image_index as usize % len]
     }
+
+    pub fn destroy(&mut self, device: &Device) {
+        for mut i in self.buffers.drain(..) {
+            unsafe { device.allocator.destroy_buffer(i.raw, &mut i.allocation) };
+        }
+    }
 }

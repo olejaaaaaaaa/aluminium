@@ -102,19 +102,19 @@ pub trait Destroy {
 
 pub struct Resources {
    //pub(crate) bindless: Bindless,
-   //pub(crate) camera: RwLock<Camera>
+   pub(crate) camera: RwLock<Camera>
 }
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
         
-        //let frame_count = ctx.frame_count();
-        //let camera = Camera::new(&ctx.device, frame_count)?;
+        let frame_count = ctx.frame_count();
+        let camera = Camera::new(&ctx.device, frame_count)?;
         //let bindless = Bindless::new(&ctx)?;
 
         Ok(Arc::new(Self {
             //bindless,
-            //camera: RwLock::new(camera)
+            camera: RwLock::new(camera)
         }))
     }
 
@@ -129,7 +129,7 @@ impl Resources {
     }
 
     pub(crate) fn destroy(&self, device: &Device) {
-        
+        self.camera.write().buffer.destroy(device);
     }
 
 
