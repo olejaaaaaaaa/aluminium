@@ -17,7 +17,7 @@ pub(crate) mod world_renderer;
 
 pub use core::{VulkanError, VulkanResult};
 
-pub use frame_graph::{ComputePass, DrawCallback, PresentPass};
+pub use frame_graph::{ComputePass, DrawCallback, PresentPass, Scissor, Viewport};
 pub use resources::{Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, ShaderType, Transform, TransformDesc};
 pub use world_renderer::WorldRenderer;
 

@@ -7,7 +7,8 @@ pub use pass::*;
 pub mod pass_context;
 pub use pass_context::*;
 
-use slotmap::SlotMap;
+pub mod types;
+pub use types::*;
 
 mod resources;
 pub use resources::*;
@@ -67,7 +68,7 @@ impl FrameGraph {
             unsafe {
                 let wait = device.wait_for_fences(&[sync.in_flight_fence.raw], true, u64::MAX);
                 if let Err(err) = wait {
-                    //log::error!("Error wait for fences: {:?} skip frame", err);
+                    log::error!("Error wait for fences: {:?} skip frame", err);
                     return Ok(());
                 }
                 device
@@ -428,7 +429,7 @@ impl FrameGraph {
     //     Ok(())
     // }
 
-    // pub(crate) fn destroy(&mut self, device: &Device) {
-    //     self.command_pool.destroy(device);
-    // }
+    pub(crate) fn destroy(&mut self, device: &Device) {
+        
+    }
 }

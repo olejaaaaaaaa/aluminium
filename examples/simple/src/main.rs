@@ -3,7 +3,7 @@
 use std::error::Error;
 
 use aluminium::types::Vertex;
-use aluminium::{DrawCallback, Mesh, MeshDesc, PresentPass, RasterPipeline, RasterPipelineDesc, ShaderType, Transform, TransformDesc, WorldRenderer};
+use aluminium::{DrawCallback, Mesh, MeshDesc, PresentPass, RasterPipeline, RasterPipelineDesc, Scissor, ShaderType, Transform, TransformDesc, Viewport, WorldRenderer};
 use bytemuck::{Pod, Zeroable};
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -37,15 +37,16 @@ impl ApplicationHandler for App {
 
                 let world = self.world.as_mut().unwrap();
 
-                let _ = world.draw_frame(|graph| {
-                    // graph.add_pass(
-                    //     PresentPass::new("Simple")
-                    //         .execute(unsafe { DrawCallback::new(|ctx| {
-                    //             ctx.bind_pipeline(pipe);
-                    //             ctx.draw(3);
-                    //         })
-                    //     }));
-                });
+                // let _ = world.draw_frame(|graph| {
+                //     graph.add_pass(
+                //         PresentPass::new("Simple")
+                //             .execute(unsafe { DrawCallback::new(|ctx| {
+                //                 ctx.set_scissor(Scissor::FullRes);
+                //                 ctx.set_viewport(Viewport::FullRes);
+                //                 ctx.draw(3);
+                //             })
+                //         }));
+                // });
             },
             _ => (),
         }

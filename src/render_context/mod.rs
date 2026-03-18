@@ -50,7 +50,6 @@ impl RenderContext {
 
         let caps = surface.get_physical_device_surface_capabilities(phys_dev.raw)?;
         let extent = caps.current_extent;
-        let transforms = caps.current_transform;
 
         let formats = surface.get_physical_device_surface_formats(phys_dev.raw)?;
 
@@ -143,13 +142,33 @@ impl RenderContext {
 impl Drop for RenderContext {
     fn drop(&mut self) {
         unsafe {
-            let device = &self.device.logical_device;
+            let device = &mut self.device;
             let window = &mut self.window.write();
-            unsafe {
-                device
-                    .device_wait_idle()
-                    .expect("Failed to wait for device idle during RenderContext drop!");
+           
+            device
+                .device_wait_idle()
+                .expect("Failed to wait for device idle during RenderContext drop!");
+
+            for i in window.image_views.drain(..) {
+                i.destroy(device);
             }
+
+            window.depth_view.destroy(device);
+            window.depth_image.destroy(device);
+            window.render_pass.destroy(device);
+            
+            for i in window.frame_buffers.drain(..) {
+                i.destroy(device);
+            }
+
+            for i in window.frame_sync.drain(..) {
+                i.destroy(device);
+            }
+
+            window.swapchain.loader.destroy_swapchain(window.swapchain.raw, None);
+            window.surface.loader.destroy_surface(window.surface.raw, None);
+            device.logical_device.destroy();
+            device.instance.destroy();
         }
     }
 }

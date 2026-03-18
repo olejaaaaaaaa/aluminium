@@ -6,6 +6,7 @@ use slotmap::new_key_type;
 
 use crate::bindless::Bindless;
 use crate::camera::Camera;
+use crate::core::Device;
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
 
@@ -86,12 +87,12 @@ pub trait Create: Sized + Destroy {
 
 #[allow(missing_docs)]
 pub trait GetMut: Sized + Destroy {
-    fn get_mut<'a>(resources: &'a Resources, res: &Res<Self>) -> &'a mut Self;
+    fn get_mut<'a>(resources: &'a Resources, res: &Res<Self>) -> RefMut<'a, Self>;
 }
 
 #[allow(missing_docs)]
 pub trait Get: Sized + Destroy {
-    fn get<'a>(resources: &'a Resources, res: &Res<Self>) -> &'a Self;
+    fn get<'a>(resources: &'a Resources, res: &Res<Self>) -> Ref<'a, Self>;
 }
 
 #[allow(missing_docs)]
@@ -100,20 +101,20 @@ pub trait Destroy {
 }
 
 pub struct Resources {
-   pub(crate) bindless: Bindless,
-   pub(crate) camera: RwLock<Camera>
+   //pub(crate) bindless: Bindless,
+   //pub(crate) camera: RwLock<Camera>
 }
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
         
-        let frame_count = ctx.frame_count();
-        let camera = Camera::new(&ctx.device, frame_count)?;
-        let bindless = Bindless::new(&ctx)?;
+        //let frame_count = ctx.frame_count();
+        //let camera = Camera::new(&ctx.device, frame_count)?;
+        //let bindless = Bindless::new(&ctx)?;
 
         Ok(Arc::new(Self {
-            bindless,
-            camera: RwLock::new(camera)
+            //bindless,
+            //camera: RwLock::new(camera)
         }))
     }
 
@@ -125,6 +126,10 @@ impl Resources {
     // Always Set 1
     pub fn per_frame_set(&self) {
 
+    }
+
+    pub(crate) fn destroy(&self, device: &Device) {
+        
     }
 
 

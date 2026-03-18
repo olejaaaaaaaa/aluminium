@@ -1,19 +1,10 @@
-use std::io::Read;
 use std::marker::PhantomData;
-use std::ops::DerefMut;
-use std::sync::{Arc, LazyLock, RwLock};
-
-use ash::vk;
-use bytemuck::{Pod, Zeroable};
-use log::warn;
+use std::sync::{Arc};
 use winit::window::Window;
-
 use super::render_context::RenderContext;
-use crate::bindless::{self, Bindless};
-use crate::camera::{Camera, CameraData};
-use crate::core::{AttributeDescriptions, BindingDescriptions, Resolution, SwapchainError, VulkanError, VulkanResult};
+use crate::camera::Camera;
+use crate::core::{SwapchainError, VulkanError, VulkanResult};
 use crate::frame_graph::FrameGraph;
-use crate::frame_values::FrameValues;
 use crate::resources::*;
 
 /// A lightweight, performance-oriented abstraction over the Vulkan
@@ -42,14 +33,14 @@ use crate::resources::*;
 /// world.draw_frame(|graph| { ... });
 /// ```
 pub struct WorldRenderer {
-    /// Main Context for creation and some resources
-    ctx: Arc<RenderContext>,
+    /// Handles pass scheduling, dependency resolution, and automatic resource barriers
+    graph: FrameGraph,
     /// Contains resources for rendering and caches them creation
     resources: Arc<Resources>,
-    /// Handles pass scheduling, dependency resolution, and automatic
-    /// resource barriers
-    graph: FrameGraph,
-    /// No Send and Sync for this abstraction
+    /// Main Context for creation and some resources
+    ctx: Arc<RenderContext>,
+    /// No Send and Sync!
+    /// In the future, this may be circumvented using channels
     _marker: PhantomData<*mut ()>,
 }
 
@@ -73,30 +64,109 @@ impl WorldRenderer {
         })
     }
 
-    /// Create a new resource of type `T` with the given description
-    /// and return a handle to it
+    /// Allocates a new GPU resource of type `T` and returns a handle to it
+    ///
+    /// The handle [`Res<T>`] is lightweight and can be cloned freely   
+    /// 
+    /// The resource lives until at least one of its handles is alive
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VulkanError`] if a resource creation error has occurred or the creation parameters are not valid
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc { ... })?;
+    /// ```
     pub fn create<T: Create>(&mut self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.resources, desc)
     }
 
-    /// Get ref
-    pub fn get<T: Get>(&self, res: &Res<T>) -> &T {
+    /// Returns a read guard to the resource identified by `res`
+    ///
+    /// Internally wraps [`parking_lot::RwLockReadGuard`] — the lock is held
+    /// until the returned [`Ref`] is dropped. Multiple read guards
+    /// to the same resource can coexist, but acquiring [`RefMut`] while
+    /// any [`Ref`] is alive **will deadlock**.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transform = world.get(&handle);
+    /// println!("{:?}", mesh.scale);
+    /// // lock released here
+    /// ```
+    pub fn get<T: Get>(&self, res: &Res<T>) -> Ref<'_, T> {
         T::get(&self.resources, res)
     }
 
-    /// Get mut ref
-    pub fn get_mut<T: GetMut>(&mut self, res: &Res<T>) -> &mut T {
+    /// Returns a write guard to the resource identified by `res`
+    ///
+    /// Internally wraps [`parking_lot::RwLockWriteGuard`] — the lock is held
+    /// until the returned [`RefMut`] is dropped. Acquiring this while
+    /// any other [`Ref`] or [`RefMut`] to the same resource is alive
+    /// **will deadlock**.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// {
+    ///     let mut transform = world.get_mut(&handle);
+    ///     transform.pos[0] -= 0.5;
+    /// } // lock released here — safe to call get() or get_mut() again
+    /// ```
+    pub fn get_mut<T: GetMut>(&mut self, res: &Res<T>) -> RefMut<'_, T> {
         T::get_mut(&self.resources, res)
     }
 
-    /// Gets a mut reference to the [`Camera`]
+    /// Returns a write guard to the [`Camera`]
+    ///
+    /// Internally wraps [`parking_lot::RwLockWriteGuard`] — the lock is held
+    /// until the returned [`RefMut`] is dropped.
+    ///
+    /// # Deadlocks
+    ///
+    /// Calling this while any other [`Ref`] or [`RefMut`] to the camera is alive
+    /// **will deadlock**. Drop all existing guards before acquiring a new one.
+    ///
+    /// ```ignore
+    /// // OK
+    /// {
+    ///     let mut camera = world.camera_mut();
+    ///     let view = camera.view();
+    /// } // guard dropped here
+    /// let camera = world.camera(); // safe
+    ///
+    /// // DEADLOCK
+    /// let camera = world.camera();
+    /// let camera_mut = world.camera_mut(); // hangs forever
+    /// ```
     pub fn camera_mut(&mut self) -> RefMut<'_, Camera> {
-        RefMut(self.resources.camera.write())
+        //RefMut(self.resources.camera.write())
+        todo!()
     }
 
-    /// Gets a reference to the [`Camera`]
+    /// Returns a read guard to the [`Camera`]
+    ///
+    /// Internally wraps [`parking_lot::RwLockReadGuard`] — the lock is held
+    /// until the returned [`Ref`] is dropped.
+    ///
+    /// Multiple read guards can coexist, but acquiring [`RefMut`] while
+    /// any [`Ref`] is alive **will deadlock**.
+    ///
+    /// ```ignore
+    /// // OK — multiple readers at once
+    /// let camera1 = world.camera();
+    /// let camera2 = world.camera();
+    ///
+    /// // DEADLOCK — write while read is alive
+    /// let camera = world.camera();
+    /// let camera_mut = world.camera_mut(); // hangs forever
+    /// ```
     pub fn camera(&self) -> Ref<'_, Camera> {
-        Ref(self.resources.camera.read())
+        //Ref(self.resources.camera.read())
+        todo!()
     }
 
     /// Resizes the window
@@ -120,8 +190,7 @@ impl WorldRenderer {
         Ok(())
     }
 
-    /// Draw a frame or skip a frame if some resources need to be
-    /// create
+    /// Draw a frame or skip a frame if some resources need to be create
     /// # Panics!
     ///
     /// - If the GPU has stopped responding
@@ -147,16 +216,17 @@ impl WorldRenderer {
                     SwapchainError::SwapchainCreationFailed(err) => {
                         return Err(VulkanError::Swapchain(SwapchainError::SwapchainCreationFailed(err)));
                     },
-                    _ => {
-                        log::error!("Swapchain error during frame execution: {:?}", err);
+                    SwapchainError::SwapchainSubOptimal => {
+                        /*
+                            For now, we're ignoring this error on Android
+                            Currently, the swapchain always has one orientation: IDENTITY
+                        */
                     },
                 }
             } else {
-                log::error!("Error execute frame: {:?}", err);
                 return Err(err);
             }
         }
-
         Ok(result)
     }
 }
@@ -167,5 +237,14 @@ impl Drop for WorldRenderer {
         let device = &self.ctx.device;
         // Wait all gpu work before destroy resources
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
+
+        if Arc::strong_count(&self.resources) > 1 {
+            panic!("Resources has another clone this is an architectural error");
+        }
+
+        self.graph.destroy(device);
+        self.resources.destroy(device);
+
+        // RenderContext implements Drop itself and can be removed later.
     }
 }

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use ash::vk::{self, Handle};
 
 use crate::core::Resolution;
+use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
 use crate::RasterPipeline;
 
@@ -20,19 +21,96 @@ pub struct PassContext {
 }
 
 impl PassContext {
-    pub unsafe fn set_viewport(&mut self, viewport: vk::Viewport) {
-        self.viewport = self.viewport;
+    pub unsafe fn set_viewport(&self, viewport: Viewport) {
+        let viewport = match viewport {
+            Viewport::FullRes => {
+                vk::Viewport::default()
+                    .height(self.resolution.height as f32)
+                    .width(self.resolution.width as f32)
+                    .x(0.0)
+                    .y(0.0)
+            },
+            Viewport::HalfRes => {
+                vk::Viewport::default()
+                    .height(self.resolution.height as f32 / 2.0)
+                    .width(self.resolution.width as f32 / 2.0)
+                    .x(0.0)
+                    .y(0.0)
+            },
+            Viewport::QuarterRes => {
+                vk::Viewport::default()
+                    .height(self.resolution.height as f32 / 4.0)
+                    .width(self.resolution.width as f32 / 4.0)
+                    .x(0.0)
+                    .y(0.0)
+            },
+            Viewport::Custom(width, height) => {
+                vk::Viewport::default()
+                    .height(width as f32)
+                    .width(height as f32)
+                    .x(0.0)
+                    .y(0.0)
+            }
+        };
+        let viewports = vec![viewport];
+        self.device.cmd_set_viewport(self.cbuf, 0, &viewports);
     }
 
-    pub unsafe fn set_scissor(&mut self, scissor: vk::Rect2D) {
-        self.scissor = scissor;
+    pub unsafe fn set_scissor(&self, scissor: Scissor) {
+        let scissor = match scissor {
+            Scissor::FullRes => {
+                vk::Rect2D::default()
+                    .extent(vk::Extent2D {
+                        width: self.resolution.width,
+                        height: self.resolution.height
+                    })
+                    .offset(vk::Offset2D {
+                        x: 0,
+                        y: 0
+                    })
+            },
+            Scissor::HalfRes => {
+                vk::Rect2D::default()
+                    .extent(vk::Extent2D {
+                        width: self.resolution.width / 2,
+                        height: self.resolution.height / 2
+                    })
+                    .offset(vk::Offset2D {
+                        x: 0,
+                        y: 0
+                    })
+            },
+            Scissor::QuarterRes => {
+                vk::Rect2D::default()
+                    .extent(vk::Extent2D {
+                        width: self.resolution.width / 4,
+                        height: self.resolution.height / 4
+                    })
+                    .offset(vk::Offset2D {
+                        x: 0,
+                        y: 0
+                    })
+            },
+            Scissor::Custom(width, height) => {
+                vk::Rect2D::default()
+                    .extent(vk::Extent2D {
+                        width: width,
+                        height: height
+                    })
+                    .offset(vk::Offset2D {
+                        x: 0,
+                        y: 0
+                    })
+            }
+        };
+        let scissors = vec![scissor];
+        self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
     }
 
     pub unsafe fn bind_pipeline(&self, handle: &Res<RasterPipeline>) {
         // let pipeline_cache = self.external_resources.pipeline_cache.read().unwrap();
 
-        let scissors = vec![self.scissor];
-        self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
+        
 
         let views = vec![self.viewport];
         self.device.cmd_set_viewport(self.cbuf, 0, &views);

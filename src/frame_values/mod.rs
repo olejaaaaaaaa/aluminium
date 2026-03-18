@@ -15,10 +15,10 @@ pub struct FrameData {
 }
 
 pub struct FrameValues {
-    global_time_sec: std::time::Instant,
-    delta_time_sec: std::time::Instant,
-    pub(crate) buffer: PerFrameBuffer,
-    data: FrameData,
+    pub global_time_sec: std::time::Instant,
+    pub delta_time_sec: std::time::Instant,
+    pub buffer: PerFrameBuffer,
+    pub data: FrameData,
 }
 
 impl FrameValues {
