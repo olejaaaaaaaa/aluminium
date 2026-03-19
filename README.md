@@ -1,11 +1,9 @@
-<p align="center">
+<p style="text-align: left; margin: 0;">
   <img 
-    src="logo.png" 
-    alt="logo" 
-    style="width: 260px; height: auto;         max-width: 100%;"
+    src="logo.png"
+    style="width: 260px; height: auto; max-width: 100%;"
   >
 </p>
-
 
 # Aluminium 🎮
 
