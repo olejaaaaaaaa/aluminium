@@ -243,6 +243,6 @@ impl Drop for WorldRenderer {
         self.graph.destroy(device);
         self.resources.destroy(device);
 
-        // RenderContext implements Drop itself and can be removed later.
+        // RenderContext implements Drop itself and can be removed later
     }
 }

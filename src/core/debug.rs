@@ -76,7 +76,7 @@ pub struct DebugUtilsMessengerUserData {
 unsafe extern "system" fn debug_utils_messenger_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,
-    callback_data_ptr: *const vk::DebugUtilsMessengerCallbackDataEXT,
+    callback_data_ptr: *const vk::DebugUtilsMessengerCallbackDataEXT<'_>,
     user_data: *mut c_void,
 ) -> vk::Bool32 {
 
