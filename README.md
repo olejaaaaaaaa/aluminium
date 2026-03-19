@@ -1,4 +1,3 @@
-
 <p align="center">
   <img 
     src="logo.png" 
@@ -6,6 +5,8 @@
     style="width: 260px; height: auto;         max-width: 100%;"
   >
 </p>
+
+
 # Aluminium 🎮
 
 Lightweight and sometimes unsafe, pure-Rust, graphics library for convenient work with Vulkan Api
