@@ -1,10 +1,3 @@
-<p style="text-align: left; margin: 0;">
-  <img 
-    src="logo.png"
-    style="width: 260px; height: auto; max-width: 100%;"
-  >
-</p>
-
 # Aluminium 🎮
 
 Lightweight and sometimes unsafe, pure-Rust, graphics library for convenient work with Vulkan Api
@@ -20,13 +13,15 @@ This library is currently unstable and its API is subject to frequent changes
 You can run the main example
 ```bash
 git clone https://github.com/olejaaaaaaaa/aluminium
+cd aluminium
 cargo run -p simple
 ```
 # Usage
-The library's primary goal is data visualization with reasonably high performance, but it does not provide loaders for glTF/OBJ/PNG formats.
+Aluminium is focused on data visualization with reasonably high performance 
+It does **not** provide asset loaders (glTF / OBJ / PNG) — bring your own
 
-# Minimal required extensions:
-Due to the wide variety of hardware, I've chosen to support only the common subset of features available on both Pс and Mobile devices
+# Minimal required extensions
+To support both PC and mobile hardware, only the common subset is used
 
     - VK_KHR_swapchain
     - VK_EXT_descriptor_indexing
@@ -39,11 +34,15 @@ Due to the wide variety of hardware, I've chosen to support only the common subs
 * VMA Allocator integration
 * Simple FrameGraph
 
-# Supported Platforms
-* Windows only
+## Supported Platforms
+
+| Platform | Status |
+|----------|--------|
+| Windows  | ✅ |
+| Linux    | 🔜 planned |
+| Android  | 🔜 planned |
+| macOS    | ⚠️ Unsupported | May work via MoltenVK, no guarantees |
+| iOS      | ⚠️ Unsupported | Same as macOS |
 
 # Credits
 This library is heavily inspired by [Kajiya](https://github.com/EmbarkStudios/kajiya). I probably wouldn't have created it if that project didn't exist.
-
-# Known issues:
-* Not all Vulkan resources are cleared
