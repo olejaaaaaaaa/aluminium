@@ -73,13 +73,12 @@ impl WindowManager {
             }
         }
 
-        let swapchain = SwapchainBuilder::new()
+        let swapchain = SwapchainBuilder::new(device)
             .old_swapchain(self.swapchain.raw)
             .min_image_count(caps.min_image_count)
             .surface(&self.surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&device.instance)
-            .device(&device.logical_device)
             .color_space(color_space)
             .extent(extent)
             .format(format)
