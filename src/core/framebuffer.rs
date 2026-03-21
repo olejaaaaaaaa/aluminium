@@ -16,47 +16,61 @@ impl FrameBuffer {
 
 pub struct FrameBufferBuilder<'a> {
     device: &'a Device,
-    attachments: Vec<vk::ImageView>,
-    create_info: vk::FramebufferCreateInfo<'static>,
+    extent: Option<vk::Extent2D>,
+    attachments: Option<&'a [vk::ImageView]>,
+    layers: Option<u32>,
+    render_pass: Option<vk::RenderPass>
 }
 
 impl<'a> FrameBufferBuilder<'a> {
-    pub fn new(device: &'a Device, render_pass: vk::RenderPass) -> Self {
+    pub fn new(device: &'a Device) -> Self {
         FrameBufferBuilder {
             device,
-            attachments: vec![],
-            create_info: vk::FramebufferCreateInfo::default().render_pass(render_pass),
+            extent: None,
+            attachments: None,
+            layers: None,
+            render_pass: None
         }
     }
 
     pub fn layers(mut self, layers: u32) -> Self {
-        self.create_info = self.create_info.layers(layers);
+        self.layers = Some(layers);
         self
     }
 
-    pub fn add_attachment(mut self, view: vk::ImageView) -> Self {
-        self.attachments.push(view);
+    pub fn attachments(mut self, attachments: &'a [vk::ImageView]) -> Self {
+        self.attachments = Some(attachments);
         self
     }
 
     pub fn extent(mut self, extent: vk::Extent2D) -> Self {
-        self.create_info = self.create_info.width(extent.width).height(extent.height);
+        self.extent = Some(extent);
         self
     }
 
-    pub fn render_pass(mut self, pass: vk::RenderPass) -> Self {
-        self.create_info = self.create_info.render_pass(pass);
+    pub fn render_pass(mut self, render_pass: vk::RenderPass) -> Self {
+        self.render_pass = Some(render_pass);
         self
     }
 
-    pub fn build(mut self) -> VulkanResult<FrameBuffer> {
-        self.create_info.attachment_count = self.attachments.len() as u32;
-        self.create_info.p_attachments = self.attachments.as_ptr();
+    pub fn build(self) -> VulkanResult<FrameBuffer> {
+        
+        let render_pass = self.render_pass.expect("Missing RenderPass");
+        let extent = self.extent.expect("Missing Extent2D");
+        let layers = self.layers.expect("Missing Layers"); 
+        let attachments = self.attachments.expect("Missing Attachments");
+
+        let create_info = vk::FramebufferCreateInfo::default()
+            .render_pass(render_pass)
+            .layers(layers)
+            .width(extent.width)
+            .height(extent.height)
+            .attachments(attachments);
 
         let frame_buffer = unsafe {
             profiling::scope!("vkCreateFramebuffer");
             self.device
-                .create_framebuffer(&self.create_info, None)
+                .create_framebuffer(&create_info, None)
                 .map_err(VulkanError::Unknown)?
         };
 

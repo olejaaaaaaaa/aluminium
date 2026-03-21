@@ -98,9 +98,12 @@ impl WindowManager {
         let mut frame_buffers = vec![];
 
         for i in &image_views {
-            let frame_buffer = FrameBufferBuilder::new(device, self.render_pass.raw)
-                .add_attachment(i.raw)
-                .add_attachment(depth_view.raw)
+            let frame_buffer = FrameBufferBuilder::new(device)
+                .render_pass(self.render_pass.raw)
+                .attachments(&[
+                    i.raw,
+                    depth_view.raw
+                ])
                 .extent(caps.current_extent)
                 .layers(1)
                 .build()?;
