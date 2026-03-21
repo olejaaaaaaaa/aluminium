@@ -164,8 +164,8 @@ impl Drop for RenderContext {
                 i.destroy(device);
             }
 
-            window.swapchain.loader.destroy_swapchain(window.swapchain.raw, None);
-            window.surface.loader.destroy_surface(window.surface.raw, None);
+            window.swapchain.destroy();
+            window.surface.destroy();
             device.logical_device.destroy();
             device.instance.destroy();
         }
