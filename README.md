@@ -30,10 +30,6 @@ To support both PC and mobile hardware, only the common subset is used
     - VK_KHR_timeline_semaphore
     - VK_KHR_get_physical_device_properties2
 
-# Features:
-* VMA Allocator integration
-* Simple FrameGraph
-
 ## Supported Platforms
 
 | Platform | Status |
