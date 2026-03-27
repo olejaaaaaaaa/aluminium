@@ -1,6 +1,4 @@
 use ash::vk::{self};
-use log::debug;
-
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -56,9 +54,24 @@ impl<'a> FrameBufferBuilder<'a> {
     pub fn build(self) -> VulkanResult<FrameBuffer> {
         
         let render_pass = self.render_pass.expect("Missing RenderPass");
-        let extent = self.extent.expect("Missing Extent2D");
+        let extent = self.extent.expect("Missing Extent");
         let layers = self.layers.expect("Missing Layers"); 
         let attachments = self.attachments.expect("Missing Attachments");
+
+        #[cfg(debug_assertions)]
+        {
+            if layers == 0 {
+                panic!("Layer must be 1 or less");
+            }
+
+            if extent.width == 0 || extent.height == 0 {
+                panic!("Extent must have width and height with size less 0")
+            }
+
+            if attachments.is_empty() {
+                panic!("Attachemnts musth have 1 or less attachments")
+            }
+        }
 
         let create_info = vk::FramebufferCreateInfo::default()
             .render_pass(render_pass)

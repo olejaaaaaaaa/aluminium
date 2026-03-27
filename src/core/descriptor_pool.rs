@@ -55,8 +55,9 @@ impl<'a> DescriptorPoolBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<DescriptorPool> {
-        let sizes = self.sizes.expect("Missing sizes for Pool");
-        let max_sets = self.max_sets.expect("Missing max sets for Pool");
+        let sizes = self.sizes.expect("Missing DescriptorPoolSizes");
+        let max_sets = self.max_sets.expect("Missing Max sets");
+        let flags = self.flags;
 
         #[cfg(debug_assertions)]
         {
@@ -70,7 +71,7 @@ impl<'a> DescriptorPoolBuilder<'a> {
         }
 
         let create_info = vk::DescriptorPoolCreateInfo::default()
-            .flags(self.flags)
+            .flags(flags)
             .pool_sizes(sizes)
             .max_sets(max_sets);
 

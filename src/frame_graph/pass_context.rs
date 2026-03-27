@@ -11,8 +11,6 @@ use crate::RasterPipeline;
 pub struct PassContext {
     pub(crate) external_resources: Arc<Resources>,
     pub(crate) bindless: vk::DescriptorSet,
-    pub(crate) scissor: vk::Rect2D,
-    pub(crate) viewport: vk::Viewport,
     pub(crate) resolution: vk::Extent2D,
     pub(crate) pipeline: vk::Pipeline,
     pub(crate) layout: vk::PipelineLayout,
@@ -107,32 +105,14 @@ impl PassContext {
         self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
     }
 
-    pub unsafe fn bind_pipeline(&self, handle: &Res<RasterPipeline>) {
-        // let pipeline_cache = self.external_resources.pipeline_cache.read().unwrap();
-
-        
-
-        let views = vec![self.viewport];
-        self.device.cmd_set_viewport(self.cbuf, 0, &views);
-
-        self.device
-            .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
-    }
+    // pub unsafe fn bind_pipeline(&self, handle: &Res<RasterPipeline>) {
+    //     self.device
+    //         .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
+    // }
 
     pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {
         self.device.cmd_dispatch(self.cbuf, x, y, z);
     }
-
-    // pub unsafe fn draw_mesh_instanced(&self, mesh: &Res<Mesh>, transforms: &[Res<Transform>]) {
-    //     self.device.cmd_draw_indexed(
-    //         self.cbuf, 
-    //         index_count, 
-    //         transforms.len() as u32, 
-    //         0, 
-    //         vertex_offset, 
-    //     0
-    //     );
-    // }
 
     pub unsafe fn draw_mesh(
         &self,

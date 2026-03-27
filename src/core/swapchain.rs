@@ -79,7 +79,7 @@ impl<'a> SwapchainBuilder<'a> {
         let instance = self.instance.expect("Missing Instance");
         let surface = self.surface.expect("Missing Surface");
         let extent = self.extent.expect("Missing Extent");
-        let present_mode = self.present_mode.expect("Missing Present Mode");
+        let present_mode = self.present_mode.expect("Missing Present mode");
         let min_image_count = self.min_image_count.expect("Missing Min image count");
         let format = self.format.expect("Missing Format");
         let color_space = self.color_space.expect("Missing Color space");

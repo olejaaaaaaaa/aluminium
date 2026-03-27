@@ -12,7 +12,7 @@ impl CommandPool {
         unsafe { device.destroy_command_pool(self.raw, None) };
     }
 
-    pub fn create_command_buffers(&self, device: &Device, count: u32) -> VulkanResult<Vec<vk::CommandBuffer>> {
+    pub fn allocate_cmd_buffers(&self, device: &Device, level: vk::CommandBufferLevel, count: u32) -> VulkanResult<Vec<vk::CommandBuffer>> {
         #[cfg(debug_assertions)]
         {
             if count == 0 {
@@ -22,7 +22,7 @@ impl CommandPool {
 
         let create_info = vk::CommandBufferAllocateInfo::default()
             .command_pool(self.raw)
-            .level(vk::CommandBufferLevel::PRIMARY)
+            .level(level)
             .command_buffer_count(count);
 
         let buffers = unsafe {

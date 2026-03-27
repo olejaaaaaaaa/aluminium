@@ -11,7 +11,6 @@ use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
-    /// Gpu allocator
     pub(crate) allocator: ManuallyDrop<Allocator>,
     pub(crate) extensions: HashSet<&'static CStr>,
     pub(crate) features2: vk::PhysicalDeviceFeatures2<'static>,

@@ -5,6 +5,7 @@ pub struct QueuePool {
     queues: Vec<Vec<Queue>>,
 }
 
+#[derive(Debug)]
 pub struct Queue {
     pub raw: vk::Queue,
     pub flags: vk::QueueFlags,
@@ -23,7 +24,6 @@ impl QueuePool {
             for queue_index in 0..prop.queue_count {
                 let queue = unsafe { device.get_device_queue(family_index as u32, queue_index) };
                 let is_present = unsafe { surface.loader.get_physical_device_surface_support(*phys_dev, family_index as u32, surface.raw).map_err(VulkanError::Unknown).unwrap() };
-                log::info!("Queue Family: {} Queue: {} Flags: {:?} Present: {}", family_index, queue_index, prop.queue_flags, is_present);
                 queue_family.push(Queue {
                     raw: queue,
                     flags: prop.queue_flags,
@@ -34,6 +34,8 @@ impl QueuePool {
             }
             queues.push(queue_family);
         }
+
+        log::info!("Queues: {:#?}", queues);
 
         QueuePool {
             queues,

@@ -1,6 +1,4 @@
 use ash::vk;
-use log::info;
-
 use crate::core::{Instance, VulkanError, VulkanResult};
 
 pub struct PhysicalDevice {

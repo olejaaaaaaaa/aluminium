@@ -32,15 +32,12 @@ impl RenderContext {
         self.window.read().resolution
     }
 
-    /// Recreate
-    /// - `Swapchain`
-    /// - `FrameBuffers`
-    /// - `ImageViews`
+    /// Recreate [`WindowManager`]
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
         self.window.write().resize(&self.device, width, height)
     }
 
-    /// Create Render Context
+    /// Create [`RenderContext`]
     pub fn new(window: &winit::window::Window) -> VulkanResult<Arc<Self>> {
         let app = App::new()?;
         let instance = Instance::new(window, &app)?;

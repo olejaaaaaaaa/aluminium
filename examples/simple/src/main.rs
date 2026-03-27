@@ -11,6 +11,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use winit::*;
 
+mod ui;
+pub use ui::Ui;
+
 mod gltf_loader;
 pub use gltf_loader::{GltfModel, load_gltf};
 
@@ -37,16 +40,9 @@ impl ApplicationHandler for App {
 
                 let world = self.world.as_mut().unwrap();
 
-                // let _ = world.draw_frame(|graph| {
-                //     graph.add_pass(
-                //         PresentPass::new("Simple")
-                //             .execute(unsafe { DrawCallback::new(|ctx| {
-                //                 ctx.set_scissor(Scissor::FullRes);
-                //                 ctx.set_viewport(Viewport::FullRes);
-                //                 ctx.draw(3);
-                //             })
-                //         }));
-                // });
+                let _ = world.draw_frame(|graph| {
+                    
+                });
             },
             _ => (),
         }
@@ -84,16 +80,17 @@ impl ApplicationHandler for App {
             },
         ];
 
-        // let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
-        // let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
+        let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
+        let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
 
-        // let pipeline = world.create::<RasterPipeline>(
-        // RasterPipelineDesc::new()
-        //         .vertex_shader("../shaders/spv/raster_ps-hlsl.spv")
-        //         .fragment_shader("../shaders/spv/raster_ps-hlsl.spv")
-        //         .vertex_attribute(ShaderType::Float3)
-        //         .vertex_attribute(ShaderType::Float3),
-        // ).expect("Error create Raster Pipeline");
+        let pipeline = world.create::<RasterPipeline>(
+        RasterPipelineDesc::new()
+                .render_target(1)
+                .vertex_shader("../shaders/spv/raster_vs.spv")
+                .fragment_shader("../shaders/spv/raster_ps.spv")
+                .dynamic_scissors(true)
+                .dynamic_viewport(true)
+        );
 
         self.world = Some(world);
         self.window = Some(window);

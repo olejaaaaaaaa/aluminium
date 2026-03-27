@@ -14,9 +14,9 @@ pub struct PipelineCache {
 }
 
 impl PipelineCache {
-    pub fn new(root: std::sync::Weak<super::Resources>) -> Self {
+    pub fn new() -> Self {
         Self {
-            raster_pipelines: Pool::new(root),
+            raster_pipelines: Pool::new(),
         }
     }
 }
