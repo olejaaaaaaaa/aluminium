@@ -4,44 +4,17 @@ use std::fs::{create_dir_all, read_dir};
 use std::path::Path;
 use std::process::Command;
 
-enum ShaderFormat<'a> {
-    Glsl { name: &'a str, ext: &'a str },
-    Hlsl { name: &'a str, profile: &'a str }
-}
-
-fn get_shader_format<'a>(path: &'a Path) -> Option<ShaderFormat<'a>> {
-    let ext = path.extension()?.to_str()?;
-    let stem = path.file_stem()?.to_str()?;
-    let name = path.file_prefix()?.to_str()?;
-
-    match ext {
-        "frag" | "vert" => Some(ShaderFormat::Glsl { name, ext }),
-        "hlsl" => {
-            let profile = if stem.ends_with("_vs") { "vs_6_6" }
-                else if stem.ends_with("_ps") { "ps_6_6" }
-                else { "cs_6_6" };
-            Some(ShaderFormat::Hlsl { name, profile })
-        }
-        _ => None,
-    }
-}
-
 fn main() {
-    let manifest_dir = env!("OUT_DIR");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_root = Path::new(&manifest_dir);
 
     let shaders_dir = project_root.join("./shaders");
     let spv_output_dir = project_root.join("./shaders/spv");
 
-    let _ = create_dir_all(&spv_output_dir);
+    create_dir_all(&spv_output_dir).unwrap();
 
     if !shaders_dir.exists() {
-        println!("cargo:warning=shaders directory not found: {}", shaders_dir.display());
-        return;
-    }
-
-    if !spv_output_dir.exists() {
-        println!("cargo:warning=shaders output directory not found: {}", spv_output_dir.display());
+        println!("cargo:warning=Shaders directory not found: {}", shaders_dir.display());
         return;
     }
 
@@ -49,80 +22,81 @@ fn main() {
 
     for entry in dirs {
         let entry = entry.unwrap();
-        let file_path = entry.path();
+        let shader_path = entry.path();
 
-        if file_path.is_dir() {
+        if shader_path.is_dir() {
             continue;
         }
 
-        if let Some(format) = get_shader_format(&file_path) {
-            match format {
-                ShaderFormat::Glsl { name, ext } => {
-                    
-                    let out_name = format!("{}_{}.spv", name, ext);
-                    let output_path = spv_output_dir.join(&out_name);
+        let original_name = entry.file_name().to_str().unwrap().to_string();
 
-                    let program = Command::new("glslc")
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped())
-                        .arg("-O0")
-                        .arg(&file_path)
-                        .arg("-o")
-                        .arg(&output_path)
-                        .spawn();
+        if !original_name.contains('.') {
+            continue;
+        }
 
-                    if let Ok(child) = program {
-                        let output = child.wait_with_output().unwrap();
-                        if !output.status.success() {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            for line in stderr.lines() {
-                                println!("cargo:warning={}", line);
-                            }
-                        }
-                    } else {
-                        println!("cargo:warning=glslc program not found");
-                        return;
-                    }
-                },
-                ShaderFormat::Hlsl { name, profile } => {
-                    let out_name = format!("{}.spv", name);
-                    let output_path = spv_output_dir.join(&out_name);
+        let words: Vec<&str> = original_name.split('.').collect();
 
-                    let program = Command::new("dxc")
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped())
-                        .arg(&file_path)
-                        .arg("-spirv")
-                        .arg("-T")
-                        .arg(profile)
-                        .arg("-E")
-                        .arg("main")
-                        .arg("-fspv-target-env=vulkan1.0")
-                        .arg("-fvk-use-dx-layout")
-                        .arg("-WX")
-                        .arg("-Ges")
-                        .arg("-HV")
-                        .arg("2021")
-                        .arg("-Fo")
-                        .arg(&output_path)
-                        .spawn();
+        if words.len() != 2 {
+            continue;
+        }
 
-                    if let Ok(child) = program {
-                        let output = child.wait_with_output().unwrap();
-                        if !output.status.success() {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            for line in stderr.lines() {
-                                println!("cargo:warning={}", line);
-                            }
-                        }
-                    } else {
-                        println!("cargo:warning=dxc program not found");
-                        return;
-                    }
-                }
+        let name = words[0];
+        let format = words[1];
+
+        if format == "frag" || format == "vert" {
+            let out_name = format!("{}-{}.spv", name, format);
+            let output_path = spv_output_dir.join(&out_name);
+
+            let res = Command::new("glslc")
+                .arg("-O0")
+                .arg(&shader_path)
+                .arg("-o")
+                .arg(&output_path)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+
+            if !res.success() {
+                println!("cargo:warning=Failed to compile glsl shader: {} -> {}", original_name, out_name);
+            }
+        } else if format == "hlsl" {
+            let out_name = format!("{}-{}.spv", name, format);
+            let output_path = spv_output_dir.join(&out_name);
+
+            let target_profile = if name.ends_with("_vs") {
+                "vs_6_6"
+            } else if name.ends_with("_ps") {
+                "ps_6_6"
+            } else {
+                "cs_6_6"
+            };
+
+            let res = Command::new("dxc")
+                .arg(shader_path)
+                .arg("-spirv")
+                .arg("-T")
+                .arg(target_profile)
+                .arg("-E")
+                .arg("main")
+                .arg("-fspv-target-env=vulkan1.0")
+                .arg("-fvk-use-dx-layout")
+                .arg("-WX")
+                .arg("-Ges")
+                .arg("-HV")
+                .arg("2021")
+                .arg("-Fo")
+                .arg(output_path.to_str().unwrap())
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+
+            if !res.success() {
+                println!("cargo:warning=Failed to compile shader: {} -> {}", original_name, out_name);
             }
         } else {
-            println!("cargo:warning=invalid shader: {:?}", file_path);
+            println!("cargo:warning=Not valid shader: {}", original_name);
         }
     }
 }
