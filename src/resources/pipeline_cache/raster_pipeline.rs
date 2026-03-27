@@ -3,7 +3,7 @@ use ash::vk;
 use crate::core::{GraphicsPipelineBuilder, PipelineLayoutBuilder};
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Destroy, Res, Resources, ShaderType};
-use crate::VulkanResult;
+use crate::{VulkanError, VulkanResult};
 
 pub struct RasterPipelineDesc {
     use_cache: bool,
@@ -11,6 +11,7 @@ pub struct RasterPipelineDesc {
     dynamic_scissors: bool,
     vertex_shader: Source,
     fragment_shader: Source,
+    multiple_render_target: Option<usize>,
     vertex_attributes: Vec<ShaderType>,
 }
 
@@ -18,10 +19,11 @@ impl Default for RasterPipelineDesc {
     fn default() -> Self {
         Self {
             use_cache: false,
-            dynamic_viewport: true,
-            dynamic_scissors: true,
+            dynamic_viewport: false,
+            dynamic_scissors: false,
             vertex_shader: Source::None,
             fragment_shader: Source::None,
+            multiple_render_target: None,
             vertex_attributes: vec![],
         }
     }
@@ -30,6 +32,11 @@ impl Default for RasterPipelineDesc {
 impl RasterPipelineDesc {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn render_target(mut self, count: usize) -> Self {
+        self.multiple_render_target = Some(count);
+        self
     }
 
     pub fn use_cache(mut self, value: bool) -> Self {
@@ -66,8 +73,15 @@ impl RasterPipelineDesc {
 pub struct RasterPipeline {}
 
 impl Destroy for RasterPipeline {
-    fn destroy(key: crate::resources::ResourceKey, resources: &crate::resources::Resources) {
-        // nothing
+    fn destroy(handle: &Res<Self>, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<Resources>) {
+        
+    }
+}
+
+impl Create for RasterPipeline {
+    type Desc<'a> = RasterPipelineDesc;
+    fn create(ctx: &std::sync::Arc<crate::render_context::RenderContext>, resources: &std::sync::Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
+        Err(VulkanError::Unknown(vk::Result::from_raw(0)))
     }
 }
 

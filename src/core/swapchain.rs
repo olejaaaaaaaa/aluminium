@@ -1,6 +1,4 @@
 use ash::vk::{self, ColorSpaceKHR};
-use log::debug;
-
 use super::device::Device;
 use super::{Instance, Surface, VulkanError, VulkanResult};
 
@@ -18,12 +16,13 @@ pub struct SwapchainBuilder<'a> {
     min_image_count: Option<u32>,
     surface: Option<&'a Surface>,
     instance: Option<&'a Instance>,
-    device: Option<&'a Device>,
+    device: &'a Device,
 }
 
 impl<'a> SwapchainBuilder<'a> {
-    pub fn new() -> Self {
+    pub fn new(device: &'a Device) -> Self {
         SwapchainBuilder {
+            device,
             color_space: None,
             extent: None,
             old_swapchain: None,
@@ -32,7 +31,6 @@ impl<'a> SwapchainBuilder<'a> {
             min_image_count: None,
             surface: None,
             instance: None,
-            device: None,
         }
     }
 
@@ -48,11 +46,6 @@ impl<'a> SwapchainBuilder<'a> {
 
     pub fn instance(mut self, instance: &'a Instance) -> Self {
         self.instance = Some(instance);
-        self
-    }
-
-    pub fn device(mut self, device: &'a Device) -> Self {
-        self.device = Some(device);
         self
     }
 
@@ -82,17 +75,17 @@ impl<'a> SwapchainBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Swapchain> {
-        let device = self.device.expect("Missing device");
-        let instance = self.instance.expect("Missing instance");
-        let surface = self.surface.expect("Missing surface");
-        let extent = self.extent.expect("Missing extent");
-        let present_mode = self.present_mode.expect("Missing present mode");
-        let min_image_count = self.min_image_count.expect("Missing min image count");
-        let format = self.format.expect("Missing format");
-        let color_space = self.color_space.expect("Missing color space");
+
+        let instance = self.instance.expect("Missing Instance");
+        let surface = self.surface.expect("Missing Surface");
+        let extent = self.extent.expect("Missing Extent");
+        let present_mode = self.present_mode.expect("Missing Present mode");
+        let min_image_count = self.min_image_count.expect("Missing Min image count");
+        let format = self.format.expect("Missing Format");
+        let color_space = self.color_space.expect("Missing Color space");
         let old_swapchain = self.old_swapchain.unwrap_or(vk::SwapchainKHR::null());
 
-        let swapchain_loader = ash::khr::swapchain::Device::new(&instance.raw, &device.raw);
+        let swapchain_loader = ash::khr::swapchain::Device::new(&instance.raw, &self.device.raw);
 
         let create_info = vk::SwapchainCreateInfoKHR::default()
             .clipped(true)
@@ -115,8 +108,6 @@ impl<'a> SwapchainBuilder<'a> {
                 .create_swapchain(&create_info, None)
                 .map_err(|e| VulkanError::Unknown(e))
         }?;
-
-        debug!("Swapchain: {:#?}", create_info);
 
         Ok(Swapchain {
             raw: swapchain,

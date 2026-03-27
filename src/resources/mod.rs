@@ -28,6 +28,7 @@ new_key_type! {
 }
 
 pub struct Ref<'a, T>(pub(crate) parking_lot::RwLockReadGuard<'a, T>);
+
 pub struct RefMut<'a, T>(pub(crate) parking_lot::RwLockWriteGuard<'a, T>);
 
 impl<'a, T> std::ops::Deref for Ref<'a, T> {
@@ -54,7 +55,8 @@ impl<'a, T> std::ops::DerefMut for RefMut<'a, T> {
 pub struct Res<T: Destroy> {
     pub(crate) key: ResourceKey,
     pub(crate) ref_count: Arc<AtomicUsize>,
-    pub(crate) root: Weak<Resources>,
+    pub(crate) ctx: Weak<RenderContext>,
+    pub(crate) resources: Weak<Resources>,
     pub(crate) _marker: PhantomData<T>,
 }
 
@@ -64,7 +66,8 @@ impl<T: Destroy> Clone for Res<T> {
         Self {
             key: self.key,
             ref_count: self.ref_count.clone(),
-            root: self.root.clone(),
+            ctx: self.ctx.clone(),
+            resources: self.resources.clone(),
             _marker: PhantomData,
         }
     }
@@ -74,7 +77,7 @@ impl<T: Destroy> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
         if ref_count == 1 {
-            T::destroy(self.key, &self.root.upgrade().expect("Resources already dropped"));
+            T::destroy(self,  self.ctx.clone(), self.resources.clone());
         }
     }
 }
@@ -82,7 +85,7 @@ impl<T: Destroy> Drop for Res<T> {
 #[allow(missing_docs)]
 pub trait Create: Sized + Destroy {
     type Desc<'a>;
-    fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>>;
+    fn create(ctx: &Arc<RenderContext>, resources: &Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>>;
 }
 
 #[allow(missing_docs)]
@@ -96,12 +99,15 @@ pub trait Get: Sized + Destroy {
 }
 
 #[allow(missing_docs)]
-pub trait Destroy {
-    fn destroy(key: ResourceKey, resources: &Resources);
+pub trait Destroy: Sized {
+    fn destroy(handle: &Res<Self>, ctx: Weak<RenderContext>, resources: Weak<Resources>);
 }
 
 pub struct Resources {
-   //pub(crate) bindless: Bindless,
+   pub(crate) bindless: Bindless,
+   pub(crate) meshes: RwLock<MeshStore>,
+   pub(crate) transforms: RwLock<TransformPool>,
+   pub(crate) pipeline_cache: RwLock<PipelineCache>,
    pub(crate) camera: RwLock<Camera>
 }
 
@@ -110,10 +116,16 @@ impl Resources {
         
         let frame_count = ctx.frame_count();
         let camera = Camera::new(&ctx.device, frame_count)?;
-        //let bindless = Bindless::new(&ctx)?;
+        let meshes = MeshStore::new();
+        let pipeline_cache = PipelineCache::new();
+        let transforms = TransformPool::new(&ctx.device, ctx.frame_count())?;
+        let bindless = Bindless::new(&ctx)?;
 
         Ok(Arc::new(Self {
-            //bindless,
+            bindless,
+            pipeline_cache: RwLock::new(pipeline_cache),
+            transforms: RwLock::new(transforms),
+            meshes: RwLock::new(meshes),
             camera: RwLock::new(camera)
         }))
     }
@@ -130,6 +142,7 @@ impl Resources {
 
     pub(crate) fn destroy(&self, device: &Device) {
         self.camera.write().buffer.destroy(device);
+        self.bindless.destroy(device);
     }
 
 

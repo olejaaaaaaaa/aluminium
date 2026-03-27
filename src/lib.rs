@@ -12,7 +12,6 @@ pub(crate) mod frame_values;
 pub(crate) mod per_frame;
 pub(crate) mod render_context;
 pub(crate) mod resources;
-pub(crate) mod ring_buffer;
 pub(crate) mod world_renderer;
 
 pub use core::{VulkanError, VulkanResult};

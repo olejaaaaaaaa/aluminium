@@ -13,7 +13,6 @@ pub struct ShaderModule {
 }
 
 impl ShaderModule {
-    #[allow(dead_code)]
     pub fn destroy_shader(&self, device: &Device) {
         unsafe {
             device.destroy_shader_module(self.raw, None);

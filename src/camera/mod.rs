@@ -3,7 +3,6 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
 use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
-use crate::ring_buffer::RingBuffer;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]

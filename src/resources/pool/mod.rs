@@ -10,23 +10,22 @@ use crate::resources::{Destroy, Res, ResourceKey, Resources};
 
 pub struct Pool<T: Destroy> {
     slots: SlotMap<ResourceKey, T>,
-    root: Weak<Resources>,
 }
 
 impl<T: Destroy> Pool<T> {
-    pub fn new(root: Weak<Resources>) -> Self {
+    pub fn new() -> Self {
         Self {
             slots: SlotMap::with_key(),
-            root,
         }
     }
 
-    pub fn insert(&mut self, value: T) -> Res<T> {
+    pub fn insert(&mut self, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>, value: T) -> Res<T> {
         let key = self.slots.insert(value);
         Res {
             key,
             ref_count: Arc::new(AtomicUsize::new(1)),
-            root: self.root.clone(),
+            ctx,
+            resources,
             _marker: PhantomData,
         }
     }

@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ffi::CStr;
-use std::hash::Hash;
 
 use ash::vk;
 use log::{debug, warn};
@@ -17,7 +16,7 @@ pub struct Instance {
     pub(crate) raw: ash::Instance,
     pub(crate) extensions: HashSet<&'static CStr>,
     pub(crate) layers: HashSet<&'static CStr>,
-    pub debug_callback: Option<DebugCallback>,
+    pub(crate) debug_callback: Option<DebugCallback>,
 }
 
 impl Instance {

@@ -1,12 +1,12 @@
-use std::sync::Weak;
-
+use std::sync::{Arc, Weak};
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 use log::warn;
 
-use crate::core::{Device, GpuBuffer, GpuBufferBuilder};
-use crate::resources::{self, Create, Destroy, Pool, Resources};
 use crate::VulkanResult;
+use crate::core::{GpuBuffer, GpuBufferBuilder};
+use crate::render_context::RenderContext;
+use crate::resources::{Create, Destroy, Pool, Resources};
 
 pub struct Mesh {
     /// Instance offset
@@ -23,53 +23,60 @@ pub struct Mesh {
 
 pub struct MeshDesc<'a> {
     vertices: &'a [u8],
+    indices: Option<&'a [u32]>
 }
 
 impl<'a> MeshDesc<'a> {
     pub fn new<T: Pod + Zeroable>(vertices: &'a [T]) -> MeshDesc<'a> {
         MeshDesc {
             vertices: bytemuck::cast_slice(vertices),
+            indices: None
         }
+    }
+
+    pub fn with_indices(mut self, indices: &'a [u32]) -> MeshDesc<'a> {
+        self.indices = Some(indices);
+        self
     }
 }
 
 impl Destroy for Mesh {
-    fn destroy(key: super::ResourceKey, resources: &super::Resources) {
-        warn!("Mesh leaking with key {:?}", key);
+    fn destroy(handle: &super::Res<Self>, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>) {
+        
     }
 }
 
-// impl Create for Mesh {
-//     type Desc<'a> = MeshDesc<'a>;
-//     fn create(resources: &super::Resources, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
-//         let ctx = &resources.ctx;
-//         let size = std::mem::size_of_val(desc.vertices) as u64;
+impl Create for Mesh {
+    type Desc<'a> = MeshDesc<'a>;
+    fn create(ctx: &Arc<RenderContext>, resources: &Arc<super::Resources>, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
 
-//         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
-//             .size(size)
-//             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-//             .build()?;
+        let size = std::mem::size_of_val(desc.vertices) as u64;
 
-//         vertex_buffer.upload_data(&ctx.device, desc.vertices)?;
+        let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
+            .size(size)
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .build()?;
 
-//         let mesh = resources.mesh.write().data.insert(Mesh {
-//             instance_offset: 0,
-//             instance_count: 1,
-//             vertex_offset: 0,
-//             vertex_buffer,
-//             index_buffer: None,
-//         });
+        vertex_buffer.upload_data(&ctx.device, desc.vertices)?;
 
-//         Ok(mesh)
-//     }
-// }
+        let mesh = resources.meshes.write().data.insert(Arc::downgrade(ctx), Arc::downgrade(resources), Mesh {
+            instance_offset: 0,
+            instance_count: 1,
+            vertex_offset: 0,
+            vertex_buffer,
+            index_buffer: None,
+        });
+
+        Ok(mesh)
+    }
+}
 
 pub struct MeshStore {
     pub data: Pool<Mesh>,
 }
 
 impl MeshStore {
-    pub fn new(resources: Weak<Resources>) -> Self {
-        Self { data: Pool::new(resources) }
+    pub fn new() -> Self {
+        Self { data: Pool::new() }
     }
 }
