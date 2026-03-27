@@ -12,7 +12,6 @@ compile_error!("Not supported at the moment");
 compile_error!("At least one allocator feature must be enabled: 'vma' or 'gpu-allocator'");
 
 use super::{Device, VulkanError, VulkanResult};
-use crate::core::buffer;
 
 pub struct GpuBuffer {
     pub raw: vk::Buffer,
@@ -36,10 +35,9 @@ impl GpuBuffer {
         device
             .allocator
             .flush_allocation(&self.allocation, 0, buffer_size as u64)
-            .map_err(|e| {
-                use crate::core::errors::VulkanError;
-                VulkanError::Unknown(e)
-            })?;
+            .map_err( 
+                VulkanError::Unknown
+            )?;
 
         Ok(())
     }

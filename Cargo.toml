@@ -21,7 +21,7 @@ resolver = "2"
 ash = "0.38.0"
 ash-window = "0.13.0"
 vk-mem = "0.5.0"      
-# TODO:                                         
+# TODO: Replace vk-mem to gpu-allocator                                 
 gpu-allocator = { version = "0.28.0", features = ["vulkan"] }     
 vk-sync = "0.1.6"
 winit = { version = "0.30.12", features = ["rwh_06"] }
@@ -69,7 +69,6 @@ debug = 1
 opt-level = 2       
 
 [profile.release]
-features = ["vma"]
 opt-level = 3
 lto = "thin"          
 codegen-units = 1      

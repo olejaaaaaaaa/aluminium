@@ -32,15 +32,15 @@ impl CommandPoolPerFrame {
             self.command_buffers.push(vec![]);
         }
 
-        for i in &mut self.command_buffers {
-            let dif = pass_count - i.len();
-            if dif > 0 {
-                let buffers = self
-                    .command_pool
-                    .create_command_buffers(device, dif as u32)?;
-                i.extend(buffers);
-            }
-        }
+        // for i in &mut self.command_buffers {
+        //     let dif = pass_count - i.len();
+        //     if dif > 0 {
+        //         let buffers = self
+        //             .command_pool
+        //             .create_cmd_buffers(device, dif as u32)?;
+        //         i.extend(buffers);
+        //     }
+        // }
 
         Ok(&self.command_buffers[image_index as usize])
     }

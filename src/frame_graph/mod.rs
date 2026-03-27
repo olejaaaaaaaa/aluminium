@@ -45,7 +45,7 @@ impl FrameGraph {
         Ok(())
     }
 
-    fn import<T: Destroy + Import>(&mut self, res: Res<T>) -> Handle<T> {
+    pub fn import<T: Destroy + Import>(&mut self, res: Res<T>) -> Handle<T> {
         todo!()
     }
 
@@ -68,12 +68,12 @@ impl FrameGraph {
             unsafe {
                 let wait = device.wait_for_fences(&[sync.in_flight_fence.raw], true, u64::MAX);
                 if let Err(err) = wait {
-                    log::error!("Error wait for fences: {:?} skip frame", err);
+                    log::error!("Error wait for fences: {:?}", err);
                     return Ok(());
                 }
                 device
                     .reset_fences(&[sync.in_flight_fence.raw])
-                    .expect("Error reset fences");
+                    .map_err(VulkanError::Unknown)?;
             }
 
             // Get image index or skip a frame
@@ -83,10 +83,7 @@ impl FrameGraph {
                     .loader
                     .acquire_next_image(window.swapchain.raw, u64::MAX, sync.image_available.raw, vk::Fence::null())
                 {
-                    Ok((index, is_suboptimal)) => {
-                        if is_suboptimal {
-                            return Err(VulkanError::Swapchain(SwapchainError::SwapchainSubOptimal));
-                        }
+                    Ok((index, _)) => {
                         index
                     },
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {

@@ -16,6 +16,7 @@ use super::PassContext;
 use crate::resources::Resources;
 
 pub struct DrawCallback(Box<dyn FnOnce(&PassContext) + Send + 'static>);
+pub struct SyncCallback(Box<dyn FnOnce(vk::CommandBuffer) + Send + 'static>);
 
 impl DrawCallback {
     pub unsafe fn new(callback: impl FnOnce(&PassContext) + Send + 'static) -> Self {

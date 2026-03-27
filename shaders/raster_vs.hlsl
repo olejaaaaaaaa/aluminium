@@ -26,10 +26,10 @@ struct Transform {
 [[vk::binding(0,  0)]] ConstantBuffer<Camera>      camera;
 [[vk::binding(1,  0)]] ConstantBuffer<FrameValues> frame_values;
 [[vk::binding(2,  0)]] StructuredBuffer<Transform> transforms;
-[[vk::binding(3,  0)]] StructuredBuffer<Transform> prev_transforms;
-[[vk::binding(4,  0)]] Texture2D                   textures[];
-[[vk::binding(5, 0)]] RWTexture2D                  rw_textures[];
-[[vk::binding(6, 0)]] SamplerState                 samplers[5];
+
+[[vk::binding(3,  0)]] Texture2D<float4>           textures[];
+[[vk::binding(4, 0)]] RWTexture2D<float4>          rw_textures[];
+[[vk::binding(5, 0)]] SamplerState                 samplers[5];
 
 const uint SAMPLER_REPEAT = 0;
 const uint SAMPLER_CLAMP = 1;

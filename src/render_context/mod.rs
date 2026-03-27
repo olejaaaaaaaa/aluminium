@@ -32,15 +32,12 @@ impl RenderContext {
         self.window.read().resolution
     }
 
-    /// Recreate
-    /// - `Swapchain`
-    /// - `FrameBuffers`
-    /// - `ImageViews`
+    /// Recreate [`WindowManager`]
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
         self.window.write().resize(&self.device, width, height)
     }
 
-    /// Create Render Context
+    /// Create [`RenderContext`]
     pub fn new(window: &winit::window::Window) -> VulkanResult<Arc<Self>> {
         let app = App::new()?;
         let instance = Instance::new(window, &app)?;
@@ -73,12 +70,11 @@ impl RenderContext {
             }
         }
 
-        let swapchain = SwapchainBuilder::new()
+        let swapchain = SwapchainBuilder::new(&device)
             .min_image_count(caps.min_image_count)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)
-            .device(&device)
             .color_space(color_space)
             .extent(extent)
             .format(format)
@@ -98,9 +94,9 @@ impl RenderContext {
         let mut frame_buffers = vec![];
 
         for i in &image_views {
-            let frame_buffer = FrameBufferBuilder::new(&device, render_pass.raw)
-                .add_attachment(i.raw)
-                .add_attachment(depth_view.raw)
+            let frame_buffer = FrameBufferBuilder::new(&device)
+                .render_pass(render_pass.raw)
+                .attachments(&[i.raw, depth_view.raw])
                 .extent(caps.current_extent)
                 .layers(1)
                 .build()?;
@@ -165,8 +161,8 @@ impl Drop for RenderContext {
                 i.destroy(device);
             }
 
-            window.swapchain.loader.destroy_swapchain(window.swapchain.raw, None);
-            window.surface.loader.destroy_surface(window.surface.raw, None);
+            window.swapchain.destroy();
+            window.surface.destroy();
             device.logical_device.destroy();
             device.instance.destroy();
         }
