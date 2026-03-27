@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest_dir = env!("OUT_DIR");
     let project_root = Path::new(&manifest_dir);
 
     let shaders_dir = project_root.join("./shaders");
