@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::ffi::CStr;
 
 use ash::vk;
-use log::{debug, warn};
+use tracing::{debug, warn};
 use winit::raw_window_handle::HasDisplayHandle;
 
 use super::app::App;

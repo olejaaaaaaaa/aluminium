@@ -1,4 +1,3 @@
-
 pub enum Viewport {
     FullRes,
     HalfRes,

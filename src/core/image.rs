@@ -1,115 +1,145 @@
 use ash::vk;
-#[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
-use vk_mem::Alloc;
+use gpu_allocator::vulkan::{Allocation, AllocationCreateDesc, AllocationScheme};
+use gpu_allocator::MemoryLocation;
+use tracing::warn;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
 pub struct Image {
     pub(crate) raw: vk::Image,
-    #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
-    allocation: vk_mem::Allocation,
+    pub(crate) allocation: Option<Allocation>,
 }
 
 impl Image {
     pub fn destroy(&mut self, device: &Device) {
-        unsafe {
-            device
-                .allocator
-                .destroy_image(self.raw, &mut self.allocation);
+        if let Some(allocation) = self.allocation.take() {
+            let _ = {
+                profiling::scope!("vkFreeImageMemory");
+                device.allocator.lock().free(allocation)
+            };
+            unsafe {
+                profiling::scope!("vkDestroyImage");
+                device.destroy_image(self.raw, None);
+            }
+        } else {
+            warn!("Double free!")
         }
     }
 }
 
 pub struct ImageBuilder<'a> {
     pub device: &'a Device,
-    pub create_info: vk::ImageCreateInfo<'static>,
-    #[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
-    pub alloc_info: vk_mem::AllocationCreateInfo,
+    pub samples: Option<vk::SampleCountFlags>,
+    pub array_layers: Option<u32>,
+    pub extent: Option<vk::Extent3D>,
+    pub format: Option<vk::Format>,
+    pub usage: Option<vk::ImageUsageFlags>,
+    pub image_type: Option<vk::ImageType>,
 }
 
 impl<'a> ImageBuilder<'a> {
-    pub fn depth(device: &'a Device, format: vk::Format, extent: vk::Extent2D) -> Self {
+    pub fn new(device: &'a Device) -> Self {
         Self {
             device,
-            create_info: vk::ImageCreateInfo::default()
-                .mip_levels(1)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
-                .extent(extent.into())
-                .format(format)
-                .tiling(vk::ImageTiling::OPTIMAL)
-                .samples(vk::SampleCountFlags::TYPE_1)
-                .array_layers(1)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-                .image_type(vk::ImageType::TYPE_2D),
-            alloc_info: vk_mem::AllocationCreateInfo {
-                usage: vk_mem::MemoryUsage::AutoPreferDevice,
-                ..Default::default()
-            },
+            samples: None,
+            array_layers: None,
+            extent: None,
+            format: None,
+            usage: None,
+            image_type: None,
         }
     }
 
-    #[allow(dead_code)]
-    pub fn cube(device: &'a Device, format: vk::Format, extent: vk::Extent2D) -> Self {
-        Self {
-            device,
-            create_info: vk::ImageCreateInfo::default()
-                .mip_levels(1)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
-                .extent(extent.into())
-                .format(format)
-                .tiling(vk::ImageTiling::OPTIMAL)
-                .samples(vk::SampleCountFlags::TYPE_1)
-                .array_layers(6)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-                .image_type(vk::ImageType::TYPE_2D)
-                .flags(vk::ImageCreateFlags::CUBE_COMPATIBLE),
-            alloc_info: vk_mem::AllocationCreateInfo {
-                usage: vk_mem::MemoryUsage::AutoPreferDevice,
-                ..Default::default()
-            },
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn new_2d(device: &'a Device, format: vk::Format, extent: vk::Extent2D) -> Self {
-        Self {
-            device,
-            create_info: vk::ImageCreateInfo::default()
-                .mip_levels(1)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
-                .extent(extent.into())
-                .format(format)
-                .tiling(vk::ImageTiling::OPTIMAL)
-                .samples(vk::SampleCountFlags::TYPE_1)
-                .array_layers(1)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-                .image_type(vk::ImageType::TYPE_2D),
-            alloc_info: vk_mem::AllocationCreateInfo {
-                usage: vk_mem::MemoryUsage::AutoPreferDevice,
-                ..Default::default()
-            },
-        }
-    }
-
-    #[allow(dead_code)]
     pub fn usage(mut self, usage: vk::ImageUsageFlags) -> Self {
-        self.create_info = self.create_info.usage(usage);
+        self.usage = Some(usage);
+        self
+    }
+
+    pub fn extent(mut self, extent: vk::Extent3D) -> Self {
+        self.extent = Some(extent);
+        self
+    }
+
+    pub fn array_layers(mut self, layers: u32) -> Self {
+        self.array_layers = Some(layers);
+        self
+    }
+
+    pub fn format(mut self, format: vk::Format) -> Self {
+        self.format = Some(format);
+        self
+    }
+
+    pub fn image_type(mut self, ty: vk::ImageType) -> Self {
+        self.image_type = Some(ty);
         self
     }
 
     pub fn build(self) -> VulkanResult<Image> {
-        let (image, allocation) = unsafe {
-            profiling::scope!("vmaCreateImage");
+        let usage = self.usage.expect("Missing Usage");
+        let extent = self.extent.expect("Missing Extent");
+        let format = self.format.expect("Missing Format");
+        let image_type = self.image_type.unwrap_or(vk::ImageType::TYPE_2D);
+        let array_layers = self.array_layers.unwrap_or(1);
+        let samples = self.samples.unwrap_or(vk::SampleCountFlags::TYPE_1);
+
+        let create_info = vk::ImageCreateInfo::default()
+            .mip_levels(1)
+            .samples(samples)
+            .array_layers(array_layers)
+            .extent(extent)
+            .format(format)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .image_type(image_type)
+            .usage(usage);
+
+        let image = unsafe {
+            profiling::scope!("vkCreateImage");
             self.device
-                .allocator
-                .create_image(&self.create_info, &self.alloc_info)
+                .raw
+                .create_image(&create_info, None)
                 .map_err(VulkanError::Unknown)?
         };
 
-        Ok(Image { raw: image, allocation })
+        let requirements = unsafe { self.device.raw.get_image_memory_requirements(image) };
+
+        let mut allocator = self.device.allocator.lock();
+
+        let allocation = {
+            profiling::scope!("vkAllocateImage");
+            allocator
+                .allocate(&AllocationCreateDesc {
+                    name: "Image",
+                    requirements,
+                    location: MemoryLocation::GpuOnly,
+                    linear: false,
+                    allocation_scheme: AllocationScheme::GpuAllocatorManaged,
+                })
+                .map_err(|_| {
+                    unsafe {
+                        self.device.destroy_image(image, None);
+                    }
+                    VulkanError::Unknown(vk::Result::from_raw(0))
+                })?
+        };
+
+        unsafe {
+            profiling::scope!("vkBindImageMemory");
+            self.device
+                .raw
+                .bind_image_memory(image, allocation.memory(), allocation.offset())
+                .map_err(|e| {
+                    self.device.raw.destroy_image(image, None);
+                    VulkanError::Unknown(e)
+                })?;
+        }
+
+        Ok(Image {
+            raw: image,
+            allocation: Some(allocation),
+        })
     }
 }

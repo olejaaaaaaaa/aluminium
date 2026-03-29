@@ -1,4 +1,5 @@
 use ash::vk;
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -55,7 +56,7 @@ impl<'a> DescriptorPoolBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<DescriptorPool> {
-        let sizes = self.sizes.expect("Missing DescriptorPoolSizes");
+        let sizes = self.sizes.expect("Missing Pool sizes");
         let max_sets = self.max_sets.expect("Missing Max sets");
         let flags = self.flags;
 
@@ -81,6 +82,14 @@ impl<'a> DescriptorPoolBuilder<'a> {
                 .create_descriptor_pool(&create_info, None)
                 .map_err(VulkanError::Unknown)
         }?;
+
+        debug!(
+            handle = ?pool,
+            sizes = ?sizes,
+            max_sets = ?max_sets,
+            flags = ?flags,
+            "DescriptorPool created"
+        );
 
         Ok(DescriptorPool { raw: pool })
     }

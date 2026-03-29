@@ -1,5 +1,5 @@
 use ash::vk;
-use log::debug;
+use tracing::debug;
 
 use super::{Device, VulkanError, VulkanResult};
 
@@ -43,6 +43,12 @@ impl<'a> PipelineLayoutBuilder<'a> {
                 .create_pipeline_layout(&create_info, None)
                 .map_err(VulkanError::Unknown)
         }?;
+
+        debug!(
+            push = ?self.push,
+            set_layout = ?self.layout,
+            "PipelineLayout created"
+        );
 
         Ok(PipelineLayout { raw: layout })
     }

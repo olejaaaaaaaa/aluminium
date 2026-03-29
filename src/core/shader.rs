@@ -3,12 +3,12 @@ use std::io::Read;
 use std::path::Path;
 
 use ash::vk;
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
 pub struct ShaderModule {
-    pub(crate) bytes: Vec<u8>,
     pub(crate) raw: vk::ShaderModule,
 }
 
@@ -17,6 +17,10 @@ impl ShaderModule {
         unsafe {
             device.destroy_shader_module(self.raw, None);
         }
+        debug!(
+            handle = ?self.raw,
+            "Shader destroyed"
+        )
     }
 }
 
@@ -48,10 +52,7 @@ impl<'a> ShaderBuilder<'a> {
                 .map_err(VulkanError::Unknown)?
         };
 
-        Ok(ShaderModule {
-            raw: shader,
-            bytes: bytemuck::cast_slice(code).to_vec(),
-        })
+        Ok(ShaderModule { raw: shader })
     }
 }
 

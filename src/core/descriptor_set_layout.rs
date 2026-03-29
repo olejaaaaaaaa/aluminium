@@ -40,7 +40,6 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<DescriptorSetLayout> {
-
         #[cfg(debug_assertions)]
         {
             if self.bindings.is_empty() {

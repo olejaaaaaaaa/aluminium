@@ -9,14 +9,12 @@ use slotmap::SlotMap;
 use crate::resources::{Destroy, Res, ResourceKey, Resources};
 
 pub struct Pool<T: Destroy> {
-    slots: SlotMap<ResourceKey, T>,
+    pub slots: SlotMap<ResourceKey, T>,
 }
 
 impl<T: Destroy> Pool<T> {
     pub fn new() -> Self {
-        Self {
-            slots: SlotMap::with_key(),
-        }
+        Self { slots: SlotMap::with_key() }
     }
 
     pub fn insert(&mut self, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>, value: T) -> Res<T> {

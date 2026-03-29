@@ -31,7 +31,6 @@ mod utils;
 pub use utils::*;
 
 mod phys_features;
-pub use phys_features::*;
 
 mod shader;
 pub use shader::*;
@@ -69,7 +68,6 @@ mod fence;
 pub use fence::*;
 
 mod sampler;
-pub use sampler::*;
 
 mod descriptor_pool;
 pub use descriptor_pool::*;

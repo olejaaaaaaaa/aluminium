@@ -3,10 +3,9 @@ use std::sync::{Arc, Weak};
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 
-use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
+use crate::core::{Device, VulkanResult};
 use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
 use crate::resources::{Create, Destroy, LinearPool, Res, Resources};
-use crate::VulkanError;
 
 pub const MAX_TRANSFORMS: usize = 1_000;
 
@@ -60,9 +59,7 @@ impl Transform {
 }
 
 impl Destroy for Transform {
-    fn destroy(handle: &Res<Self>, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>) {
-        
-    }
+    fn destroy(_handle: &Res<Self>, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
 }
 
 impl Create for Transform {
@@ -71,13 +68,17 @@ impl Create for Transform {
     fn create(ctx: &Arc<crate::render_context::RenderContext>, resources: &Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
         let mut transforms = resources.transforms.write();
         transforms.is_dirty = true;
-        
-        let handle = transforms.pool.insert(Arc::downgrade(ctx), Arc::downgrade(resources), Transform { 
-            rot: desc.rot, 
-            scale: desc.scale, 
-            pos: desc.pos, 
-            _pad: [0.0, 0.0, 0.0, 0.0] 
-        });
+
+        let handle = transforms.pool.insert(
+            Arc::downgrade(ctx),
+            Arc::downgrade(resources),
+            Transform {
+                rot: desc.rot,
+                scale: desc.scale,
+                pos: desc.pos,
+                _pad: [0.0, 0.0, 0.0, 0.0],
+            },
+        );
 
         Ok(handle)
     }
@@ -85,10 +86,10 @@ impl Create for Transform {
 
 // impl Create for Transform {
 //     type Desc<'a> = TransformDesc;
-//     fn create(resources: &Resources, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
-//         let mut transforms = resources.transforms.write();
-//         let res = transforms.pool.insert(Transform {
-//             rot: desc.rot,
+//     fn create(resources: &Resources, desc: Self::Desc<'_>) ->
+// VulkanResult<Res<Self>> {         let mut transforms =
+// resources.transforms.write();         let res =
+// transforms.pool.insert(Transform {             rot: desc.rot,
 //             scale: desc.scale,
 //             pos: desc.pos,
 //             _pad: [0.0, 0.0, 0.0, 0.0],
@@ -107,7 +108,6 @@ pub struct TransformPool {
 
 impl TransformPool {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
-
         let mut buffer = PerFrameBufferBuilder::new(device)
             .buffer_size(size_of::<Transform>() as u64)
             .frame_count(frame_count)
@@ -118,7 +118,7 @@ impl TransformPool {
 
         for i in 0..frame_count {
             let buffer = buffer.get_mut(i as u32);
-            buffer.upload_data(device, &data)?;
+            buffer.upload_data(&data)?;
         }
 
         Ok(Self {
@@ -128,12 +128,16 @@ impl TransformPool {
         })
     }
 
-    pub fn update(&mut self, device: &Device, image_index: u32) -> VulkanResult<()> {
+    pub fn update(&mut self, image_index: u32) -> VulkanResult<()> {
         if self.is_dirty {
             let buffer = self.buffer.get_mut(image_index);
-            buffer.upload_data(device, &self.pool.as_slice());
+            buffer.upload_data(self.pool.as_slice())?;
             self.is_dirty = false;
         }
         Ok(())
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self.buffer.destroy(device);
     }
 }

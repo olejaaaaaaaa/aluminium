@@ -21,9 +21,7 @@ impl<'a> FenceBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Fence> {
-
-        let create_info = vk::FenceCreateInfo::default()
-            .flags(self.flags);
+        let create_info = vk::FenceCreateInfo::default().flags(self.flags);
 
         let fence = unsafe {
             profiling::scope!("vkCreateFence");

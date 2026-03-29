@@ -1,7 +1,7 @@
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 
-use crate::core::{Device, GpuBuffer, GpuBufferBuilder, VulkanResult};
+use crate::core::{Device, VulkanResult};
 use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
 
 #[repr(C)]
@@ -29,13 +29,12 @@ impl CameraData {
 }
 
 pub struct Camera {
-    pub(crate) is_dirty: bool,
-    pub(crate) buffer: PerFrameBuffer,
-    pub(crate) data: CameraData,
+    is_dirty: bool,
+    buffer: PerFrameBuffer,
+    data: CameraData,
 }
 
 impl Camera {
-
     pub fn proj(&mut self) -> &[[f32; 4]; 4] {
         &self.data.proj
     }
@@ -67,13 +66,17 @@ impl Camera {
 
         for i in 0..frame_count {
             let buffer = buffer.get_mut(i as u32);
-            buffer.upload_data(device, &[data])?;
+            buffer.upload_data(&[data])?;
         }
 
-        Ok(Self { 
-            is_dirty: false, 
-            buffer, 
-            data 
+        Ok(Self {
+            is_dirty: false,
+            buffer,
+            data,
         })
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self.buffer.destroy(device);
     }
 }

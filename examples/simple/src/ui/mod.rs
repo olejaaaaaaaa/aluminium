@@ -1,10 +1,7 @@
-
-pub struct Ui {
-
-}
+pub struct Ui {}
 
 impl Ui {
     pub fn new() -> Self {
-        Self { }
+        Self {}
     }
 }

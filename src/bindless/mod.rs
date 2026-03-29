@@ -1,5 +1,5 @@
-use std::sync::{Arc, LazyLock};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 use ash::vk;
 
@@ -19,8 +19,7 @@ pub(crate) struct Bindless {
 
 impl Bindless {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Self> {
-
-        let limits = ctx.device.props2.properties.limits;
+        let _limits = ctx.device.props2.properties.limits;
 
         let layout = vec![
             vk::DescriptorSetLayoutBinding::default()
@@ -76,10 +75,11 @@ impl Bindless {
         let layouts = [set_layout.raw];
         let set = pool.create_descriptor_set(&ctx.device, &layouts)?[0];
 
-        Ok(Self { 
+        Ok(Self {
             next_texture: AtomicU32::new(0),
-            set_layout, 
-            set, pool 
+            set_layout,
+            set,
+            pool,
         })
     }
 
@@ -96,8 +96,8 @@ impl Bindless {
 
         let write = vk::WriteDescriptorSet::default()
             .dst_set(self.set)
-            .dst_binding(0)            
-            .dst_array_element(index)   
+            .dst_binding(0)
+            .dst_array_element(index)
             .descriptor_type(vk::DescriptorType::SAMPLED_IMAGE)
             .image_info(std::slice::from_ref(&image_info));
 

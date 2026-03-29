@@ -19,34 +19,32 @@ resolver = "2"
 
 [workspace.dependencies]
 ash = "0.38.0"
-ash-window = "0.13.0"
-vk-mem = "0.5.0"      
-# TODO: Replace vk-mem to gpu-allocator                                 
+ash-window = "0.13.0"                                
 gpu-allocator = { version = "0.28.0", features = ["vulkan"] }     
 vk-sync = "0.1.6"
 winit = { version = "0.30.12", features = ["rwh_06"] }
 slotmap = "1.1.1"
 bytemuck = { version = "1.24.0", features = ["derive"] }
-log = { version = "0.4.29", default-features = false }
+tracing = "0.1.44"
 thiserror = "2.0.17"
 profiling = "1.0.17"
 parking_lot = "0.12.5"
 # For reflection
 naga = { version = "28.0.0", features = ["spv-in"] }
 # Only for examples
-env_logger = { version = "0.11.8", default-features = false }
+tracing-subscriber = "0.3.23"
 gltf = "1.4.1"
 image = "0.25.10"
 
 [dependencies]
 ash = { workspace = true }
-ash-window = { workspace = true }
-vk-mem = { workspace = true, optional = true }          
-gpu-allocator = { workspace = true, optional = true }   
+ash-window = { workspace = true }    
+gpu-allocator = { workspace = true }   
 bytemuck = { workspace = true }
 vk-sync = { workspace = true }
 winit = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 slotmap = { workspace = true }
 parking_lot = { workspace = true }
@@ -54,9 +52,7 @@ profiling = { workspace = true }
 naga = { workspace = true , optional = true }
 
 [features]
-default = ["vma", "runtime-checks"]
-gpu-allocator = ["dep:gpu-allocator"]
-vma = ["dep:vk-mem"]
+default = []
 validation_layer = []
 runtime-checks = ["dep:naga"]
 

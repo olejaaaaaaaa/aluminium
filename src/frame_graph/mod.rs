@@ -1,4 +1,5 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
+
 use ash::vk::{self, ClearValue};
 
 mod pass;
@@ -8,44 +9,50 @@ pub mod pass_context;
 pub use pass_context::*;
 
 pub mod types;
+use tracing::{error, trace};
 pub use types::*;
 
 mod resources;
 pub use resources::*;
 
-use crate::bindless::Bindless;
-use crate::camera::{Camera, CameraData};
-use crate::core::{Device, Resolution as _, SwapchainError, VulkanError, VulkanResult};
-use crate::frame_values::{FrameData, FrameValues};
-use crate::per_frame::CommandPoolPerFrame;
+use crate::core::{CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult};
 use crate::render_context::RenderContext;
-use crate::resources::{Create, Destroy, Res, Resources};
+use crate::resources::{Destroy, Res, Resources};
 
 pub struct FrameGraph {
+    cmd_pool: CommandPool,
+    cmd_buffers: Vec<vk::CommandBuffer>,
     execution_order: Vec<usize>,
     passes: Vec<Pass>,
 }
 
 impl FrameGraph {
     /// Create new [`FrameGraph`]
-    pub(crate) fn new() -> VulkanResult<Self> {
+    pub(crate) fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Self> {
+        let cmd_pool = CommandPoolBuilder::reset(&ctx.device).build()?;
+        let cmd_buffers = cmd_pool.allocate_cmd_buffers(&ctx.device, vk::CommandBufferLevel::PRIMARY, 3)?;
+
         Ok(FrameGraph {
+            cmd_pool,
+            cmd_buffers,
             execution_order: vec![],
             passes: vec![],
         })
     }
 
+    pub fn create<T>(&mut self, _value: T) {}
+
     pub fn add_pass<P: Into<Pass>>(&mut self, pass: P) {
         self.passes.push(pass.into());
     }
 
-    pub(crate) fn compile(&mut self, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
+    pub(crate) fn compile(&mut self, _ctx: &Arc<RenderContext>, _resources: &Arc<Resources>) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
         self.topological_sort();
         Ok(())
     }
 
-    pub fn import<T: Destroy + Import>(&mut self, res: Res<T>) -> Handle<T> {
+    pub fn import<T: Destroy + Import>(&mut self, _res: Res<T>) -> Handle<T> {
         todo!()
     }
 
@@ -55,12 +62,12 @@ impl FrameGraph {
     }
 
     pub(crate) fn execute(&mut self, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
-
+        profiling::scope!("FrameGraph::execute");
+        let queue = ctx.device.queue_pool.get_present().unwrap();
         let device = &ctx.device;
 
         // ------------------------Acquire Next Image-----------------------------
         let image_index = {
-
             let window = &ctx.window.read();
             let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
@@ -68,7 +75,7 @@ impl FrameGraph {
             unsafe {
                 let wait = device.wait_for_fences(&[sync.in_flight_fence.raw], true, u64::MAX);
                 if let Err(err) = wait {
-                    log::error!("Error wait for fences: {:?}", err);
+                    error!("Error wait for fences: {:?}", err);
                     return Ok(());
                 }
                 device
@@ -83,9 +90,7 @@ impl FrameGraph {
                     .loader
                     .acquire_next_image(window.swapchain.raw, u64::MAX, sync.image_available.raw, vk::Fence::null())
                 {
-                    Ok((index, _)) => {
-                        index
-                    },
+                    Ok((index, _)) => index,
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
                         return Err(VulkanError::Swapchain(SwapchainError::SwapchainOutOfDateKhr));
                     },
@@ -96,12 +101,14 @@ impl FrameGraph {
             }
         };
 
+        let cmd_buffer = self.cmd_buffers[image_index as usize];
+
         // ------------------------Record Command Buffers-----------------------------
         {
             let window = ctx.window.read();
             let resolution = window.resolution;
             for i in self.execution_order.drain(..) {
-                let pass = &self.passes.swap_remove(i);
+                let pass = self.passes.swap_remove(i);
                 match pass {
                     Pass::Present(pass) => {
                         let frame_buffer = &window.frame_buffers[image_index as usize];
@@ -113,67 +120,55 @@ impl FrameGraph {
                                 },
                             },
                             ClearValue {
-                                depth_stencil: vk::ClearDepthStencilValue {
-                                    depth: 1.0,
-                                    stencil: 0,
-                                },
+                                depth_stencil: vk::ClearDepthStencilValue { depth: 1.0, stencil: 0 },
                             },
                         ];
 
-                        let render_pass_begin_info =
-                            vk::RenderPassBeginInfo::default()
-                                .render_pass(window.render_pass.raw)
-                                .framebuffer(frame_buffer.raw)
-                                .render_area(vk::Rect2D {
-                                    offset: vk::Offset2D { x: 0, y: 0 },
-                                    extent: resolution,
-                                })
-                                .clear_values(&clear_values);
+                        unsafe {
+                            device
+                                .reset_command_buffer(cmd_buffer, vk::CommandBufferResetFlags::empty())
+                                .map_err(VulkanError::Unknown)?;
 
-                        // unsafe {
-                        //     device.cmd_begin_render_pass(
-                        //         command_buffer,
-                        //         &render_pass_begin_info,
-                        //         vk::SubpassContents::INLINE,
-                        //     );
-                        // }
+                            let begin_info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-                        // let pass_ctx = PassContext {
-                        //     external_resources: resources.clone(),
-                        //     bindless: todo!(),
-                        //     scissor: vk::Rect2D::default()
-                        //         .extent(resolution)
-                        //         .offset(vk::Offset2D { x: 0, y: 0 }),
-                        //     viewport: vk::Viewport::default()
-                        //         .height(resolution.height as f32)
-                        //         .width(resolution.width as f32)
-                        //         .x(0.0)
-                        //         .y(0.0),
-                        //     resolution,
-                        //     pipeline: todo!(),
-                        //     layout: todo!(),
-                        //     device: todo!(),
-                        //     cbuf: todo!(),
-                        // };
+                            device
+                                .begin_command_buffer(cmd_buffer, &begin_info)
+                                .map_err(VulkanError::Unknown)?;
+                        }
 
-                        // //(*pass.execute())(&pass_ctx, &renderables);
+                        let render_pass_begin_info = vk::RenderPassBeginInfo::default()
+                            .render_pass(window.render_pass.raw)
+                            .framebuffer(frame_buffer.raw)
+                            .render_area(vk::Rect2D {
+                                offset: vk::Offset2D { x: 0, y: 0 },
+                                extent: resolution,
+                            })
+                            .clear_values(&clear_values);
 
-                        // unsafe {
-                        //     device.cmd_end_render_pass(command_buffer);
-                        // }
+                        unsafe {
+                            device.cmd_begin_render_pass(cmd_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+                        }
 
-                        // // pass.end_sync(command_buffer);
+                        let pass_ctx = PassContext {
+                            external_resources: resources.clone(),
+                            resolution,
+                            device: ctx.device.raw.clone(),
+                            cbuf: cmd_buffer,
+                        };
 
-                        // unsafe {
-                        //     device
-                        //         .end_command_buffer(command_buffer)
-                        //         .expect("Error end command buffer");
-                        // }
+                        (pass.callback)(&pass_ctx);
 
+                        unsafe {
+                            device.cmd_end_render_pass(cmd_buffer);
+                        }
+
+                        unsafe {
+                            device
+                                .end_command_buffer(cmd_buffer)
+                                .map_err(VulkanError::Unknown)?;
+                        }
                     },
-                    Pass::Raster(pass) => {
-
-                    }
+                    Pass::Raster(_pass) => {},
                 }
             }
         }
@@ -183,26 +178,23 @@ impl FrameGraph {
 
         // -----------------------Submit-----------------------------
         let wait_semaphores = [sync.image_available.raw];
-        let wait_stages =
-            [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let signal_semaphores = [sync.render_finished.raw];
+
+        let binding = [cmd_buffer];
 
         let submit_info = vk::SubmitInfo::default()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
-            //.command_buffers(command_buffers)
+            .command_buffers(&binding)
             .signal_semaphores(&signal_semaphores);
 
-        // unsafe {
-        //     profiling::scope!("vkQueueSubmit");
-        //     device
-        //         .queue_submit(
-        //           //  self.graphics_queue,
-        //             &[submit_info],
-        //             sync.in_flight_fence.raw,
-        //         )
-        //         .expect("Error submit commands to queue");
-        // }
+        unsafe {
+            profiling::scope!("vkQueueSubmit");
+            device
+                .queue_submit(queue.raw, &[submit_info], sync.in_flight_fence.raw)
+                .map_err(VulkanError::Unknown)?;
+        }
 
         // -----------------------Present-----------------------------
         let swapchain = [window.swapchain.raw];
@@ -213,220 +205,25 @@ impl FrameGraph {
             .swapchains(&swapchain)
             .image_indices(&image_indices);
 
-        // unsafe {
-        //     profiling::scope!("vkQueuePresent");
-        //     window
-        //         .swapchain
-        //         .loader
-        //         .queue_present(self.graphics_queue, &present_info)
-        //         .expect("Error present");
-        // }
+        unsafe {
+            profiling::scope!("vkQueuePresent");
+            window
+                .swapchain
+                .loader
+                .queue_present(queue.raw, &present_info)
+                .map_err(VulkanError::Unknown)?;
+        }
 
-        log::debug!(
-            "Image index: {}, Frame: {}",
-            image_index,
-            window.current_frame
+        trace!(
+            image_index = ?image_index,
+            current_frame = ?window.current_frame
         );
 
         window.current_frame += 1;
-
         Ok(())
     }
 
-    // /// Execute graph
-    // pub(crate) fn execute(&mut self) -> VulkanResult<()> {
-    //     profile_scope!("FrameGraph::execute");
-
-    //     let image_index = Self::acquire_next_image(&self.ctx)?;
-
-    //     let device = &self.ctx.device;
-    //     let window = self.ctx.window.read().unwrap();
-    //     let resolution = window.resolution;
-    //     let frame_count = window.frame_buffers.len();
-
-    //     // Get Command Buffers or skip frame
-    //     let pass_count = self.passes.len();
-    //     let command_buffers =
-    //         self.command_pool.allocate_cmd_buffers(
-    //             device,
-    //             image_index,
-    //             frame_count,
-    //             pass_count,
-    //         )?;
-
-    //     // Reset Command Buffers or skip frame
-    //     for i in command_buffers {
-    //         unsafe {
-    //             let reset = device.reset_command_buffer(
-    //                 *i,
-    //                 vk::CommandBufferResetFlags::empty(),
-    //             );
-    //             if let Err(err) = reset {
-    //                 log::error!(
-    //                     "Reset command buffer error: {:?}",
-    //                     err
-    //                 );
-    //                 return Err(VulkanError::Unknown(
-    //                     vk::Result::from_raw(0),
-    //                 ));
-    //             }
-
-    //             let begin_info =
-    // vk::CommandBufferBeginInfo::default(             )
-    //
-    // .flags(vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
-
-    //             device
-    //                 .begin_command_buffer(*i, &begin_info)
-    //                 .expect("Error begin command buffer");
-    //         }
-    //     }
-
-    //     // Record Command Buffer
-    //     for i in self.execution_order.drain(..) {
-    //         let command_buffer = command_buffers[i];
-    //         let pass = &self.passes[i];
-
-    //         // pass.begin_sync(command_buffer);
-
-    //         let pass_ctx = PassContext {
-    //             bindless_set: self.bindless.bindless_set(),
-    //             resolution,
-    //             device: device.raw.clone(),
-    //             cbuf: command_buffer,
-    //             pipeline: pass.pipeline(&self.resources),
-    //             layout: pass.pipeline_layout(&self.resources),
-    //             resources: self.resources.clone(),
-    //         };
-
-    //         let renderables = self
-    //             .resources
-    //             .assets
-    //             .read()
-    //             .unwrap()
-    //             .renderable
-    //             .get_renderables();
-
-    //         let clear_values = vec![
-    //             ClearValue {
-    //                 color: vk::ClearColorValue {
-    //                     float32: [0.0, 0.0, 0.0, 1.0],
-    //                 },
-    //             },
-    //             ClearValue {
-    //                 depth_stencil: vk::ClearDepthStencilValue {
-    //                     depth: 1.0,
-    //                     stencil: 0,
-    //                 },
-    //             },
-    //         ];
-
-    //         let s = self.resources.low_level.read().unwrap();
-
-    //         let frame_buffer = if pass.is_present() {
-    //             &window.frame_buffers[image_index as usize]
-    //         } else {
-    //             let handle = pass.framebuffer();
-
-    //             s.frame_buffer.get(handle).unwrap()
-    //         };
-
-    //         let render_pass_begin_info =
-    //             vk::RenderPassBeginInfo::default()
-    //                 .render_pass(window.render_pass.raw)
-    //                 .framebuffer(frame_buffer.raw)
-    //                 .render_area(vk::Rect2D {
-    //                     offset: vk::Offset2D { x: 0, y: 0 },
-    //                     extent: resolution,
-    //                 })
-    //                 .clear_values(&clear_values);
-
-    //         unsafe {
-    //             device.cmd_begin_render_pass(
-    //                 command_buffer,
-    //                 &render_pass_begin_info,
-    //                 vk::SubpassContents::INLINE,
-    //             );
-    //         }
-
-    //         //(*pass.execute())(&pass_ctx, &renderables);
-
-    //         unsafe {
-    //             device.cmd_end_render_pass(command_buffer);
-    //         }
-
-    //         // pass.end_sync(command_buffer);
-
-    //         unsafe {
-    //             device
-    //                 .end_command_buffer(command_buffer)
-    //                 .expect("Error end command buffer");
-    //         }
-    //     }
-
-    //     drop(window);
-
-    //     let window = &mut self.ctx.window.write().unwrap();
-    //     let sync = &window.frame_sync
-    //         [window.current_frame % window.frame_buffers.len()];
-
-    //     // Submit
-    //     let wait_semaphores = [sync.image_available.raw];
-    //     let wait_stages =
-    //         [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-    //     let signal_semaphores = [sync.render_finished.raw];
-
-    //     let submit_info = vk::SubmitInfo::default()
-    //         .wait_semaphores(&wait_semaphores)
-    //         .wait_dst_stage_mask(&wait_stages)
-    //         .command_buffers(command_buffers)
-    //         .signal_semaphores(&signal_semaphores);
-
-    //     unsafe {
-    //         device
-    //             .queue_submit(
-    //                 self.graphics_queue,
-    //                 &[submit_info],
-    //                 sync.in_flight_fence.raw,
-    //             )
-    //             .expect("Error submit commands to queue");
-    //     }
-
-    //     // Present
-    //     let swapchain = [window.swapchain.raw];
-    //     let image_indices = [image_index];
-
-    //     let present_info = vk::PresentInfoKHR::default()
-    //         .wait_semaphores(&signal_semaphores)
-    //         .swapchains(&swapchain)
-    //         .image_indices(&image_indices);
-
-    //     unsafe {
-    //         window
-    //             .swapchain
-    //             .loader
-    //             .queue_present(self.graphics_queue, &present_info)
-    //             .expect("Error present");
-    //     }
-
-    //     // log::debug!(
-    //     //     "Image index: {}, Frame: {}",
-    //     //     image_index,
-    //     //     window.current_frame
-    //     // );
-
-    //     self.frame_values.update(
-    //         device,
-    //         image_index,
-    //         window.current_frame as u32,
-    //     )?;
-    //     self.passes.clear();
-    //     window.current_frame += 1;
-
-    //     Ok(())
-    // }
-
     pub(crate) fn destroy(&mut self, device: &Device) {
-        
+        self.cmd_pool.destroy(device);
     }
 }

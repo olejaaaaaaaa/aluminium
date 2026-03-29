@@ -39,15 +39,15 @@ impl<'a> PerFrameBufferBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<PerFrameBuffer> {
-        let mut buffers = vec![];
-        let device = self.device;
-        let frame_count = self.frame_count.unwrap();
-        let usage = self.usage.unwrap();
-        let size = self.buffer_size.unwrap();
+        let frame_count = self.frame_count.expect("Missing Frame count");
+        let usage = self.usage.expect("Missing Usage");
+        let size = self.buffer_size.expect("Missing Buffer size");
+
+        let mut buffers = Vec::with_capacity(frame_count);
 
         for _ in 0..frame_count {
             buffers.push(
-                GpuBufferBuilder::cpu_only(device)
+                GpuBufferBuilder::cpu_only(self.device)
                     .size(size)
                     .usage(usage)
                     .build()?,
@@ -66,7 +66,7 @@ impl PerFrameBuffer {
 
     pub fn destroy(&mut self, device: &Device) {
         for mut i in self.buffers.drain(..) {
-            unsafe { device.allocator.destroy_buffer(i.raw, &mut i.allocation) };
+            i.destroy(device);
         }
     }
 }

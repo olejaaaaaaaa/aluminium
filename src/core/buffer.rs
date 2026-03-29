@@ -1,52 +1,61 @@
-use ash::vk;
+use ash::vk::{self, Handle};
 use bytemuck::{Pod, Zeroable};
-#[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
-use vk_mem::Alloc;
-#[cfg(all(feature = "vma", not(feature = "gpu-allocator")))]
-use vk_mem::Allocation;
-
-#[cfg(feature = "gpu-allocator")]
-compile_error!("Not supported at the moment");
-
-#[cfg(not(any(feature = "vma", feature = "gpu-allocator")))]
-compile_error!("At least one allocator feature must be enabled: 'vma' or 'gpu-allocator'");
+use gpu_allocator::vulkan::{Allocation, AllocationCreateDesc, AllocationScheme};
+use gpu_allocator::MemoryLocation;
+use tracing::{debug, warn};
 
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct GpuBuffer {
     pub raw: vk::Buffer,
-    pub vertex_count: u32,
-    pub allocation: Allocation,
+    pub count: u32,
+    pub allocation: Option<Allocation>,
 }
 
 impl GpuBuffer {
     /// Copy slice as raw bytes into [`vk::Buffer`]
-    pub fn upload_data<T: Pod + Zeroable>(&mut self, device: &Device, data: &[T]) -> VulkanResult<()> {
-        self.vertex_count = data.len() as u32;
-        let buffer_size = std::mem::size_of_val(data) as u64;
+    pub fn upload_data<T: Pod + Zeroable>(&mut self, data: &[T]) -> VulkanResult<()> {
+        self.count = data.len() as u32;
+        let size = std::mem::size_of_val(data);
 
-        let allocation = device.allocator.get_allocation_info(&self.allocation);
+        let dst = self
+            .allocation
+            .as_ref()
+            .expect("Buffer alredy free")
+            .mapped_ptr()
+            .expect("Buffer is not host-visible or not mapped")
+            .cast::<u8>()
+            .as_ptr();
 
         unsafe {
             profiling::scope!("Upload bytes");
-            std::ptr::copy_nonoverlapping(data.as_ptr().cast::<u8>(), allocation.mapped_data.cast::<u8>(), buffer_size as usize);
+            std::ptr::copy_nonoverlapping(data.as_ptr().cast::<u8>(), dst, size);
         }
 
-        device
-            .allocator
-            .flush_allocation(&self.allocation, 0, buffer_size as u64)
-            .map_err( 
-                VulkanError::Unknown
-            )?;
-
         Ok(())
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        if let Some(allocation) = self.allocation.take() {
+            debug!(
+                handle = ?self.raw,
+                bytes = allocation.size(),
+                "Buffer destroyed"
+            );
+            let _ = device.allocator.lock().free(allocation);
+            unsafe {
+                device.destroy_buffer(self.raw, None);
+            }
+        } else {
+            warn!("Double free detected!");
+        }
     }
 }
 
 pub struct GpuBufferBuilder<'a> {
     size: Option<u64>,
     usage: Option<vk::BufferUsageFlags>,
-    alloc_info: vk_mem::AllocationCreateInfo,
+    location: MemoryLocation,
     device: &'a Device,
 }
 
@@ -56,24 +65,25 @@ impl<'a> GpuBufferBuilder<'a> {
             device,
             usage: None,
             size: None,
-            alloc_info: vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::MAPPED | vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
-                usage: vk_mem::MemoryUsage::AutoPreferHost,
-                ..Default::default()
-            },
+            location: MemoryLocation::CpuToGpu,
         }
     }
 
-    #[allow(dead_code)]
+    pub fn gpu_to_cpu(device: &'a Device) -> Self {
+        GpuBufferBuilder {
+            size: None,
+            usage: None,
+            location: MemoryLocation::GpuToCpu,
+            device,
+        }
+    }
+
     pub fn gpu_only(device: &'a Device) -> Self {
         GpuBufferBuilder {
             device,
             usage: None,
             size: None,
-            alloc_info: vk_mem::AllocationCreateInfo {
-                usage: vk_mem::MemoryUsage::AutoPreferDevice,
-                ..Default::default()
-            },
+            location: MemoryLocation::GpuOnly,
         }
     }
 
@@ -93,28 +103,57 @@ impl<'a> GpuBufferBuilder<'a> {
 
         #[cfg(debug_assertions)]
         {
-            if size == 0 {
-                panic!("Buffer size cannot be zero");
-            }
-            if usage.is_empty() {
-                panic!("Buffer usage cannot be empty");
-            }
+            assert_ne!(size, 0, "Buffer size cannot be zero");
+            assert!(!usage.is_empty(), "Buffer usage cannot be empty");
         }
 
-        let buffer_info = vk::BufferCreateInfo::default().size(size).usage(usage);
+        let buffer_info = vk::BufferCreateInfo::default()
+            .size(size)
+            .usage(usage)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-        let (buffer, allocation) = unsafe {
-            profiling::scope!("vmaCreateBuffer");
+        let buffer = unsafe {
             self.device
-                .allocator
-                .create_buffer(&buffer_info, &self.alloc_info)
-                .map_err(VulkanError::Unknown)
-        }?;
+                .raw
+                .create_buffer(&buffer_info, None)
+                .map_err(VulkanError::Unknown)?
+        };
+
+        let requirements = unsafe { self.device.raw.get_buffer_memory_requirements(buffer) };
+
+        let allocation = {
+            let allocator = &mut self.device.allocator.lock();
+            allocator
+                .allocate(&AllocationCreateDesc {
+                    name: "GpuBuffer",
+                    requirements,
+                    location: self.location,
+                    linear: true,
+                    allocation_scheme: AllocationScheme::GpuAllocatorManaged,
+                })
+                .unwrap()
+        };
+
+        unsafe {
+            profiling::scope!("vkBindBufferMemory");
+            self.device
+                .raw
+                .bind_buffer_memory(buffer, allocation.memory(), allocation.offset())
+                .map_err(VulkanError::Unknown)?;
+        }
+
+        debug!(
+            handle = ?buffer,
+            size = ?size,
+            usage = ?usage,
+            location = ?self.location,
+            "Buffer created"
+        );
 
         Ok(GpuBuffer {
             raw: buffer,
-            vertex_count: 0,
-            allocation,
+            count: 0,
+            allocation: Some(allocation),
         })
     }
 }

@@ -37,7 +37,6 @@ const uint SAMPLER_BORDER = 2;
 const uint SAMPLER_MIP_LINEAR = 3;
 const uint SAMPLER_MIP_POINT = 4;
 
-//If you're brave enough, you can change the ratios, but at your own risk
 [[vk::push_constant]] struct Push {
     // 4 bytes
     uint transform_idx;  

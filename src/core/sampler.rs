@@ -21,11 +21,10 @@ pub struct SamplerBuilder<'a> {
     address_mode_u: vk::SamplerAddressMode,
     address_mode_v: vk::SamplerAddressMode,
     address_mode_w: vk::SamplerAddressMode,
-    border_color: vk::BorderColor
+    border_color: vk::BorderColor,
 }
 
 impl<'a> SamplerBuilder<'a> {
-
     pub fn repeat(device: &'a Device) -> Self {
         Self {
             device,
@@ -33,12 +32,11 @@ impl<'a> SamplerBuilder<'a> {
             address_mode_u: vk::SamplerAddressMode::REPEAT,
             address_mode_v: vk::SamplerAddressMode::REPEAT,
             address_mode_w: vk::SamplerAddressMode::REPEAT,
-            border_color: vk::BorderColor::FLOAT_OPAQUE_WHITE
+            border_color: vk::BorderColor::FLOAT_OPAQUE_WHITE,
         }
     }
 
     pub fn build(self) -> VulkanResult<Sampler> {
-
         let create_info = vk::SamplerCreateInfo::default()
             .address_mode_u(self.address_mode_u)
             .address_mode_v(self.address_mode_v)

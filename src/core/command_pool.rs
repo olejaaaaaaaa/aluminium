@@ -1,4 +1,5 @@
 use ash::vk;
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -10,6 +11,10 @@ pub struct CommandPool {
 impl CommandPool {
     pub fn destroy(&self, device: &Device) {
         unsafe { device.destroy_command_pool(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "Destroy CommandPool"
+        );
     }
 
     pub fn allocate_cmd_buffers(&self, device: &Device, level: vk::CommandBufferLevel, count: u32) -> VulkanResult<Vec<vk::CommandBuffer>> {
@@ -26,7 +31,7 @@ impl CommandPool {
             .command_buffer_count(count);
 
         let buffers = unsafe {
-            profiling::scope!("vkCreateCommandBuffers");
+            profiling::scope!("vkAllocateCommandBuffers");
             device
                 .allocate_command_buffers(&create_info)
                 .map_err(VulkanError::Unknown)
@@ -58,6 +63,12 @@ impl<'a> CommandPoolBuilder<'a> {
                 .create_command_pool(&create_info, None)
                 .map_err(VulkanError::Unknown)
         }?;
+
+        debug!(
+            handle = ?pool,
+            flags = ?self.flags,
+            "CommandPool created"
+        );
 
         Ok(CommandPool { raw: pool })
     }

@@ -1,7 +1,7 @@
 use std::ffi::CStr;
 
 use ash::vk;
-use log::{debug, info};
+use tracing::{debug, warn};
 
 use super::{VulkanError, VulkanResult};
 use crate::core::errors::app::AppError;
@@ -29,7 +29,7 @@ impl App {
                 .unwrap_or(vk::API_VERSION_1_0)
         };
 
-        debug!("Max Vulkan Api version: {:?}", available_api_version.display_version());
+        debug!("Max Vulkan Api version: {}", available_api_version.display_version());
 
         // Downgrade from the highest available version
         // Using the latest version is quite dangerous
@@ -39,7 +39,7 @@ impl App {
             vk::API_VERSION_1_2 => vk::API_VERSION_1_1,
             vk::API_VERSION_1_1 => vk::API_VERSION_1_0,
             _ => {
-                log::warn!("GPU only supports the most minimal api version!");
+                warn!("GPU only supports the most minimal api version!");
                 vk::API_VERSION_1_0
             },
         };
@@ -51,7 +51,7 @@ impl App {
             .engine_name(ENGINE_NAME)
             .engine_version(ENGINE_VERSION);
 
-        info!("Selected Vulkan Api version: {:?}", api_version.display_version());
+        debug!("Selected Vulkan Api version: {}", api_version.display_version());
 
         Ok(App { create_info, entry })
     }

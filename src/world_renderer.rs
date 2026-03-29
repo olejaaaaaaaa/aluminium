@@ -1,24 +1,14 @@
 use std::marker::PhantomData;
-use std::sync::{Arc};
+use std::sync::Arc;
+
 use winit::window::Window;
+
 use super::render_context::RenderContext;
 use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
 use crate::frame_graph::FrameGraph;
 use crate::resources::*;
-/// Lightweight Vulkan abstraction focused on frame-graph–driven frame submission.
-///
-/// Wraps a [`FrameGraph`], a shared resource pool, and a [`RenderContext`] into a
-/// single entry point. The graph handles pass ordering, barrier insertion, and
-/// transient resource lifetimes automatically; callers declare *what* needs to
-/// happen, not *when* synchronisation must occur.
-///
-/// ## Threading
-///
-/// `WorldRenderer` is intentionally `!Send + !Sync`. All calls must originate
-/// from the thread that owns the Vulkan context. Resource creation is
-/// single-threaded from the caller's perspective; any internal parallelism is
-/// an implementation detail.
+/// Lightweight abstraction over Vulkan API
 ///
 /// ## Stability
 ///
@@ -30,12 +20,13 @@ use crate::resources::*;
 /// ```ignore
 /// let mut world = WorldRenderer::new(&window)?;
 ///
-/// world.draw_frame(|graph| {
+/// let _ = world.draw_frame(|graph| {
 ///     graph.add_pass(...);
 /// })?;
 /// ```
 pub struct WorldRenderer {
-    /// Handles pass scheduling, dependency resolution, and automatic resource barriers
+    /// Handles pass scheduling, dependency resolution, and automatic resource
+    /// barriers
     graph: FrameGraph,
     /// Contains resources for rendering and caches them creation
     resources: Arc<Resources>,
@@ -61,7 +52,7 @@ impl WorldRenderer {
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         let ctx = RenderContext::new(window)?;
         let resources = Resources::new(&ctx)?;
-        let graph = FrameGraph::new()?;
+        let graph = FrameGraph::new(&ctx)?;
 
         Ok(WorldRenderer {
             resources,
@@ -73,7 +64,7 @@ impl WorldRenderer {
 
     /// Allocates a GPU resource and returns a reference-counted handle to it.
     ///
-    /// `Res<T>` is a thin wrapper around an index into the resource pool —
+    /// `Res<T>` is a thin wrapper around an index into the resource pool -
     /// cheap to clone, copy, and compare. The underlying allocation is kept
     /// alive as long as at least one handle exists; dropping the last handle
     /// queues the resource for deferred destruction at the end of the frame.
@@ -86,12 +77,9 @@ impl WorldRenderer {
     /// # Example
     ///
     /// ```ignore
-    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc {
-    ///     vertices: &verts,
-    ///     indices:  &indices,
-    /// })?;
+    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
     /// ```
-    pub fn create<T: Create>(&mut self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
+    pub fn create<T: Create>(&self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.ctx, &self.resources, desc)
     }
 
@@ -109,7 +97,7 @@ impl WorldRenderer {
 
     /// Returns a write guard to the resource identified by `res`
     ///
-    /// Internally wraps [`parking_lot::RwLockWriteGuard`] — the lock is held
+    /// Internally wraps [`parking_lot::RwLockWriteGuard`] - the lock is held
     /// until the returned [`RefMut`] is dropped. Acquiring this while
     /// any other [`Ref`] or [`RefMut`] to the same resource is alive
     /// **will deadlock**.
@@ -119,8 +107,8 @@ impl WorldRenderer {
     /// ```ignore
     /// {
     ///     let mut transform = world.get_mut(&handle);
-    ///     transform.pos[0] -= 0.5;
-    /// } // lock released here — safe to call get() or get_mut() again
+    ///     transform.scale[0] *= 2.0;
+    /// } // lock released here - safe to call get() or get_mut() again
     /// ```
     pub fn get_mut<T: GetMut>(&mut self, res: &Res<T>) -> RefMut<'_, T> {
         T::get_mut(&self.resources, res)
@@ -137,7 +125,7 @@ impl WorldRenderer {
     /// Acquires a shared read lock on the camera.
     ///
     /// Multiple read guards may coexist. Do not call `camera_mut` while any
-    /// read guard is alive — there is no runtime detection, it will deadlock.
+    /// read guard is alive - there is no runtime detection, it will deadlock.
     pub fn camera(&self) -> Ref<'_, Camera> {
         Ref(self.resources.camera.read())
     }
@@ -146,7 +134,7 @@ impl WorldRenderer {
     ///
     /// Waits for the GPU to drain before destroying the old swapchain and
     /// surface-sized attachments. Zero-area extents (minimised window) are
-    /// silently ignored — the swapchain is left intact and the next
+    /// silently ignored - the swapchain is left intact and the next
     /// non-zero resize will rebuild it.
     ///
     /// # Panics
@@ -181,11 +169,11 @@ impl WorldRenderer {
     ///
     /// Panics on device loss or any Vulkan error that cannot be recovered
     /// from transparently (e.g. failed swapchain recreation).
-    pub fn draw_frame<R, F: FnOnce(&mut FrameGraph) -> R>(&mut self, setup: F) -> VulkanResult<R> {
+    pub fn draw_frame<R, F: FnOnce(&mut FrameGraph) -> R>(&mut self, closure: F) -> VulkanResult<R> {
         profiling::scope!("WorldRenderer::draw_frame");
 
         // Setup graph
-        let result = setup(&mut self.graph);
+        let result = closure(&mut self.graph);
 
         // Compile Graph
         self.graph.compile(&self.ctx, &self.resources)?;
@@ -198,16 +186,13 @@ impl WorldRenderer {
                         let extent = self.ctx.resolution();
                         self.resize(extent.width, extent.height)?;
                     },
-                    SwapchainError::SwapchainCreationFailed(err) => {
-                        return Err(VulkanError::Swapchain(SwapchainError::SwapchainCreationFailed(err)));
-                    },
                     SwapchainError::SwapchainSubOptimal => {
-                        /*
-                            FIX:
-                            For now, we're ignoring this error on Android
-                            Currently, the swapchain always has one orientation: IDENTITY
-                        */
+                        // FIX ME:
+                        // For now, we're ignoring this error on Android
+                        // Currently, the swapchain always has one orientation:
+                        // IDENTITY
                     },
+                    err => return Err(VulkanError::Swapchain(err)),
                 }
             } else {
                 return Err(err);

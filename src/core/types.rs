@@ -30,7 +30,7 @@ impl Vertex {
         vertices
     }
 
-    pub fn triangle(x: f32, y: f32, z: f32) -> Vec<Vertex> {
+    pub fn triangle(_x: f32, _y: f32, _z: f32) -> Vec<Vertex> {
         vec![]
     }
 }

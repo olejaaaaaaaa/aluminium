@@ -1,4 +1,5 @@
 use ash::vk::{self};
+
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
 
@@ -17,7 +18,7 @@ pub struct FrameBufferBuilder<'a> {
     extent: Option<vk::Extent2D>,
     attachments: Option<&'a [vk::ImageView]>,
     layers: Option<u32>,
-    render_pass: Option<vk::RenderPass>
+    render_pass: Option<vk::RenderPass>,
 }
 
 impl<'a> FrameBufferBuilder<'a> {
@@ -27,7 +28,7 @@ impl<'a> FrameBufferBuilder<'a> {
             extent: None,
             attachments: None,
             layers: None,
-            render_pass: None
+            render_pass: None,
         }
     }
 
@@ -52,10 +53,9 @@ impl<'a> FrameBufferBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<FrameBuffer> {
-        
         let render_pass = self.render_pass.expect("Missing RenderPass");
         let extent = self.extent.expect("Missing Extent");
-        let layers = self.layers.expect("Missing Layers"); 
+        let layers = self.layers.expect("Missing Layers");
         let attachments = self.attachments.expect("Missing Attachments");
 
         #[cfg(debug_assertions)]

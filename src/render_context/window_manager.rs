@@ -1,5 +1,5 @@
 use ash::vk;
-use log::info;
+use tracing::info;
 
 use super::GraphicsDevice;
 use crate::core::{
@@ -51,7 +51,7 @@ impl WindowManager {
             .get_physical_device_surface_formats(*device.phys_dev)?;
 
         let extent = caps.current_extent;
-        let transforms = caps.current_transform;
+        let _transforms = caps.current_transform;
 
         let format_priority = [vk::Format::R8G8B8A8_SRGB];
 
@@ -84,7 +84,12 @@ impl WindowManager {
             .format(format)
             .build()?;
 
-        let depth_image = ImageBuilder::depth(device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
+        let depth_image = ImageBuilder::new(device)
+            .extent(caps.current_extent.into())
+            .format(vk::Format::D32_SFLOAT)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .build()?;
+
         let depth_view = ImageViewBuilder::depth(device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 
         let mut image_views = vec![];
@@ -99,10 +104,7 @@ impl WindowManager {
         for i in &image_views {
             let frame_buffer = FrameBufferBuilder::new(device)
                 .render_pass(self.render_pass.raw)
-                .attachments(&[
-                    i.raw,
-                    depth_view.raw
-                ])
+                .attachments(&[i.raw, depth_view.raw])
                 .extent(caps.current_extent)
                 .layers(1)
                 .build()?;

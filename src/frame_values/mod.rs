@@ -43,13 +43,13 @@ impl FrameValues {
         })
     }
 
-    pub fn update(&mut self, device: &Device, image_index: u32, frame_index: u32) -> VulkanResult<()> {
+    pub fn update(&mut self, image_index: u32, frame_index: u32) -> VulkanResult<()> {
         let buffer = self.buffer.get_mut(image_index);
         self.data.frame_index = frame_index;
         self.data.time_sec = self.global_time_sec.elapsed().as_secs_f32();
         self.data.delta_time_sec = self.delta_time_sec.elapsed().as_secs_f32();
         self.delta_time_sec = std::time::Instant::now();
-        buffer.upload_data(device, &[self.data])?;
+        buffer.upload_data(&[self.data])?;
         Ok(())
     }
 }

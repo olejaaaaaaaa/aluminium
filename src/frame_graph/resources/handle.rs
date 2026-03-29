@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-
-
-
 pub struct Handle<T> {
-    //key: ResourceKey,
-    _marker: PhantomData<T>
+    // key: ResourceKey,
+    _marker: PhantomData<T>,
 }

@@ -2,9 +2,11 @@
 
 use std::error::Error;
 
-use aluminium::types::Vertex;
-use aluminium::{DrawCallback, Mesh, MeshDesc, PresentPass, RasterPipeline, RasterPipelineDesc, Scissor, ShaderType, Transform, TransformDesc, Viewport, WorldRenderer};
-use bytemuck::{Pod, Zeroable};
+use aluminium::{
+    Mesh, MeshDesc, PresentPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, Transform, TransformDesc, VertexInput, Viewport,
+    WorldRenderer,
+};
+use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -19,6 +21,8 @@ pub use gltf_loader::{GltfModel, load_gltf};
 
 #[derive(Default)]
 struct App {
+    model: Option<GltfModel>,
+    pipeline: Option<Res<RasterPipeline>>,
     world: Option<WorldRenderer>,
     window: Option<winit::window::Window>,
 }
@@ -39,9 +43,18 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
+                let pipeline = self.pipeline.as_ref().unwrap().clone();
+                let model = self.model.as_ref().unwrap().clone();
 
-                let _ = world.draw_frame(|graph| {
-                    
+                let _ = world.draw_frame(move |graph| {
+                    graph.add_pass(PresentPass::new("Final Pass").execute(move |ctx| unsafe {
+                        ctx.set_viewport(Viewport::FullRes);
+                        ctx.set_scissor(Scissor::FullRes);
+                        ctx.bind_pipeline(pipeline);
+                        for i in &model.meshes {
+                            ctx.draw_mesh(i.clone());
+                        }
+                    }));
                 });
             },
             _ => (),
@@ -65,42 +78,39 @@ impl ApplicationHandler for App {
 
         let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
 
-        let triangle_mesh = vec![
-            Vertex {
-                pos: [0.0, 0.5, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            Vertex {
-                pos: [-0.5, -0.5, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            Vertex {
-                pos: [0.5, -0.5, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-        ];
+        let pipeline = world
+            .create::<RasterPipeline>(
+                RasterPipelineDesc::new()
+                    .vertex_shader(r"C:\Users\Oleja\Desktop\aluminium\shaders\spv\raster_vs.spv")
+                    .fragment_shader(r"C:\Users\Oleja\Desktop\aluminium\shaders\spv\raster_ps.spv")
+                    .vertex_input(
+                        VertexInput::new()
+                            .with(ShaderType::Float3)
+                            .with(ShaderType::Float3),
+                    )
+                    .dynamic_scissors(true)
+                    .dynamic_viewport(true),
+            )
+            .expect("Error create pipeline");
 
-        let transform = world.create::<Transform>(TransformDesc::identity()).unwrap();
-        let mesh = world.create::<Mesh>(MeshDesc::new(&triangle_mesh)).expect("Error create simple mesh");
+        let model = load_gltf(
+            &mut world,
+            r"C:\Users\Oleja\Desktop\aluminium\examples\simple\assets\flighthelmet\scene.gltf",
+        )
+        .expect("Error load gltf model");
 
-        let pipeline = world.create::<RasterPipeline>(
-        RasterPipelineDesc::new()
-                .render_target(1)
-                .vertex_shader("../shaders/spv/raster_vs.spv")
-                .fragment_shader("../shaders/spv/raster_ps.spv")
-                .dynamic_scissors(true)
-                .dynamic_viewport(true)
-        );
-
+        self.model = Some(model);
+        self.pipeline = Some(pipeline);
         self.world = Some(world);
         self.window = Some(window);
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    unsafe { std::env::set_var("RUST_LOG", "Info"); }
-
-    env_logger::builder().init();
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .with_max_level(LevelFilter::DEBUG)
+        .init();
 
     let event_loop = EventLoop::new()?;
     event_loop.run_app(&mut App::default())?;

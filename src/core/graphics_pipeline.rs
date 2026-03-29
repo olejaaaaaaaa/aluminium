@@ -1,5 +1,5 @@
 use ash::vk;
-use log::debug;
+use tracing::debug;
 
 use super::device::Device;
 use super::VulkanResult;

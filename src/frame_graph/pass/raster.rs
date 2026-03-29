@@ -1,14 +1,14 @@
 #![allow(missing_docs)]
 
 use super::PassContext;
-use crate::{DrawCallback, frame_graph::Handle, resources};
+use crate::frame_graph::Handle;
 
 pub struct RasterPass {
     pub(crate) name: String,
     pub(crate) texture_reads: Vec<Handle<bool>>,
     pub(crate) colot_attachment_writes: Vec<Handle<bool>>,
     pub(crate) depth_attachment_write: Option<Handle<bool>>,
-    pub(crate) callback: DrawCallback,
+    pub(crate) callback: Box<dyn FnOnce(&PassContext) + Send + 'static>,
 }
 
 impl RasterPass {
@@ -18,7 +18,7 @@ impl RasterPass {
             texture_reads: vec![],
             colot_attachment_writes: vec![],
             depth_attachment_write: None,
-            callback: DrawCallback::empty(),
+            callback: Box::new(|_| {}),
         }
     }
 
@@ -27,8 +27,8 @@ impl RasterPass {
         self
     }
 
-    fn execute(mut self, callback: DrawCallback) -> Self {
-        self.callback = callback;
+    fn execute(mut self, callback: impl FnOnce(&PassContext) + Send + 'static) -> Self {
+        self.callback = Box::new(callback);
         self
     }
 }

@@ -1,12 +1,12 @@
 use std::sync::{Arc, Weak};
+
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
-use log::warn;
 
-use crate::VulkanResult;
-use crate::core::{GpuBuffer, GpuBufferBuilder};
+use crate::core::{Device, GpuBuffer, GpuBufferBuilder};
 use crate::render_context::RenderContext;
 use crate::resources::{Create, Destroy, Pool, Resources};
+use crate::VulkanResult;
 
 pub struct Mesh {
     /// Instance offset
@@ -23,14 +23,14 @@ pub struct Mesh {
 
 pub struct MeshDesc<'a> {
     vertices: &'a [u8],
-    indices: Option<&'a [u32]>
+    indices: Option<&'a [u32]>,
 }
 
 impl<'a> MeshDesc<'a> {
     pub fn new<T: Pod + Zeroable>(vertices: &'a [T]) -> MeshDesc<'a> {
         MeshDesc {
             vertices: bytemuck::cast_slice(vertices),
-            indices: None
+            indices: None,
         }
     }
 
@@ -41,15 +41,12 @@ impl<'a> MeshDesc<'a> {
 }
 
 impl Destroy for Mesh {
-    fn destroy(handle: &super::Res<Self>, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>) {
-        
-    }
+    fn destroy(_handle: &super::Res<Self>, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
 }
 
 impl Create for Mesh {
     type Desc<'a> = MeshDesc<'a>;
     fn create(ctx: &Arc<RenderContext>, resources: &Arc<super::Resources>, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
-
         let size = std::mem::size_of_val(desc.vertices) as u64;
 
         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
@@ -57,15 +54,32 @@ impl Create for Mesh {
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
             .build()?;
 
-        vertex_buffer.upload_data(&ctx.device, desc.vertices)?;
+        vertex_buffer.upload_data(desc.vertices)?;
 
-        let mesh = resources.meshes.write().data.insert(Arc::downgrade(ctx), Arc::downgrade(resources), Mesh {
-            instance_offset: 0,
-            instance_count: 1,
-            vertex_offset: 0,
-            vertex_buffer,
-            index_buffer: None,
-        });
+        let index_buffer = if let Some(indices) = desc.indices {
+            let mut index_buffer = GpuBufferBuilder::cpu_only(&ctx.device)
+                .size(size_of_val(indices) as u64)
+                .usage(vk::BufferUsageFlags::INDEX_BUFFER)
+                .build()?;
+
+            index_buffer.upload_data(indices)?;
+
+            Some(index_buffer)
+        } else {
+            None
+        };
+
+        let mesh = resources.meshes.write().data.insert(
+            Arc::downgrade(ctx),
+            Arc::downgrade(resources),
+            Mesh {
+                instance_offset: 0,
+                instance_count: 1,
+                vertex_offset: 0,
+                vertex_buffer,
+                index_buffer,
+            },
+        );
 
         Ok(mesh)
     }
@@ -78,5 +92,14 @@ pub struct MeshStore {
 impl MeshStore {
     pub fn new() -> Self {
         Self { data: Pool::new() }
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        for (_, mut mesh) in self.data.slots.drain() {
+            mesh.vertex_buffer.destroy(device);
+            if let Some(mut index) = mesh.index_buffer.take() {
+                index.destroy(device);
+            }
+        }
     }
 }

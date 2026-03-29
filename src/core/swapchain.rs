@@ -1,4 +1,6 @@
 use ash::vk::{self, ColorSpaceKHR};
+use tracing::debug;
+
 use super::device::Device;
 use super::{Instance, Surface, VulkanError, VulkanResult};
 
@@ -75,7 +77,6 @@ impl<'a> SwapchainBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<Swapchain> {
-
         let instance = self.instance.expect("Missing Instance");
         let surface = self.surface.expect("Missing Surface");
         let extent = self.extent.expect("Missing Extent");
@@ -109,6 +110,13 @@ impl<'a> SwapchainBuilder<'a> {
                 .map_err(|e| VulkanError::Unknown(e))
         }?;
 
+        debug!(
+            handle = ?swapchain,
+            clipped = true,
+            format = ?format,
+            "Swapchain created"
+        );
+
         Ok(Swapchain {
             raw: swapchain,
             loader: swapchain_loader,
@@ -127,7 +135,12 @@ impl Swapchain {
 
     pub fn destroy(&self) {
         unsafe {
+            profiling::scope!("vkDestroySwapchain");
             self.loader.destroy_swapchain(self.raw, None);
         }
+        debug!(
+            handle = ?self.raw,
+            "Swapchain destroyed"
+        )
     }
 }

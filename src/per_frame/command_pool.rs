@@ -23,10 +23,10 @@ impl CommandPoolPerFrame {
 
     pub fn allocate_cmd_buffers(
         &mut self,
-        device: &Device,
+        _device: &Device,
         image_index: u32,
         frame_count: usize,
-        pass_count: usize,
+        _pass_count: usize,
     ) -> VulkanResult<&Vec<vk::CommandBuffer>> {
         while self.command_buffers.len() < frame_count {
             self.command_buffers.push(vec![]);

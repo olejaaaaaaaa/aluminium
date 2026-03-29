@@ -3,15 +3,16 @@ use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 
 use ash::vk;
-use log::{debug, info};
-#[cfg(not(feature = "gpu-allocator"))]
-use vk_mem::Allocator;
+use gpu_allocator::vulkan::{Allocator, AllocatorCreateDesc};
+use gpu_allocator::{AllocationSizes, AllocatorDebugSettings};
+use parking_lot::Mutex;
+use tracing::debug;
 
 use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
 
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
-    pub(crate) allocator: ManuallyDrop<Allocator>,
+    pub(crate) allocator: ManuallyDrop<Mutex<Allocator>>,
     pub(crate) extensions: HashSet<&'static CStr>,
     pub(crate) features2: vk::PhysicalDeviceFeatures2<'static>,
     pub(crate) props2: vk::PhysicalDeviceProperties2<'static>,
@@ -179,11 +180,18 @@ impl Device {
         debug!("Descriptor indexing feature: {:#?}", descriptor_indexing);
         debug!("Enabled Device Extensions: {:#?}", extensions);
 
-        let allocator = unsafe {
-            profiling::scope!("vkCreateVmaAllocator");
-            let create_info = vk_mem::AllocatorCreateInfo::new(&instance.raw, &device, phys_dev.raw);
-            vk_mem::Allocator::new(create_info).map_err(|_e| VulkanError::Unknown(vk::Result::from_raw(0)))
-        }?;
+        let allocator = {
+            profiling::scope!("vkCreateGpuAllocator");
+            let create_info = AllocatorCreateDesc {
+                instance: instance.raw.clone(),
+                device: device.clone(),
+                physical_device: phys_dev.raw,
+                debug_settings: AllocatorDebugSettings::default(),
+                buffer_device_address: false,
+                allocation_sizes: AllocationSizes::default(),
+            };
+            Allocator::new(&create_info).unwrap()
+        };
 
         let features2 = Self::get_features2(instance, phys_dev);
         let driver_props = Box::new(vk::PhysicalDeviceDriverProperties::default());
@@ -202,7 +210,7 @@ impl Device {
             driver_props: driver_props.clone(),
             props2,
             features2,
-            allocator: ManuallyDrop::new(allocator),
+            allocator: ManuallyDrop::new(Mutex::new(allocator)),
             queue_family_props: queue_family_prop,
         })
     }

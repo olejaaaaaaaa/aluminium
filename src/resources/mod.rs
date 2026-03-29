@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Weak};
+
 use parking_lot::RwLock;
 use slotmap::new_key_type;
 
@@ -40,13 +41,13 @@ impl<'a, T> std::ops::Deref for Ref<'a, T> {
 
 impl<'a, T> std::ops::Deref for RefMut<'a, T> {
     type Target = T;
-    fn deref(&self) -> &T { 
+    fn deref(&self) -> &T {
         &self.0
     }
 }
 
 impl<'a, T> std::ops::DerefMut for RefMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut T { 
+    fn deref_mut(&mut self) -> &mut T {
         &mut self.0
     }
 }
@@ -77,7 +78,7 @@ impl<T: Destroy> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
         if ref_count == 1 {
-            T::destroy(self,  self.ctx.clone(), self.resources.clone());
+            T::destroy(self, self.ctx.clone(), self.resources.clone());
         }
     }
 }
@@ -104,16 +105,15 @@ pub trait Destroy: Sized {
 }
 
 pub struct Resources {
-   pub(crate) bindless: Bindless,
-   pub(crate) meshes: RwLock<MeshStore>,
-   pub(crate) transforms: RwLock<TransformPool>,
-   pub(crate) pipeline_cache: RwLock<PipelineCache>,
-   pub(crate) camera: RwLock<Camera>
+    pub(crate) bindless: Bindless,
+    pub(crate) meshes: RwLock<MeshStore>,
+    pub(crate) transforms: RwLock<TransformPool>,
+    pub(crate) pipeline_cache: RwLock<PipelineCache>,
+    pub(crate) camera: RwLock<Camera>,
 }
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
-        
         let frame_count = ctx.frame_count();
         let camera = Camera::new(&ctx.device, frame_count)?;
         let meshes = MeshStore::new();
@@ -126,24 +126,20 @@ impl Resources {
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
             meshes: RwLock::new(meshes),
-            camera: RwLock::new(camera)
+            camera: RwLock::new(camera),
         }))
     }
 
     // Always Set 0
-    pub fn bindless_set(&self) {
-
-    }
+    pub fn bindless_set(&self) {}
 
     // Always Set 1
-    pub fn per_frame_set(&self) {
-
-    }
+    pub fn per_frame_set(&self) {}
 
     pub(crate) fn destroy(&self, device: &Device) {
-        self.camera.write().buffer.destroy(device);
         self.bindless.destroy(device);
+        self.camera.write().destroy(device);
+        self.transforms.write().destroy(device);
+        self.meshes.write().destroy(device);
     }
-
-
 }

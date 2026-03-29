@@ -81,7 +81,13 @@ impl RenderContext {
             .build()?;
 
         let render_pass = RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT).build()?;
-        let depth_image = ImageBuilder::depth(&device, vk::Format::D32_SFLOAT, caps.current_extent).build()?;
+
+        let depth_image = ImageBuilder::new(&device)
+            .extent(caps.current_extent.into())
+            .format(vk::Format::D32_SFLOAT)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .build()?;
+
         let depth_view = ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
 
         let mut image_views = vec![];
@@ -140,7 +146,7 @@ impl Drop for RenderContext {
         unsafe {
             let device = &mut self.device;
             let window = &mut self.window.write();
-           
+
             device
                 .device_wait_idle()
                 .expect("Failed to wait for device idle during RenderContext drop!");
@@ -152,7 +158,7 @@ impl Drop for RenderContext {
             window.depth_view.destroy(device);
             window.depth_image.destroy(device);
             window.render_pass.destroy(device);
-            
+
             for i in window.frame_buffers.drain(..) {
                 i.destroy(device);
             }

@@ -1,4 +1,5 @@
 use ash::vk;
+
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct Semaphore {
@@ -11,13 +12,10 @@ pub struct SemaphoreBuilder<'a> {
 
 impl<'a> SemaphoreBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
-        Self {
-            device,
-        }
+        Self { device }
     }
 
     pub fn build(self) -> VulkanResult<Semaphore> {
-
         let create_info = vk::SemaphoreCreateInfo::default();
 
         let semaphore = unsafe {

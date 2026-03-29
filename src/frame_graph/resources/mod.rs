@@ -1,23 +1,13 @@
-
-
-use slotmap::{new_key_type, SlotMap};
-
 mod handle;
 pub use handle::Handle;
 
 use crate::resources::{Destroy, Res};
 
-
-
-pub trait Import {
-
-}
+pub trait Import {}
 
 enum GraphResource<T: Destroy> {
     External(Res<T>),
-    Internal(Handle<T>)
+    Internal(Handle<T>),
 }
 
-pub struct FrameGraphResources {
-    
-}
+pub struct FrameGraphResources {}

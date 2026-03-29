@@ -39,7 +39,7 @@ impl Surface {
         unsafe {
             self.loader
                 .get_physical_device_surface_capabilities(phys_dev, self.raw)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }
     }
 
@@ -47,7 +47,7 @@ impl Surface {
         unsafe {
             self.loader
                 .get_physical_device_surface_formats(phys_dev, self.raw)
-                .map_err(|e| VulkanError::Unknown(e))
+                .map_err(VulkanError::Unknown)
         }
     }
 }
