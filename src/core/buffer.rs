@@ -37,15 +37,16 @@ impl GpuBuffer {
 
     pub fn destroy(&mut self, device: &Device) {
         if let Some(allocation) = self.allocation.take() {
-            debug!(
-                handle = ?self.raw,
-                bytes = allocation.size(),
-                "Buffer destroyed"
-            );
+            let size = allocation.size();
             let _ = device.allocator.lock().free(allocation);
             unsafe {
                 device.destroy_buffer(self.raw, None);
             }
+            debug!(
+                handle = ?self.raw,
+                bytes = size,
+                "Buffer destroyed"
+            );
         } else {
             warn!("Double free detected!");
         }

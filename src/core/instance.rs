@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::ffi::CStr;
 
 use ash::vk;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use winit::raw_window_handle::HasDisplayHandle;
 
 use super::app::App;
@@ -20,12 +20,12 @@ pub struct Instance {
 }
 
 impl Instance {
-    /// Safety if all child object destroyed before
     pub fn destroy(&self) {
         if let Some(debug) = &self.debug_callback {
             debug.destroy();
         }
         unsafe { self.raw.destroy_instance(None) };
+        debug!("Instance destroyed");
     }
 }
 
@@ -182,8 +182,12 @@ impl Instance {
             None
         };
 
-        debug!("Enabled Instance Layers: {:#?}", layers);
-        debug!("Enabled Instance Extensions: {:#?}", extensions);
+        info!(
+            layers = ?layers,
+            extensions = ?extensions,
+            flags = ?flags,
+            "Instance created"
+        );
 
         Ok(Instance {
             raw: instance,

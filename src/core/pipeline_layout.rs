@@ -45,6 +45,7 @@ impl<'a> PipelineLayoutBuilder<'a> {
         }?;
 
         debug!(
+            handle = ?layout,
             push = ?self.push,
             set_layout = ?self.layout,
             "PipelineLayout created"

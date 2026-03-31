@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use aluminium::types::Vertex;
-use aluminium::{Mesh, MeshDesc, Res, VulkanError, VulkanResult, WorldRenderer};
-use gltf::Gltf;
+use aluminium::{Mesh, MeshDesc, Res, VulkanResult, WorldRenderer};
 
 #[derive(Clone)]
 pub struct GltfModel {
@@ -32,7 +31,7 @@ fn load_gltf_node(world: &mut WorldRenderer, model: &mut GltfModel, node: gltf::
 
             for (index, pos) in positions.iter().enumerate() {
                 vertices.push(Vertex {
-                    pos: [pos[0], pos[1], pos[2]],
+                    pos: *pos,
                     color: colors[index],
                 });
             }

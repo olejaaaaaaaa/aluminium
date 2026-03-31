@@ -29,12 +29,13 @@ tracing = "0.1.44"
 thiserror = "2.0.17"
 profiling = "1.0.17"
 parking_lot = "0.12.5"
-# For reflection
+# For reflection(Optional)
 naga = { version = "28.0.0", features = ["spv-in"] }
 # Only for examples
 tracing-subscriber = "0.3.23"
 gltf = "1.4.1"
-image = "0.25.10"
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+egui = { version = "0.34.1", default-features = false }
 
 [dependencies]
 ash = { workspace = true }
@@ -44,7 +45,6 @@ bytemuck = { workspace = true }
 vk-sync = { workspace = true }
 winit = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 slotmap = { workspace = true }
 parking_lot = { workspace = true }

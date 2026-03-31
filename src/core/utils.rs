@@ -1,13 +1,3 @@
-pub trait Resolution {
-    fn into_array(&self) -> [u32; 2];
-}
-
-impl Resolution for ash::vk::Extent2D {
-    fn into_array(&self) -> [u32; 2] {
-        [self.width, self.height]
-    }
-}
-
 pub trait ApiVersion {
     fn display_version(&self) -> String;
 }

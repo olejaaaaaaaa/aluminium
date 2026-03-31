@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Weak};
 
+use ash::vk;
 use parking_lot::RwLock;
 use slotmap::new_key_type;
 
@@ -131,10 +132,14 @@ impl Resources {
     }
 
     // Always Set 0
-    pub fn bindless_set(&self) {}
+    pub fn bindless_set(&self) -> vk::DescriptorSet {
+        self.bindless.set
+    }
 
     // Always Set 1
-    pub fn per_frame_set(&self) {}
+    pub fn per_frame_set(&self) -> vk::DescriptorSet {
+        todo!()
+    }
 
     pub(crate) fn destroy(&self, device: &Device) {
         self.bindless.destroy(device);

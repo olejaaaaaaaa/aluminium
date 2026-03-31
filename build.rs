@@ -1,5 +1,5 @@
-#![allow(missing_docs)]
-
+//! Builder script for compiling shaders to SPIR-V format using glslc and dxc
+//! command line tools
 use std::fs::{create_dir_all, read_dir};
 use std::path::Path;
 use std::process::Command;

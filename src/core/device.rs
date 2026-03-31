@@ -6,9 +6,10 @@ use ash::vk;
 use gpu_allocator::vulkan::{Allocator, AllocatorCreateDesc};
 use gpu_allocator::{AllocationSizes, AllocatorDebugSettings};
 use parking_lot::Mutex;
-use tracing::debug;
+use tracing::{debug, info};
 
 use super::{Instance, PhysicalDevice, VulkanError, VulkanResult};
+use crate::core::debug;
 
 /// Logical Device for creation and destroy Vulkan Objects
 pub struct Device {
@@ -39,6 +40,7 @@ impl Device {
         unsafe {
             ManuallyDrop::drop(&mut self.allocator);
             self.raw.destroy_device(None);
+            debug!("Device destroyed");
         }
     }
 }
@@ -77,7 +79,6 @@ impl Device {
             c"VK_EXT_descriptor_indexing",
             c"VK_KHR_driver_properties",
             c"VK_KHR_synchronization2",
-            c"VK_KHR_timeline_semaphore",
         ];
 
         for i in required_extensions {
@@ -128,7 +129,7 @@ impl Device {
             .map(|p| p.as_ptr().cast::<i8>())
             .collect::<Vec<_>>();
 
-        let queue_family_prop = unsafe {
+        let queue_family_props = unsafe {
             profiling::scope!("vkGetPhysicalDeviceQueueFamilyProperties");
             instance
                 .raw
@@ -137,7 +138,7 @@ impl Device {
 
         let mut priorities: Vec<Vec<f32>> = vec![];
 
-        for i in &queue_family_prop {
+        for i in &queue_family_props {
             priorities.push(
                 (1..i.queue_count + 1)
                     .map(|ndx| 1.0 / (ndx as f32))
@@ -147,7 +148,7 @@ impl Device {
 
         let mut queue_infos = vec![];
 
-        for (index, _) in queue_family_prop.iter().enumerate() {
+        for (index, _) in queue_family_props.iter().enumerate() {
             let queue_info = vk::DeviceQueueCreateInfo::default()
                 .queue_family_index(index as u32)
                 .queue_priorities(&priorities[index]);
@@ -178,7 +179,13 @@ impl Device {
         };
 
         debug!("Descriptor indexing feature: {:#?}", descriptor_indexing);
-        debug!("Enabled Device Extensions: {:#?}", extensions);
+        info!(
+            gpu_name = unsafe { CStr::from_ptr(phys_dev.props.device_name.as_ptr()) }.to_str().unwrap(),
+            gpu_type = ?phys_dev.props.device_type,
+            extensions = ?extensions,
+            queue_family_count = ?queue_family_props.len(),
+            "Device created"
+        );
 
         let allocator = {
             profiling::scope!("vkCreateGpuAllocator");
@@ -211,7 +218,7 @@ impl Device {
             props2,
             features2,
             allocator: ManuallyDrop::new(Mutex::new(allocator)),
-            queue_family_props: queue_family_prop,
+            queue_family_props,
         })
     }
 }

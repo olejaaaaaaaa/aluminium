@@ -1,4 +1,5 @@
 use ash::vk;
+use tracing::debug;
 
 use super::{Device, VulkanError, VulkanResult};
 
@@ -50,6 +51,16 @@ impl<'a> SamplerBuilder<'a> {
                 .create_sampler(&create_info, None)
                 .map_err(VulkanError::Unknown)?
         };
+
+        debug!(
+            handle = ?sampler,
+            address_mode_u = ?self.address_mode_u,
+            address_mode_v = ?self.address_mode_v,
+            address_mode_w = ?self.address_mode_w,
+            anisotropy_enable = self.anisotropy_enable,
+            border_color = ?self.border_color,
+            "Sampler created"
+        );
 
         Ok(Sampler { raw: sampler })
     }

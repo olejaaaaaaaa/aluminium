@@ -1,7 +1,7 @@
 use std::ffi::CStr;
 
 use ash::vk;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use super::{VulkanError, VulkanResult};
 use crate::core::errors::app::AppError;
@@ -51,7 +51,7 @@ impl App {
             .engine_name(ENGINE_NAME)
             .engine_version(ENGINE_VERSION);
 
-        debug!("Selected Vulkan Api version: {}", api_version.display_version());
+        info!("Selected Vulkan Api version: {}", api_version.display_version());
 
         Ok(App { create_info, entry })
     }

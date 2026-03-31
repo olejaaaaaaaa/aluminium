@@ -62,32 +62,21 @@ bool intersectSphere(Ray ray, vec3 center, float radius, out float t) {
     float c = dot(oc, oc) - radius * radius;
     float discriminant = b * b - 4.0 * a * c;
     
-    if (discriminant < 0.0) {
-        return false;
-    }
+    if (discriminant < 0.0) return false;
     
     float sqrtd = sqrt(discriminant);
     float t0 = (-b - sqrtd) / (2.0 * a);
     float t1 = (-b + sqrtd) / (2.0 * a);
     
-    if (t0 > 0.001) {
-        t = t0;
-        return true;
-    }
-    if (t1 > 0.001) {
-        t = t1;
-        return true;
-    }
+    if (t0 > 0.001) { t = t0; return true; }
+    if (t1 > 0.001) { t = t1; return true; }
     
     return false;
 }
 
 // ===== ПЕРЕСЕЧЕНИЕ С ПЛОСКОСТЬЮ (ПОЛ) =====
 bool intersectPlane(Ray ray, float y, out float t) {
-    if (abs(ray.direction.y) < 0.001) {
-        return false;
-    }
-    
+    if (abs(ray.direction.y) < 0.001) return false;
     t = (y - ray.origin.y) / ray.direction.y;
     return t > 0.001;
 }
@@ -100,7 +89,6 @@ HitInfo traceScene(Ray ray) {
 
     float t;
 
-    // Сфера 1: Матовая (диффузная) - красная
     if (intersectSphere(ray, vec3(-1.2, 1.0, -3.0), 0.9, t)) {
         if (t < closest.t) {
             closest.hit = true;
@@ -113,7 +101,6 @@ HitInfo traceScene(Ray ray) {
         }
     }
 
-    // Сфера 2: Светящаяся (эмиссивная) - белая/желтая
     if (intersectSphere(ray, vec3(0.0, 2.5, -3.0), 0.5, t)) {
         if (t < closest.t) {
             closest.hit = true;
@@ -121,20 +108,17 @@ HitInfo traceScene(Ray ray) {
             closest.position = ray.origin + ray.direction * t;
             closest.normal = normalize(closest.position - vec3(1.2, 0.5, -3.0));
             closest.albedo = vec3(1.0, 0.9, 0.7);
-            closest.emission = vec3(1.0, 0.9, 0.7) * 30.0; // Яркий желтоватый свет
+            closest.emission = vec3(1.0, 0.9, 0.7) * 30.0;
             closest.isEmissive = true;
         }
     }
     
-    // Пол
     if (intersectPlane(ray, 0.0, t)) {
         if (t < closest.t) {
             closest.hit = true;
             closest.t = t;
             closest.position = ray.origin + ray.direction * t;
-            closest.normal = vec3(0.0, 1.0, 0.0);
-            
-            // Шахматная текстура
+            closest.normal = normalize(closest.position - vec3(0.0, 2.5, -3.0));
             float checker = mod(floor(closest.position.x) + floor(closest.position.z), 2.0);
             closest.albedo = mix(vec3(0.3), vec3(0.7), checker);
             closest.emission = vec3(0.0);
@@ -154,32 +138,23 @@ vec3 pathTrace(Ray ray, int maxBounces) {
         HitInfo hit = traceScene(ray);
 
         if (!hit.hit) {
-            // Небо (ambient)
             color += throughput * vec3(0.0, 0.0, 0.0001) * 0.3;
             break;
         }
 
-        // Добавляем эмиссию
         if (hit.isEmissive) {
             color += throughput * hit.emission;
-            break; // Светящиеся объекты не отражают свет дальше
-        }
-        
-        // Russian Roulette (для оптимизации)
-        float p = max(throughput.r, max(throughput.g, throughput.b));
-        if (randomFloat() > p) {
             break;
         }
+        
+        float p = max(throughput.r, max(throughput.g, throughput.b));
+        if (randomFloat() > p) break;
         throughput /= p;
         
-        // Диффузное отражение
         vec3 newDirection = normalize(hit.normal + randomInUnitSphere());
-
-        // Обновляем throughput (BRDF * cos(theta) / pdf)
         float cosTheta = max(0.0, dot(hit.normal, newDirection));
-        throughput *= hit.albedo * cosTheta * 2.0; // 2.0 - упрощенная компенсация
+        throughput *= hit.albedo * cosTheta * 2.0;
         
-        // Новый луч
         ray.origin = hit.position + hit.normal * 0.001;
         ray.direction = newDirection;
     }
@@ -187,44 +162,20 @@ vec3 pathTrace(Ray ray, int maxBounces) {
     return color;
 }
 
-struct Camera {
-    mat4 view;
-    mat4 proj;
-    vec4 pos;
-};
-
-layout(set = 0, binding = 0) uniform CameraBuffer {
-    Camera camera;
-};
-
-// ===== ГЕНЕРАЦИЯ ЛУЧА ИЗ КАМЕРЫ =====
+// ===== ГЕНЕРАЦИЯ ЛУЧА ИЗ ЗАХАРДКОЖЕННОЙ КАМЕРЫ =====
 Ray generateCameraRay(vec2 uv) {
-    // Инвертируем view и projection матрицы
-    mat4 invView = inverse(camera.view);
-    mat4 invProj = inverse(camera.proj);
     
-    // UV в NDC space
-    vec4 clipSpace = vec4(uv, -1.0, 1.0);
-
-    // NDC -> View space
-    vec4 viewSpace = invProj * clipSpace;
-    viewSpace = vec4(viewSpace.xy, -1.0, 0.0);
-    
-    // View space -> World space
-    vec4 worldSpace = invView * viewSpace;
-
     Ray ray;
-    // Позиция камеры из inverse view matrix
-    ray.origin = (invView * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-    ray.direction = normalize(worldSpace.xyz);
-    
+    ray.origin    = vec3(0.5, 1.5, 2.0);
+    ray.direction = normalize(vec3(uv.x, uv.y, -0.9));
+
     return ray;
 }
 
 void main() {
-
     vec2 resolution = vec2(800.0, 600.0);
     rngState = uint(gl_FragCoord.x) * 1973u + uint(gl_FragCoord.y) * 9277u + 12345u;
+
     vec3 finalColor = vec3(0.0);
     int samples = 30;
 
@@ -239,7 +190,6 @@ void main() {
     }
 
     finalColor /= float(samples);
-
     finalColor = finalColor / (finalColor + vec3(1.0));
     finalColor = pow(finalColor, vec3(1.0 / 2.2));
 

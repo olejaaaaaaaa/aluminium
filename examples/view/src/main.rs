@@ -3,9 +3,10 @@
 use std::error::Error;
 
 use aluminium::{
-    Mesh, MeshDesc, PresentPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, Transform, TransformDesc, VertexInput, Viewport,
+    PresentPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, VertexInput, Viewport,
     WorldRenderer,
 };
+
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -14,7 +15,7 @@ use winit::window::{Window, WindowId};
 use winit::*;
 
 mod ui;
-pub use ui::Ui;
+pub use ui::UiRenderer;
 
 mod gltf_loader;
 pub use gltf_loader::{GltfModel, load_gltf};
@@ -48,9 +49,9 @@ impl ApplicationHandler for App {
 
                 let _ = world.draw_frame(move |graph| {
                     graph.add_pass(PresentPass::new("Final Pass").execute(move |ctx| unsafe {
+                        ctx.bind_pipeline(pipeline);
                         ctx.set_viewport(Viewport::FullRes);
                         ctx.set_scissor(Scissor::FullRes);
-                        ctx.bind_pipeline(pipeline);
                         for i in &model.meshes {
                             ctx.draw_mesh(i.clone());
                         }
@@ -95,7 +96,7 @@ impl ApplicationHandler for App {
 
         let model = load_gltf(
             &mut world,
-            r"C:\Users\Oleja\Desktop\aluminium\examples\simple\assets\flighthelmet\scene.gltf",
+            r"C:\Users\Oleja\Desktop\aluminium\examples\view\assets\flighthelmet\scene.gltf",
         )
         .expect("Error load gltf model");
 
@@ -109,7 +110,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::DEBUG)
+        .with_max_level(LevelFilter::INFO)
         .init();
 
     let event_loop = EventLoop::new()?;

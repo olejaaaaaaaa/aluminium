@@ -88,12 +88,34 @@ impl RenderContext {
             .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .build()?;
 
-        let depth_view = ImageViewBuilder::depth(&device, vk::Format::D32_SFLOAT, depth_image.raw).build()?;
+        let depth_view = ImageViewBuilder::new(&device)
+            .format(vk::Format::D32_SFLOAT)
+            .image(depth_image.raw)
+            .subresource_range(vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::DEPTH,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            })
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .build()?;
 
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images().unwrap() {
-            let image_view = ImageViewBuilder::new_2d(&device, vk::Format::R8G8B8A8_SRGB, i).build()?;
+            let image_view = ImageViewBuilder::new(&device)
+                .format(vk::Format::R8G8B8A8_SRGB)
+                .image(i)
+                .subresource_range(vk::ImageSubresourceRange {
+                    aspect_mask: vk::ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: 1,
+                    base_array_layer: 0,
+                    layer_count: 1,
+                })
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .build()?;
             image_views.push(image_view);
         }
 

@@ -1,4 +1,5 @@
 use ash::vk;
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -10,68 +11,77 @@ pub struct ImageView {
 impl ImageView {
     pub fn destroy(&self, device: &Device) {
         unsafe { device.destroy_image_view(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "ImageView destroyed"
+        );
     }
 }
 
 pub struct ImageViewBuilder<'a> {
     device: &'a Device,
-    create_info: vk::ImageViewCreateInfo<'static>,
+    components: Option<vk::ComponentMapping>,
+    format: Option<vk::Format>,
+    image: Option<vk::Image>,
+    subresource_range: Option<vk::ImageSubresourceRange>,
+    view_type: Option<vk::ImageViewType>,
 }
 
 impl<'a> ImageViewBuilder<'a> {
-    #[allow(dead_code)]
+    pub fn new(device: &'a Device) -> Self {
+        Self {
+            device,
+            components: None,
+            format: None,
+            image: None,
+            subresource_range: None,
+            view_type: None,
+        }
+    }
+
     pub fn format(mut self, format: vk::Format) -> Self {
-        self.create_info = self.create_info.format(format);
+        self.format = Some(format);
         self
     }
 
-    #[allow(dead_code)]
     pub fn image(mut self, image: vk::Image) -> Self {
-        self.create_info = self.create_info.image(image);
+        self.image = Some(image);
         self
     }
 
-    pub fn new_2d(device: &'a Device, format: vk::Format, image: vk::Image) -> Self {
-        Self {
-            device,
-            create_info: vk::ImageViewCreateInfo::default()
-                .components(vk::ComponentMapping::default())
-                .format(format)
-                .image(image)
-                .subresource_range(vk::ImageSubresourceRange {
-                    aspect_mask: vk::ImageAspectFlags::COLOR,
-                    base_mip_level: 0,
-                    level_count: 1,
-                    base_array_layer: 0,
-                    layer_count: 1,
-                })
-                .view_type(vk::ImageViewType::TYPE_2D),
-        }
+    pub fn components(mut self, components: vk::ComponentMapping) -> Self {
+        self.components = Some(components);
+        self
     }
 
-    pub fn depth(device: &'a Device, format: vk::Format, image: vk::Image) -> Self {
-        Self {
-            device,
-            create_info: vk::ImageViewCreateInfo::default()
-                .components(vk::ComponentMapping::default())
-                .image(image)
-                .format(format)
-                .subresource_range(vk::ImageSubresourceRange {
-                    aspect_mask: vk::ImageAspectFlags::DEPTH,
-                    base_mip_level: 0,
-                    level_count: 1,
-                    base_array_layer: 0,
-                    layer_count: 1,
-                })
-                .view_type(vk::ImageViewType::TYPE_2D),
-        }
+    pub fn subresource_range(mut self, subresource_range: vk::ImageSubresourceRange) -> Self {
+        self.subresource_range = Some(subresource_range);
+        self
+    }
+
+    pub fn view_type(mut self, view_type: vk::ImageViewType) -> Self {
+        self.view_type = Some(view_type);
+        self
     }
 
     pub fn build(self) -> VulkanResult<ImageView> {
+        let format = self.format.expect("Missing Format");
+        let image = self.image.expect("Missing Image");
+        let components = self.components.unwrap_or(vk::ComponentMapping::default());
+        let subresource = self.subresource_range.expect("Missing SubResourceRange");
+        let view_type = self.view_type.unwrap_or(vk::ImageViewType::TYPE_2D);
+
+        let create_info = vk::ImageViewCreateInfo::default()
+            .subresource_range(subresource)
+            .view_type(view_type)
+            .components(components)
+            .format(format)
+            .image(image);
+
         let image_view = unsafe {
             profiling::scope!("vkCreateImageView");
             self.device
-                .create_image_view(&self.create_info, None)
+                .create_image_view(&create_info, None)
                 .map_err(VulkanError::Unknown)?
         };
 

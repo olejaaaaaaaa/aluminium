@@ -1,4 +1,5 @@
 use ash::vk;
+use tracing::debug;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 use super::app::App;
@@ -33,6 +34,10 @@ impl Surface {
 impl Surface {
     pub fn destroy(&self) {
         unsafe { self.loader.destroy_surface(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "Surface destroyed"
+        );
     }
 
     pub fn get_physical_device_surface_capabilities(&self, phys_dev: vk::PhysicalDevice) -> VulkanResult<vk::SurfaceCapabilitiesKHR> {

@@ -1,7 +1,7 @@
 use ash::vk;
 use gpu_allocator::vulkan::{Allocation, AllocationCreateDesc, AllocationScheme};
 use gpu_allocator::MemoryLocation;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
@@ -14,6 +14,11 @@ pub struct Image {
 impl Image {
     pub fn destroy(&mut self, device: &Device) {
         if let Some(allocation) = self.allocation.take() {
+            debug!(
+                handle = ?self.raw,
+                bytes = allocation.size(),
+                "Image destroyed"
+            );
             let _ = {
                 profiling::scope!("vkFreeImageMemory");
                 device.allocator.lock().free(allocation)
@@ -23,7 +28,7 @@ impl Image {
                 device.destroy_image(self.raw, None);
             }
         } else {
-            warn!("Double free!")
+            warn!("Double free detected!")
         }
     }
 }
@@ -136,6 +141,16 @@ impl<'a> ImageBuilder<'a> {
                     VulkanError::Unknown(e)
                 })?;
         }
+
+        debug!(
+            handle = ?image,
+            bytes = allocation.size(),
+            extent = ?extent,
+            format = ?format,
+            image_type = ?image_type,
+            usage = ?usage,
+            "Image created"
+        );
 
         Ok(Image {
             raw: image,

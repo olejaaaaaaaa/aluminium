@@ -1,15 +1,21 @@
 use ash::vk::{self};
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
+use crate::core::debug;
 
 pub struct FrameBuffer {
-    pub(crate) raw: vk::Framebuffer,
+    pub raw: vk::Framebuffer,
 }
 
 impl FrameBuffer {
     pub fn destroy(&self, device: &Device) {
         unsafe { device.destroy_framebuffer(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "FrameBuffer destroyed"
+        );
     }
 }
 
@@ -86,6 +92,15 @@ impl<'a> FrameBufferBuilder<'a> {
                 .create_framebuffer(&create_info, None)
                 .map_err(VulkanError::Unknown)?
         };
+
+        debug!(
+            handle = ?frame_buffer,
+            extent = ?extent,
+            layers = layers,
+            attachments = ?attachments,
+            render_pass = ?render_pass,
+            "FrameBuffer created"
+        );
 
         Ok(FrameBuffer { raw: frame_buffer })
     }

@@ -1,7 +1,9 @@
 use ash::vk;
+use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
+use crate::core::debug;
 
 pub struct Fence {
     pub raw: vk::Fence,
@@ -29,6 +31,12 @@ impl<'a> FenceBuilder<'a> {
                 .create_fence(&create_info, None)
                 .map_err(VulkanError::Unknown)
         }?;
+
+        debug!(
+            handle = ?fence,
+            flags = ?self.flags,
+            "Fence created"
+        );
 
         Ok(Fence { raw: fence })
     }

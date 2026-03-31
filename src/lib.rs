@@ -1,9 +1,4 @@
-//! Lightweight abstraction for rendering using Vulkan API
-//!
-//! # Cargo Features
-//! - vma (AMD Vulkan Memory Allocator used by default)
-//! - gpu-allocator (Traverse Research Gpu Allocator without С/C++ dependencies)
-//! - runtime-check (Runtime check used by default)
+#![doc = include_str!("../README.md")]
 pub(crate) mod bindless;
 pub(crate) mod camera;
 pub(crate) mod core;

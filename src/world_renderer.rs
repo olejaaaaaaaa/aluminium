@@ -8,47 +8,50 @@ use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
 use crate::frame_graph::FrameGraph;
 use crate::resources::*;
-/// Lightweight abstraction over Vulkan API
+/// Lightweight abstraction for rendering using Vulkan API
 ///
-/// ## Stability
-///
-/// Experimental. The public API may change between minor versions without a
-/// deprecation period.
+/// The Vulkan API is known for its verbosity, and my abstraction tries to solve
+/// this by leaving pleasant advantages in the form of huge performance and
+/// cross-platform compatibility
 ///
 /// ## Example
 ///
 /// ```ignore
 /// let mut world = WorldRenderer::new(&window)?;
 ///
-/// let _ = world.draw_frame(|graph| {
+/// world.draw_frame(|graph| {
 ///     graph.add_pass(...);
 /// })?;
 /// ```
 pub struct WorldRenderer {
-    /// Handles pass scheduling, dependency resolution, and automatic resource
-    /// barriers
+    /// FrameGraph for automatic creation of barriers between resources and
+    /// correct order of execution of passes
     graph: FrameGraph,
-    /// Contains resources for rendering and caches them creation
+    /// Thread safe to use
+    ///
+    /// Resources contain all previously created data and cache the creation of
+    /// new ones
     resources: Arc<Resources>,
-    /// Main Context for creation and some resources
+    /// The Render Context provides the main initialized vulkan structures and
+    /// implements its own proper destruction
     ctx: Arc<RenderContext>,
     /// No Send and Sync!
+    ///
+    /// Although Vulkan technically supports multi-threaded resource creation,
+    /// the abstraction currently only provides a single-threaded API for
+    /// resource creation
     _marker: PhantomData<*mut ()>,
 }
 
 impl WorldRenderer {
-    /// Initialises Vulkan and creates the renderer.
-    ///
-    /// Selects a physical device, creates a logical device and swapchain,
-    /// and allocates the initial resource pools. The window handle must
-    /// remain valid for the lifetime of the returned renderer.
+    /// # Create new WorldRenderer
+    /// - Automatic selection of the appropriate GPU
+    /// - Checking available extensions and selecting them
     ///
     /// # Panics
-    ///
-    /// Panics if no Vulkan-capable device is found or the device does not
-    /// support the formats and features required by this renderer. Prefer
-    /// checking hardware support at a higher level rather than catching
-    /// panics here.
+    /// - if not supported vulkan api on this device
+    /// - if the gpu does not support the required extensions
+    /// - if the device does not support the required formats
     pub fn new(window: &Window) -> VulkanResult<WorldRenderer> {
         let ctx = RenderContext::new(window)?;
         let resources = Resources::new(&ctx)?;
@@ -62,85 +65,104 @@ impl WorldRenderer {
         })
     }
 
-    /// Allocates a GPU resource and returns a reference-counted handle to it.
+    /// Create new resource
     ///
-    /// `Res<T>` is a thin wrapper around an index into the resource pool -
-    /// cheap to clone, copy, and compare. The underlying allocation is kept
-    /// alive as long as at least one handle exists; dropping the last handle
-    /// queues the resource for deferred destruction at the end of the frame.
+    /// [`Res<T>`] is a smart handle for deferred resource deletion
     ///
-    /// # Errors
+    /// The resource lifetime ends with the last drop + 5-10 frames after
     ///
-    /// Returns [`VulkanError`] if the driver rejects the creation parameters
-    /// or if the allocator runs out of suitable memory.
+    /// # Panics!
+    /// - if the resource creation parameters are not valid
+    /// - if the new GPU memory allocation returned an error
+    /// - if device lost (Driver Bug)
     ///
     /// # Example
     ///
     /// ```ignore
+    /// 
+    /// let vertices = vec![
+    ///     Vertex { pos: [ 0.0,  0.5, 0.0], color: [1.0, 0.0, 0.0] },
+    ///     Vertex { pos: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+    ///     Vertex { pos: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }
+    /// ];
+    /// // Ok
+    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices))?;
+    ///
+    /// let indices: u32 = vec![];
+    /// // Error: Indices must be not empty!
     /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
     /// ```
     pub fn create<T: Create>(&self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.ctx, &self.resources, desc)
     }
 
-    /// Acquires a shared read lock on the resource.
+    /// Acquires a shared read lock on the resource [`Ref<'_, T>`]
     ///
-    /// The lock is held until the returned [`Ref`] is dropped; holding it
-    /// across a `draw_frame` call is almost certainly a deadlock. Prefer
-    /// short-lived guards scoped to the lines that actually need the data.
+    /// There may be many readers, but only one writer in one area
     ///
-    /// Panics (in debug) or deadlocks (in release) if a [`RefMut`] to the
-    /// same resource is already held on this thread.
+    /// # Example
+    /// ```ignore
+    /// 
+    /// let transform = world.create::<Transform>(TransformDesc::identety())?;
+    /// // Ok
+    /// let scale = world.get(&transform).scale;
+    ///
+    /// {
+    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identety())?;
+    ///   let transform1 = world.get(&transform);
+    ///   // Error: Deadlock
+    ///   let transform2 = world.get_mut(&transform);
+    /// }
+    /// ```
     pub fn get<T: Get>(&self, res: &Res<T>) -> Ref<'_, T> {
         T::get(&self.resources, res)
     }
 
-    /// Returns a write guard to the resource identified by `res`
+    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
     ///
-    /// Internally wraps [`parking_lot::RwLockWriteGuard`] - the lock is held
-    /// until the returned [`RefMut`] is dropped. Acquiring this while
-    /// any other [`Ref`] or [`RefMut`] to the same resource is alive
-    /// **will deadlock**.
+    /// Only one writer in scope
     ///
     /// # Example
-    ///
     /// ```ignore
+    /// 
+    /// let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
+    /// // Ok
+    /// world.get_mut(&transform).scale[0] *= 0.2;
+    ///
     /// {
-    ///     let mut transform = world.get_mut(&handle);
-    ///     transform.scale[0] *= 2.0;
-    /// } // lock released here - safe to call get() or get_mut() again
+    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
+    ///   let transform1 = world.get_mut(&transform);
+    ///   // Error: Deadlock! transform1 is alive!
+    ///   let transform2 = world.get_mut(&transform);
+    /// }
     /// ```
     pub fn get_mut<T: GetMut>(&mut self, res: &Res<T>) -> RefMut<'_, T> {
         T::get_mut(&self.resources, res)
     }
 
-    /// Acquires an exclusive write lock on the camera.
+    /// Acquires an exclusive write lock on the camera [`RefMut<'_, Camera>`]
     ///
-    /// Equivalent to `get_mut` for the implicit camera resource. Deadlock
-    /// rules are the same: drop all live camera guards before calling this.
+    /// To avoid blocking, do not store the result in a variable
+    ///
+    /// There may be many readers, but only one writer in one area
     pub fn camera_mut(&mut self) -> RefMut<'_, Camera> {
         RefMut(self.resources.camera.write())
     }
 
-    /// Acquires a shared read lock on the camera.
+    /// Acquires a shared read lock on the camera [`Ref<'_, Camera>`]
     ///
-    /// Multiple read guards may coexist. Do not call `camera_mut` while any
-    /// read guard is alive - there is no runtime detection, it will deadlock.
+    /// To avoid blocking, do not store the result in a variable
+    ///
+    /// There may be many readers, but only one writer in one area
     pub fn camera(&self) -> Ref<'_, Camera> {
         Ref(self.resources.camera.read())
     }
 
-    /// Recreates extent-dependent resources after a window resize.
-    ///
-    /// Waits for the GPU to drain before destroying the old swapchain and
-    /// surface-sized attachments. Zero-area extents (minimised window) are
-    /// silently ignored - the swapchain is left intact and the next
-    /// non-zero resize will rebuild it.
+    /// Re-creating the main window
     ///
     /// # Panics
-    ///
-    /// Panics on device loss, allocation failure, or any Vulkan error that
-    /// leaves the renderer in an unrecoverable state.
+    /// - if an error occurred while creating new resources
+    /// - if device lost (Driver Bug)
     pub fn resize(&mut self, width: u32, height: u32) -> VulkanResult<()> {
         profiling::scope!("WorldRenderer::resize");
 
@@ -154,26 +176,40 @@ impl WorldRenderer {
         Ok(())
     }
 
-    /// Compiles and submits the frame graph built by `setup`.
+    /// Accepts a closure in which the entire frame creation cycle must be
+    /// described
     ///
-    /// Calls `setup` to populate the graph, then compiles the pass DAG
-    /// (barrier insertion, resource aliasing, queue assignment), and finally
-    /// submits command buffers to the GPU. The return value of `setup` is
-    /// forwarded to the caller unchanged.
+    /// # Example
+    /// ```ignore
+    /// let mut world = WorldRenderer::new(&window)?;
     ///
-    /// If the swapchain reports `OUT_OF_DATE`, `resize` is called
-    /// automatically and the frame is skipped. `SUBOPTIMAL` is silently
-    /// ignored for Android compatibility (see inline comment for rationale).
+    /// let simple_pipeline = world.create::<RasterPipeline>(
+    ///     RasterPipelineDesc::new()
+    ///         .vertex_shader("../first_shader.spv")
+    ///         .fragment_shader("../second_shader.spv")
+    /// )?;
+    ///
+    /// world.draw_frame(|graph| {
+    ///     graph.add_pass(
+    ///         PresentPass::new("Final Pass").execute(|ctx| unsafe {
+    ///             ctx.bind_pipeline(simple_pipeline)
+    ///             ctx.draw(3)
+    ///         });
+    ///     );
+    /// })?;
+    ///     
+    /// ```
     ///
     /// # Panics
-    ///
-    /// Panics on device loss or any Vulkan error that cannot be recovered
-    /// from transparently (e.g. failed swapchain recreation).
-    pub fn draw_frame<R, F: FnOnce(&mut FrameGraph) -> R>(&mut self, closure: F) -> VulkanResult<R> {
+    /// - if if an error occurred while recreating the window
+    /// - if the pass data is not valid
+    /// - if an error occurred while creating new resources
+    /// - if device lost (Driver Bug)
+    pub fn draw_frame<F: FnOnce(&mut FrameGraph)>(&mut self, callback: F) -> VulkanResult<()> {
         profiling::scope!("WorldRenderer::draw_frame");
 
         // Setup graph
-        let result = closure(&mut self.graph);
+        callback(&mut self.graph);
 
         // Compile Graph
         self.graph.compile(&self.ctx, &self.resources)?;
@@ -198,7 +234,7 @@ impl WorldRenderer {
                 return Err(err);
             }
         }
-        Ok(result)
+        Ok(())
     }
 }
 
@@ -210,14 +246,14 @@ impl Drop for WorldRenderer {
         unsafe { device.device_wait_idle().expect("Error device wait idle") };
 
         if Arc::strong_count(&self.resources) > 1 {
-            panic!("Resources has another clone this is an architectural error");
+            panic!("Resources has another clone!");
         }
 
         self.graph.destroy(device);
         self.resources.destroy(device);
 
         if Arc::strong_count(&self.ctx) > 1 {
-            panic!("Render Context has another clone this is an architectural error");
+            panic!("Render Context has another clone!");
         }
 
         // Render Context drop here

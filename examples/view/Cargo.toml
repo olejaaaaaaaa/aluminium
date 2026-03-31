@@ -1,5 +1,5 @@
 [package]
-name = "simple"
+name = "view"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,4 +9,5 @@ gltf = { workspace = true }
 bytemuck = { workspace = true }
 image = { workspace = true }
 winit = { workspace = true }
+egui = { workspace = true }
 aluminium = { path = "../.." }

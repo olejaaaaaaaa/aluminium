@@ -4,7 +4,7 @@ use crate::core::{Instance, VulkanError, VulkanResult};
 
 pub struct PhysicalDevice {
     pub(crate) raw: vk::PhysicalDevice,
-    pub(crate) prop: vk::PhysicalDeviceProperties,
+    pub(crate) props: vk::PhysicalDeviceProperties,
 }
 
 impl PhysicalDevice {
@@ -27,13 +27,13 @@ impl PhysicalDevice {
 
         for ty in gpu_priority {
             for dev in &phys_devs {
-                let prop = unsafe {
+                let props = unsafe {
                     profiling::scope!("vkGetPhysicalDeviceProperties");
                     instance.raw.get_physical_device_properties(*dev)
                 };
 
-                if prop.device_type == ty {
-                    return Ok(Self { raw: *dev, prop });
+                if props.device_type == ty {
+                    return Ok(Self { raw: *dev, props });
                 }
             }
         }
