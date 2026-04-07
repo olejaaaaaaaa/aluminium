@@ -2,6 +2,9 @@ use std::sync::Arc;
 
 use ash::vk::{self, ClearValue};
 
+mod texture;
+pub use texture::*;
+
 mod pass;
 pub use pass::*;
 
@@ -15,53 +18,35 @@ pub use types::*;
 mod resources;
 pub use resources::*;
 
+use crate::TemporalFrameGraph;
 use crate::core::{CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult};
 use crate::render_context::RenderContext;
 use crate::resources::{Destroy, Res, Resources};
 
+
 pub struct FrameGraph {
     cmd_pool: CommandPool,
     cmd_buffers: Vec<vk::CommandBuffer>,
-    execution_order: Vec<usize>,
-    passes: Vec<Pass>,
 }
 
 impl FrameGraph {
     /// Create new [`FrameGraph`]
     pub(crate) fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Self> {
         let cmd_pool = CommandPoolBuilder::reset(&ctx.device).build()?;
-        let cmd_buffers = cmd_pool.allocate_cmd_buffers(&ctx.device, vk::CommandBufferLevel::PRIMARY, 3)?;
+        let cmd_buffers = cmd_pool.allocate_cmd_buffers(&ctx.device, vk::CommandBufferLevel::PRIMARY, ctx.frame_count() as u32)?;
 
         Ok(FrameGraph {
             cmd_pool,
             cmd_buffers,
-            execution_order: vec![],
-            passes: vec![],
         })
     }
 
-    pub fn create<T>(&mut self, _value: T) {}
-
-    pub fn add_pass<P: Into<Pass>>(&mut self, pass: P) {
-        self.passes.push(pass.into());
-    }
-
-    pub(crate) fn compile(&mut self, _ctx: &Arc<RenderContext>, _resources: &Arc<Resources>) -> VulkanResult<()> {
+    pub(crate) fn compile(&mut self, temp: &mut TemporalFrameGraph<'_>, _ctx: &Arc<RenderContext>, _resources: &Arc<Resources>) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
-        self.topological_sort();
         Ok(())
     }
 
-    pub fn import<T: Destroy + Import>(&mut self, _res: Res<T>) -> Handle<T> {
-        todo!()
-    }
-
-    fn topological_sort(&mut self) {
-        profiling::scope!("FrameGraph::topological_sort");
-        self.execution_order = (0..self.passes.len()).collect();
-    }
-
-    pub(crate) fn execute(&mut self, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
+    pub(crate) fn execute(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::execute");
         let queue = ctx.device.queue_pool.get_present().unwrap();
         let device = &ctx.device;
@@ -107,8 +92,8 @@ impl FrameGraph {
         {
             let window = ctx.window.read();
             let resolution = window.resolution;
-            for i in self.execution_order.drain(..) {
-                let pass = self.passes.swap_remove(i);
+            for pass in temp.passes.drain(..) {
+                
                 match pass {
                     Pass::Present(pass) => {
                         let frame_buffer = &window.frame_buffers[image_index as usize];
@@ -116,7 +101,7 @@ impl FrameGraph {
                         let clear_values = vec![
                             ClearValue {
                                 color: vk::ClearColorValue {
-                                    float32: [0.0, 0.0, 0.0, 1.0],
+                                    float32: [0.2, 0.2, 0.2, 1.0],
                                 },
                             },
                             ClearValue {
@@ -149,14 +134,15 @@ impl FrameGraph {
                             device.cmd_begin_render_pass(cmd_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
                         }
 
-                        let pass_ctx = PassContext {
+                        let mut pass_ctx = PassContext {
+                            layout: None,
                             external_resources: resources.clone(),
                             resolution,
                             device: ctx.device.raw.clone(),
                             cbuf: cmd_buffer,
                         };
 
-                        (pass.callback)(&pass_ctx);
+                        (pass.callback)(&mut pass_ctx);
 
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);

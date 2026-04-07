@@ -1,13 +1,15 @@
 mod handle;
+use std::marker::PhantomData;
+
 pub use handle::Handle;
 
 use crate::resources::{Destroy, Res};
 
-pub trait Import {}
-
-enum GraphResource<T: Destroy> {
-    External(Res<T>),
+enum AnyFrameGraphResource<'frame, T: Destroy> {
+    External(&'frame Res<T>),
     Internal(Handle<T>),
 }
 
-pub struct FrameGraphResources {}
+pub struct FrameGraphResources {
+
+}

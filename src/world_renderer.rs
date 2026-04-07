@@ -6,8 +6,8 @@ use winit::window::Window;
 use super::render_context::RenderContext;
 use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
-use crate::frame_graph::FrameGraph;
-use crate::resources::*;
+use crate::frame_graph::{FrameGraph};
+use crate::{TemporalFrameGraph, resources::*};
 /// Lightweight abstraction for rendering using Vulkan API
 ///
 /// The Vulkan API is known for its verbosity, and my abstraction tries to solve
@@ -48,7 +48,7 @@ impl WorldRenderer {
     /// - Automatic selection of the appropriate GPU
     /// - Checking available extensions and selecting them
     ///
-    /// # Panics
+    /// # Panics!
     /// - if not supported vulkan api on this device
     /// - if the gpu does not support the required extensions
     /// - if the device does not support the required formats
@@ -88,7 +88,7 @@ impl WorldRenderer {
     /// // Ok
     /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices))?;
     ///
-    /// let indices: u32 = vec![];
+    /// let indices: Vec<u32> = vec![];
     /// // Error: Indices must be not empty!
     /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
     /// ```
@@ -103,12 +103,12 @@ impl WorldRenderer {
     /// # Example
     /// ```ignore
     /// 
-    /// let transform = world.create::<Transform>(TransformDesc::identety())?;
+    /// let transform = world.create::<Transform>(TransformDesc::identity())?;
     /// // Ok
     /// let scale = world.get(&transform).scale;
     ///
     /// {
-    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identety())?;
+    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
     ///   let transform1 = world.get(&transform);
     ///   // Error: Deadlock
     ///   let transform2 = world.get_mut(&transform);
@@ -136,7 +136,7 @@ impl WorldRenderer {
     ///   let transform2 = world.get_mut(&transform);
     /// }
     /// ```
-    pub fn get_mut<T: GetMut>(&mut self, res: &Res<T>) -> RefMut<'_, T> {
+    pub fn get_mut<T: GetMut>(&self, res: &Res<T>) -> RefMut<'_, T> {
         T::get_mut(&self.resources, res)
     }
 
@@ -145,7 +145,7 @@ impl WorldRenderer {
     /// To avoid blocking, do not store the result in a variable
     ///
     /// There may be many readers, but only one writer in one area
-    pub fn camera_mut(&mut self) -> RefMut<'_, Camera> {
+    pub fn camera_mut(&self) -> RefMut<'_, Camera> {
         RefMut(self.resources.camera.write())
     }
 
@@ -205,17 +205,22 @@ impl WorldRenderer {
     /// - if the pass data is not valid
     /// - if an error occurred while creating new resources
     /// - if device lost (Driver Bug)
-    pub fn draw_frame<F: FnOnce(&mut FrameGraph)>(&mut self, callback: F) -> VulkanResult<()> {
+    pub fn draw_frame<'frame, F>(&mut self, callback: F) -> VulkanResult<()> 
+    where F: FnOnce(&mut TemporalFrameGraph<'frame>)
+    {
         profiling::scope!("WorldRenderer::draw_frame");
 
+        // Create Temporal Frame Graph
+        let mut temp_fg = TemporalFrameGraph::new();
+        
         // Setup graph
-        callback(&mut self.graph);
+        callback(&mut temp_fg);
 
         // Compile Graph
-        self.graph.compile(&self.ctx, &self.resources)?;
+        self.graph.compile(&mut temp_fg, &self.ctx, &self.resources)?;
 
         // Execute Graph
-        if let Err(err) = self.graph.execute(&self.ctx, &self.resources) {
+        if let Err(err) = self.graph.execute(&mut temp_fg, &self.ctx, &self.resources) {
             if let VulkanError::Swapchain(err) = err {
                 match err {
                     SwapchainError::SwapchainOutOfDateKhr => {

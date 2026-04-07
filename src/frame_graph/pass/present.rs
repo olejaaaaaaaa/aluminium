@@ -4,39 +4,27 @@ use bytemuck::{Pod, Zeroable};
 
 use super::PassContext;
 
-pub struct PresentPass {
+pub struct PresentPass<'frame> {
     pub(crate) name: String,
-    pub(crate) reads: Vec<bool>,
-    pub(crate) constants_data: Vec<u8>,
-    pub(crate) callback: Box<dyn FnOnce(&PassContext) + Send + 'static>,
+    pub(crate) callback: Box<dyn FnOnce(&mut PassContext) + Send + 'frame>,
 }
 
-impl PresentPass {
+impl<'frame> PresentPass<'frame> {
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
-            reads: vec![],
-            constants_data: Vec::new(),
             callback: Box::new(|_| {}),
         }
     }
 
-    pub fn constants<T: Pod + Zeroable>(mut self, value: T) -> Self {
-        if size_of_val(&value) > 64 {
-            panic!("The maximum size of Push Constants is 64 bytes")
-        }
-        self.constants_data = bytemuck::bytes_of(&value).to_vec();
-        self
-    }
-
-    pub fn execute(mut self, callback: impl FnOnce(&PassContext) + Send + 'static) -> Self {
+    pub fn execute(mut self, callback: impl FnOnce(&mut PassContext) + Send + 'frame) -> Self {
         self.callback = Box::new(callback);
         self
     }
 }
 
-impl Into<super::Pass> for PresentPass {
-    fn into(self) -> super::Pass {
+impl<'a> Into<super::Pass<'a>> for PresentPass<'a> {
+    fn into(self) -> super::Pass<'a> {
         super::Pass::Present(self)
     }
 }

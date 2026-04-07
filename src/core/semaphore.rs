@@ -1,9 +1,21 @@
 use ash::vk;
 
+use crate::core::debug;
+use tracing::debug;
 use super::{Device, VulkanError, VulkanResult};
 
 pub struct Semaphore {
     pub raw: vk::Semaphore,
+}
+
+impl Semaphore {
+    pub fn destroy(&self, device: &Device) {
+        unsafe { device.destroy_semaphore(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "Destroy Semaphore"
+        );
+    }
 }
 
 pub struct SemaphoreBuilder<'a> {

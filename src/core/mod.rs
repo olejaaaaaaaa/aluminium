@@ -74,8 +74,8 @@ pub use descriptor_pool::*;
 mod queue_pool;
 pub use queue_pool::*;
 
-mod sync;
-pub use sync::*;
+mod frame_sync;
+pub use frame_sync::*;
 
 mod types;
 pub use types::*;

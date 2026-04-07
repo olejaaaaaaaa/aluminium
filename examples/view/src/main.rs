@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 
 use std::error::Error;
+use std::time::Instant;
 
 use aluminium::{
-    PresentPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, VertexInput, Viewport,
-    WorldRenderer,
+    BackBuffer, FrameGraphTexture, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, VertexInput, Viewport, WorldRenderer
 };
 
 use tracing_subscriber::filter::LevelFilter;
@@ -22,6 +22,7 @@ pub use gltf_loader::{GltfModel, load_gltf};
 
 #[derive(Default)]
 struct App {
+    global_time: Option<std::time::Instant>,
     model: Option<GltfModel>,
     pipeline: Option<Res<RasterPipeline>>,
     world: Option<WorldRenderer>,
@@ -44,18 +45,24 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let world = self.world.as_mut().unwrap();
-                let pipeline = self.pipeline.as_ref().unwrap().clone();
-                let model = self.model.as_ref().unwrap().clone();
+                let pipeline = self.pipeline.as_ref().unwrap();
+                let model = self.model.as_ref().unwrap();
+                let time_sec = self.global_time.as_ref().unwrap().elapsed().as_secs_f32();
 
                 let _ = world.draw_frame(move |graph| {
-                    graph.add_pass(PresentPass::new("Final Pass").execute(move |ctx| unsafe {
-                        ctx.bind_pipeline(pipeline);
-                        ctx.set_viewport(Viewport::FullRes);
-                        ctx.set_scissor(Scissor::FullRes);
-                        for i in &model.meshes {
-                            ctx.draw_mesh(i.clone());
-                        }
-                    }));
+
+                    graph.add_pass(
+                        PresentPass::new("Final Pass")
+                            .execute(move |ctx| unsafe {
+                                ctx.bind_pipeline(pipeline);
+                                ctx.push_constants([time_sec, 2.0]);
+                                ctx.set_viewport(Viewport::FullRes);
+                                ctx.set_scissor(Scissor::FullRes);
+                                for mesh in &model.meshes {
+                                    ctx.draw_mesh(mesh);
+                                }
+                            })
+                    );
                 });
             },
             _ => (),
@@ -81,9 +88,9 @@ impl ApplicationHandler for App {
 
         let pipeline = world
             .create::<RasterPipeline>(
-                RasterPipelineDesc::new()
-                    .vertex_shader(r"C:\Users\Oleja\Desktop\aluminium\shaders\spv\raster_vs.spv")
-                    .fragment_shader(r"C:\Users\Oleja\Desktop\aluminium\shaders\spv\raster_ps.spv")
+            RasterPipelineDesc::new()
+                    .vertex_shader("./shaders/spv/raster_vs.spv")
+                    .fragment_shader("./shaders/spv/raster_ps.spv")
                     .vertex_input(
                         VertexInput::new()
                             .with(ShaderType::Float3)
@@ -100,6 +107,7 @@ impl ApplicationHandler for App {
         )
         .expect("Error load gltf model");
 
+        self.global_time = Some(Instant::now());
         self.model = Some(model);
         self.pipeline = Some(pipeline);
         self.world = Some(world);

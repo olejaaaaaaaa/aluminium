@@ -17,7 +17,7 @@ pub struct Device {
     pub(crate) extensions: HashSet<&'static CStr>,
     pub(crate) features2: vk::PhysicalDeviceFeatures2<'static>,
     pub(crate) props2: vk::PhysicalDeviceProperties2<'static>,
-    pub(crate) driver_props: Box<vk::PhysicalDeviceDriverProperties<'static>>,
+    pub(crate) driver_props: vk::PhysicalDeviceDriverProperties<'static>,
     pub(crate) queue_family_props: Vec<vk::QueueFamilyProperties>,
     pub(crate) raw: ash::Device,
 }
@@ -93,7 +93,7 @@ impl Device {
 
         let optional_extensions: Vec<Vec<&'static CStr>> = vec![
             // Buffer Device Address
-            // vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
+            vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
         ];
 
         for i in &optional_extensions {
@@ -120,6 +120,33 @@ impl Device {
                 .get_physical_device_features2(phys_dev.raw, &mut features2);
         }
         features2
+    }
+
+    fn get_driver_props(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
+        let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
+        let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(&mut driver_props);
+
+        unsafe {
+            profiling::scope!("vkGetPhysicalDeviceProperties2");
+            instance
+                .raw
+                .get_physical_device_properties2(phys_dev.raw, &mut props2);
+        }
+
+        driver_props
+    }
+
+    fn get_props2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceProperties2<'static> {
+        let mut props2 = vk::PhysicalDeviceProperties2::default();
+
+        unsafe {
+            profiling::scope!("vkGetPhysicalDeviceProperties2");
+            instance
+                .raw
+                .get_physical_device_properties2(phys_dev.raw, &mut props2);
+        }
+
+        props2
     }
 
     pub fn new(instance: &Instance, phys_dev: &PhysicalDevice) -> VulkanResult<Self> {
@@ -178,15 +205,6 @@ impl Device {
                 .map_err(VulkanError::Unknown)?
         };
 
-        debug!("Descriptor indexing feature: {:#?}", descriptor_indexing);
-        info!(
-            gpu_name = unsafe { CStr::from_ptr(phys_dev.props.device_name.as_ptr()) }.to_str().unwrap(),
-            gpu_type = ?phys_dev.props.device_type,
-            extensions = ?extensions,
-            queue_family_count = ?queue_family_props.len(),
-            "Device created"
-        );
-
         let allocator = {
             profiling::scope!("vkCreateGpuAllocator");
             let create_info = AllocatorCreateDesc {
@@ -201,20 +219,24 @@ impl Device {
         };
 
         let features2 = Self::get_features2(instance, phys_dev);
-        let driver_props = Box::new(vk::PhysicalDeviceDriverProperties::default());
-        let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(unsafe { &mut *Box::into_raw(driver_props.clone()) });
 
-        unsafe {
-            profiling::scope!("vkGetPhysicalDeviceProperties2");
-            instance
-                .raw
-                .get_physical_device_properties2(phys_dev.raw, &mut props2);
-        }
+        let driver_props = Self::get_driver_props(instance, phys_dev);
+        let props2 = Self::get_props2(instance, phys_dev);
+
+        debug!("Descriptor indexing feature: {:#?}", descriptor_indexing);
+        info!(
+            gpu_name = unsafe { CStr::from_ptr(phys_dev.props.device_name.as_ptr()) }.to_str().unwrap(),
+            gpu_type = ?phys_dev.props.device_type,
+            vendor = ?driver_props.driver_id,
+            extensions = ?extensions,
+            queue_family_count = ?queue_family_props.len(),
+            "Device created"
+        );
 
         Ok(Device {
             raw: device,
             extensions,
-            driver_props: driver_props.clone(),
+            driver_props,
             props2,
             features2,
             allocator: ManuallyDrop::new(Mutex::new(allocator)),

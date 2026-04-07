@@ -25,10 +25,8 @@ impl FrameSync {
 
     /// Destroy `FrameSync`
     pub fn destroy(&self, device: &Device) {
-        unsafe {
-            device.destroy_semaphore(self.image_available.raw, None);
-            device.destroy_semaphore(self.render_finished.raw, None);
-            device.destroy_fence(self.in_flight_fence.raw, None);
-        }
+        self.image_available.destroy(device);
+        self.render_finished.destroy(device);
+        self.in_flight_fence.destroy(device);
     }
 }

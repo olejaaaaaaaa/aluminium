@@ -12,11 +12,11 @@ mod rt;
 
 use super::PassContext;
 
-pub enum Pass {
+pub enum Pass<'frame> {
     // TODO:
     // Rt(RtPass),
-    Raster(RasterPass),
+    Raster(RasterPass<'frame>),
     // TODO:
     // Compute(ComputePass),
-    Present(PresentPass),
+    Present(PresentPass<'frame>),
 }

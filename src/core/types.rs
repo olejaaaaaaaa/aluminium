@@ -19,6 +19,7 @@ pub struct Vertex {
     pub pos: [f32; 3],
     /// Color Vertex
     pub color: [f32; 3],
+    pub normal: [f32; 3],
 }
 
 impl Vertex {
@@ -48,7 +49,7 @@ pub struct TextureVertex {
 /// PBR Vertex
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-pub struct PBRVertex {
+pub struct PbrVertex {
     /// Pos
     pub pos: [f32; 4],
     /// Normal
@@ -61,11 +62,11 @@ pub struct PBRVertex {
     pub tangent: [f32; 4],
 }
 
-impl PBRVertex {
+impl PbrVertex {
     /// Create new PBR Vertex
     #[allow(dead_code)]
-    pub fn new(x: f32, y: f32, z: f32) -> PBRVertex {
-        PBRVertex {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {
             pos: [x, y, z, 0.0],
             normal: [0.0, 0.0, 0.0, 0.0],
             uv: [0.0, 0.0],
@@ -75,48 +76,48 @@ impl PBRVertex {
     }
 }
 
-impl AttributeDescriptions for PBRVertex {
+impl AttributeDescriptions for PbrVertex {
     fn attr_desc() -> Vec<ash::vk::VertexInputAttributeDescription> {
         vec![
             vk::VertexInputAttributeDescription {
                 location: 0,
                 binding: 0,
                 format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(PBRVertex, pos) as u32,
+                offset: offset_of!(PbrVertex, pos) as u32,
             },
             vk::VertexInputAttributeDescription {
                 location: 1,
                 binding: 0,
                 format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(PBRVertex, normal) as u32,
+                offset: offset_of!(PbrVertex, normal) as u32,
             },
             vk::VertexInputAttributeDescription {
                 location: 2,
                 binding: 0,
                 format: vk::Format::R32G32_SFLOAT,
-                offset: offset_of!(PBRVertex, uv) as u32,
+                offset: offset_of!(PbrVertex, uv) as u32,
             },
             vk::VertexInputAttributeDescription {
                 location: 3,
                 binding: 0,
                 format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(PBRVertex, color) as u32,
+                offset: offset_of!(PbrVertex, color) as u32,
             },
             vk::VertexInputAttributeDescription {
                 location: 4,
                 binding: 0,
                 format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(PBRVertex, tangent) as u32,
+                offset: offset_of!(PbrVertex, tangent) as u32,
             },
         ]
     }
 }
 
-impl BindingDescriptions for PBRVertex {
+impl BindingDescriptions for PbrVertex {
     fn bind_desc() -> Vec<ash::vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: std::mem::size_of::<PBRVertex>() as u32,
+            stride: std::mem::size_of::<PbrVertex>() as u32,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
@@ -146,6 +147,12 @@ impl AttributeDescriptions for Vertex {
                 location: 1,
                 format: vk::Format::R32G32B32_SFLOAT,
                 offset: std::mem::offset_of!(Vertex, color) as u32,
+            },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 2,
+                format: vk::Format::R32G32B32_SFLOAT,
+                offset: std::mem::offset_of!(Vertex, normal) as u32,
             },
         ];
 

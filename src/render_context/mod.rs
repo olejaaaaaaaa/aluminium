@@ -4,6 +4,7 @@ use ash::vk;
 use parking_lot::RwLock;
 
 mod window_manager;
+use tracing::warn;
 pub use window_manager::WindowManager;
 
 mod graphics_device;
@@ -53,8 +54,6 @@ impl RenderContext {
         let format_priority = [vk::Format::R8G8B8A8_SRGB];
 
         let color_space_priority = [
-            #[cfg(target_os = "android")]
-            vk::ColorSpaceKHR::EXTENDED_SRGB_LINEAR_EXT,
             vk::ColorSpaceKHR::SRGB_NONLINEAR,
         ];
 
@@ -70,8 +69,10 @@ impl RenderContext {
             }
         }
 
+        warn!("Image count: {}:{}", caps.min_image_count, caps.max_image_count);
+
         let swapchain = SwapchainBuilder::new(&device)
-            .min_image_count(caps.min_image_count)
+            .min_image_count(caps.max_image_count)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)

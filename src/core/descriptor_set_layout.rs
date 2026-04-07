@@ -42,9 +42,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
     pub fn build(self) -> VulkanResult<DescriptorSetLayout> {
         #[cfg(debug_assertions)]
         {
-            if self.bindings.is_empty() {
-                panic!("Bindings empty!")
-            }
+            assert!(!self.bindings.is_empty(), "Bindings empty!");
         }
 
         let mut create_info = vk::DescriptorSetLayoutCreateInfo::default()

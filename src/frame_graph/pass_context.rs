@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ash::vk::{self};
+use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
@@ -9,6 +10,7 @@ use crate::{Mesh, RasterPipeline};
 /// The context of the currently running pass
 pub struct PassContext {
     pub(crate) external_resources: Arc<Resources>,
+    pub(crate) layout: Option<vk::PipelineLayout>,
     pub(crate) resolution: vk::Extent2D,
     pub(crate) device: ash::Device,
     pub(crate) cbuf: vk::CommandBuffer,
@@ -72,23 +74,71 @@ impl PassContext {
         self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
     }
 
-    pub unsafe fn bind_pipeline(&self, handle: Res<RasterPipeline>) {
+    pub unsafe fn bind_pipeline(&mut self, handle: &Res<RasterPipeline>) {
         profiling::scope!("PassContext::bind_pipeline");
-        let binding = self.external_resources.pipeline_cache.read();
-        let pipeline = binding.raster_pipelines.get(&handle);
-
-        self.device
-            .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline.raw);
+        let cache = self.external_resources.pipeline_cache.read();
+        let pipeline = cache.raster_pipelines.get(handle);
+        let layout = cache.pipeline_layout.get(&pipeline.layout);
+        self.device.cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline.raw);
+        self.layout = Some(layout.raw.clone());
     }
 
     pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {
+        profiling::scope!("PassContext::dispatch");
         self.device.cmd_dispatch(self.cbuf, x, y, z);
     }
 
-    pub unsafe fn draw_mesh(&self, mesh: Res<Mesh>) {
+    pub unsafe fn push_constants<T: Pod + Zeroable>(&self, data: T) {
+
+        #[cfg(debug_assertions)]
+        {
+            assert!(self.layout.is_some(), "Pipeline must be bind before draw");
+        }
+
+        let layout = self.layout.unwrap();
+
+        #[repr(C)]
+        #[derive(Clone, Copy, Pod, Zeroable)]
+        struct PushConstants {
+            transform_idx: u32,
+            tex_idx: [u32; 8],
+            rw_tex_idx: [u32; 7],
+            user_data: [u8; 64]
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            assert!(size_of_val(&data) <= 64, "The maximum size of Push Constants is 64 bytes");
+            assert!(size_of_val(&data) > 0, "Push Constants cannot be empty");
+        }
+        let data = bytemuck::bytes_of(&data);
+        let mut out = [0u8; 64];
+
+        for (index, data) in data.iter().enumerate() {
+            out[index] = *data;
+        }
+
+        let push = PushConstants {
+            transform_idx: 0,
+            tex_idx: [0; 8],
+            rw_tex_idx: [0; 7],
+            user_data: out
+        };
+
+        self.device.cmd_push_constants(
+            self.cbuf, 
+            layout, 
+            vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX, 
+            0, 
+            bytemuck::bytes_of(&push)
+        );
+    }
+
+    pub unsafe fn draw_mesh(&self, mesh: &Res<Mesh>) {
         profiling::scope!("PassContext::draw_mesh");
+
         let binding = self.external_resources.meshes.read();
-        let mesh = binding.data.get(&mesh);
+        let mesh = binding.data.get(mesh);
 
         if let Some(index_buffer) = &mesh.index_buffer {
             self.device

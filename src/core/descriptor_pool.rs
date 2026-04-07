@@ -9,7 +9,22 @@ pub struct DescriptorPool {
 }
 
 impl DescriptorPool {
+
+    pub fn destroy(&self, device: &Device) {
+        unsafe { device.destroy_descriptor_pool(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "Destroy DescriptorPool"
+        );
+    }
+
     pub fn create_descriptor_set(&self, device: &Device, layouts: &[vk::DescriptorSetLayout]) -> VulkanResult<Vec<vk::DescriptorSet>> {
+
+        #[cfg(debug_assertions)]
+        {
+            assert!(!layouts.is_empty(), "Cannot allocate 0 descriptor sets!");
+        }
+
         let desc = vk::DescriptorSetAllocateInfo::default()
             .descriptor_pool(self.raw)
             .set_layouts(layouts);

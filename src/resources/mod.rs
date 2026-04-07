@@ -12,6 +12,12 @@ use crate::core::Device;
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
 
+mod texture;
+pub use texture::*;
+
+mod descriptor_manager;
+pub use descriptor_manager::*;
+
 mod transform;
 pub use transform::{Transform, TransformDesc, TransformPool};
 

@@ -3,11 +3,21 @@ use tracing::debug;
 
 use super::device::Device;
 use super::{VulkanError, VulkanResult};
-use crate::core::debug;
 
 pub struct Fence {
     pub raw: vk::Fence,
 }
+
+impl Fence {
+    pub fn destroy(&self, device: &Device) {
+        unsafe { device.destroy_fence(self.raw, None) };
+        debug!(
+            handle = ?self.raw,
+            "Destroy Fence"
+        );
+    }
+}
+
 
 pub struct FenceBuilder<'a> {
     pub device: &'a Device,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::{
-    load_spv, AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PipelineLayoutBuilder, ShaderBuilder, Vertex,
+    AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, Vertex, load_spv
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Destroy, Res, Resources, ShaderType};
@@ -90,6 +90,7 @@ impl<'a> RasterPipelineDesc<'a> {
 }
 
 pub struct RasterPipeline {
+    pub layout: Res<PipelineLayout>,
     pub pipeline: GraphicsPipeline,
 }
 
@@ -104,8 +105,8 @@ impl Create for RasterPipeline {
         resources: &std::sync::Arc<Resources>,
         desc: Self::Desc<'_>,
     ) -> VulkanResult<Res<Self>> {
-        let binding = Vertex::bind_desc();
-        let attrs = Vertex::attr_desc();
+        let binding = PbrVertex::bind_desc();
+        let attrs = PbrVertex::attr_desc();
 
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
             .vertex_binding_descriptions(&binding)
@@ -170,7 +171,7 @@ impl Create for RasterPipeline {
                 .extent(resolution)])
             .input_assembly(
                 vk::PipelineInputAssemblyStateCreateInfo::default()
-                    .topology(vk::PrimitiveTopology::LINE_LIST)
+                    .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
                     .primitive_restart_enable(false),
             )
             .rasterization(
@@ -198,14 +199,18 @@ impl Create for RasterPipeline {
             .vertex_input_info(vertex_input_info)
             .build()?;
 
-        std::mem::forget(layout);
+        let mut cache = resources.pipeline_cache.write();
+        let layout = cache.pipeline_layout.insert(
+            Arc::downgrade(ctx), Arc::downgrade(resources),
+            layout
+        );
 
         let handle =
-            resources
-                .pipeline_cache
-                .write()
-                .raster_pipelines
-                .insert(Arc::downgrade(ctx), Arc::downgrade(resources), RasterPipeline { pipeline });
+            cache.raster_pipelines
+                .insert(Arc::downgrade(ctx), Arc::downgrade(resources), RasterPipeline { 
+                    pipeline,
+                    layout
+                });
 
         Ok(handle)
     }

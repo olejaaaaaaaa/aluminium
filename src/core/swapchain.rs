@@ -114,8 +114,14 @@ impl<'a> SwapchainBuilder<'a> {
             handle = ?swapchain,
             clipped = true,
             format = ?format,
+            min_image_count = ?min_image_count,
+            present_mode = ?present_mode,
+            color_space = ?color_space,
+            old_swapchain = ?old_swapchain,
+            extent = ?extent,             
             "Swapchain created"
         );
+
 
         Ok(Swapchain {
             raw: swapchain,

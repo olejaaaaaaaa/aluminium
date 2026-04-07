@@ -75,7 +75,7 @@ impl WindowManager {
 
         let swapchain = SwapchainBuilder::new(device)
             .old_swapchain(self.swapchain.raw)
-            .min_image_count(caps.min_image_count)
+            .min_image_count(caps.max_image_count)
             .surface(&self.surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&device.instance)

@@ -35,16 +35,16 @@ const uint SAMPLER_BORDER = 2;
 const uint SAMPLER_MIP_LINEAR = 3;
 const uint SAMPLER_MIP_POINT = 4;
 
-// [[vk::push_constant]] struct Push {
-//     // 4 bytes
-//     uint transform_idx;  
-//     // 4 * 8 = 32 bytes
-//     uint tex_idx[8];    
-//     // 4 * 7 = 28 bytes
-//     uint rw_tex_idx[7];  
-//     // 4 * 16 = 64 bytes
-//     uint user_data[16];       
-// } push;
+[[vk::push_constant]] struct Push {
+    // 4 bytes
+    uint transform_idx;  
+    // 4 * 8 = 32 bytes
+    uint tex_idx[8];    
+    // 4 * 7 = 28 bytes
+    uint rw_tex_idx[7];  
+    // 4 * 16 = 64 bytes
+    float user_data[16];       
+} push;
 
 struct PSInput
 {
