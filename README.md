@@ -27,12 +27,6 @@ Extensions
     - VK_KHR_synchronization2
     - VK_KHR_get_physical_device_properties2
 
-Formats
-
-    - R8G8B8A8_SRGB
-    - R8G8B8A8_UNORM
-    - D32_SFLOAT
-
 ## Note
 Aluminum is focused on data visualization with high enough performance 
 It **does not** provide resource loading tools (glTF/OBJ/PNG) and UI display tools(egui/imgui)
