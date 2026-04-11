@@ -1,4 +1,4 @@
-use crate::{Res, core::{Image, ImageView}, resources::Destroy};
+use crate::{Res, core::{Image, ImageView}, resources::{Destroy, ResourceKey}};
 mod texture;
 pub use texture::{Resolution, TextureFormat};
 const MAX_TEXTURE: usize = 100000;
@@ -22,6 +22,10 @@ pub struct TextureView {
     view: Res<ImageView>
 }
 
+pub struct TextureViewDesc {
+    image: Res<Image>
+}
+
 pub struct TexturePool {
     
 }
@@ -35,13 +39,13 @@ impl TexturePool {
 }
 
 impl Destroy for Image {
-    fn destroy(handle: &Res<Self>, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
+    fn destroy(handle: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
         
     }
 }
 
 impl Destroy for ImageView {
-    fn destroy(handle: &Res<Self>, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
+    fn destroy(handle: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
         
     }
 }

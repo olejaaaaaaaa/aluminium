@@ -40,10 +40,8 @@ const uint SAMPLER_MIP_POINT = 4;
     uint transform_idx;  
     // 4 * 8 = 32 bytes
     uint tex_idx[8];    
-    // 4 * 7 = 28 bytes
-    uint rw_tex_idx[7];  
-    // 4 * 16 = 64 bytes
-    float user_data[16];       
+    // 24 * 4 = 92 bytes
+    float user_data[23];       
 } push;
 
 struct VSInput

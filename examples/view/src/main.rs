@@ -4,7 +4,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::{
-    BackBuffer, FrameGraphTexture, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, Res, Scissor, ShaderType, VertexInput, Viewport, WorldRenderer
+    BackBuffer, FrameGraphTexture, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTargetsDesc, Res, Scissor, ShaderType, VertexInput, Viewport, WorldRenderer
 };
 
 use tracing_subscriber::filter::LevelFilter;
@@ -19,6 +19,46 @@ pub use ui::UiRenderer;
 
 mod gltf_loader;
 pub use gltf_loader::{GltfModel, load_gltf};
+
+
+
+                    /*
+                    
+                    Compute Pass
+                        Читает:
+                            Uniform Buffer
+                            Storage Buffer (read-only)
+                            Storage Image (read-only)
+                            Sampled Image / Texture
+
+                        Пишет:
+                            Storage Buffer
+                            Storage Image
+
+                    Raster Pass
+                        Читает:
+                            Uniform Buffer
+                            Storage Buffer (read-only)
+                            Sampled Image / Texture
+                            Input Attachment — да, но только то, что было Output в этом же RenderPass (тот же VkRenderPass, subpass dependency). Это subpass input, не между пассами.
+
+                        Пишет:
+                            Color Attachment (RenderTarget) — обязательно хотя бы один, либо depth
+                            Depth/Stencil Attachment
+                            Storage Buffer / Storage Image
+
+                    Ray Tracing Pass
+                        Читает:
+                            Acceleration Structure (TLAS) — это его уникальный ресурс
+                            Uniform Buffer
+                            Storage Buffer
+                            Sampled Image / Texture
+
+                        Пишет:
+                            Storage Image — главный output, обычно пишет финальную картинку именно так
+                            Storage Buffer
+                    */
+
 
 #[derive(Default)]
 struct App {
@@ -51,9 +91,18 @@ impl ApplicationHandler for App {
 
                 let _ = world.draw_frame(move |graph| {
 
+                    #[derive(Clone, Copy, Default)]
+                    pub struct PassData {
+
+                    }
+
                     graph.add_pass(
-                        PresentPass::new("Final Pass")
-                            .execute(move |ctx| unsafe {
+                        PresentPass::new(
+                            "Final Pass", 
+                            |builder| {
+                               PassData {}
+                            }, 
+                            move |ctx, data| unsafe {
                                 ctx.bind_pipeline(pipeline);
                                 ctx.push_constants([time_sec, 2.0]);
                                 ctx.set_viewport(Viewport::FullRes);
@@ -61,7 +110,8 @@ impl ApplicationHandler for App {
                                 for mesh in &model.meshes {
                                     ctx.draw_mesh(mesh);
                                 }
-                            })
+                            }
+                        )
                     );
                 });
             },
@@ -84,7 +134,7 @@ impl ApplicationHandler for App {
             .create_window(window_attributes)
             .expect("Error create window");
 
-        let mut world = WorldRenderer::new(&window).expect("Error create world renderer");
+        let world = WorldRenderer::new(&window).expect("Error create world renderer");
 
         let pipeline = world
             .create::<RasterPipeline>(
@@ -102,8 +152,8 @@ impl ApplicationHandler for App {
             .expect("Error create pipeline");
 
         let model = load_gltf(
-            &mut world,
-            r"C:\Users\Oleja\Desktop\aluminium\examples\view\assets\flighthelmet\scene.gltf",
+            &world,
+            "./examples/view/assets/flighthelmet/scene.gltf",
         )
         .expect("Error load gltf model");
 

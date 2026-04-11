@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder};
 use crate::render_context::RenderContext;
-use crate::resources::{Create, Destroy, Pool, Resources};
+use crate::resources::{Create, Destroy, Pool, ResourceKey, Resources};
 use crate::VulkanResult;
 
 pub struct Mesh {
@@ -41,7 +41,7 @@ impl<'a> MeshDesc<'a> {
 }
 
 impl Destroy for Mesh {
-    fn destroy(_handle: &super::Res<Self>, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
+    fn destroy(key: ResourceKey, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
 }
 
 impl Create for Mesh {
@@ -69,9 +69,7 @@ impl Create for Mesh {
             None
         };
 
-        let mesh = resources.meshes.write().data.insert(
-            Arc::downgrade(ctx),
-            Arc::downgrade(resources),
+        let key = resources.meshes.write().insert(
             Mesh {
                 instance_offset: 0,
                 instance_count: 1,
@@ -81,7 +79,7 @@ impl Create for Mesh {
             },
         );
 
-        Ok(mesh)
+        Ok(resources.make_handle(ctx, key))
     }
 }
 
@@ -95,11 +93,6 @@ impl MeshStore {
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for (_, mut mesh) in self.data.slots.drain() {
-            mesh.vertex_buffer.destroy(device);
-            if let Some(mut index) = mesh.index_buffer.take() {
-                index.destroy(device);
-            }
-        }
+
     }
 }

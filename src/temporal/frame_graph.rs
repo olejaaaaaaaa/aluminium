@@ -1,7 +1,7 @@
 use crate::{Handle, Res, frame_graph::Pass, resources::Destroy};
 
 pub struct TemporalFrameGraph<'frame> {
-    pub(crate) passes: Vec<Pass<'frame>>,
+    pub passes: Vec<Pass<'frame>>,
     execution_order: Vec<usize>,
 }
 

@@ -9,7 +9,7 @@ pub struct GltfModel {
     pub meshes: Vec<Res<Mesh>>,
 }
 
-fn load_gltf_node(world: &mut WorldRenderer, model: &mut GltfModel, node: gltf::Node<'_>, buffers: &[gltf::buffer::Data]) -> VulkanResult<()> {
+fn load_gltf_node(world: &WorldRenderer, model: &mut GltfModel, node: gltf::Node<'_>, buffers: &[gltf::buffer::Data]) -> VulkanResult<()> {
     for child in node.children() {
         load_gltf_node(world, model, child, buffers)?;
     }
@@ -62,7 +62,7 @@ fn load_gltf_node(world: &mut WorldRenderer, model: &mut GltfModel, node: gltf::
     Ok(())
 }
 
-pub fn load_gltf<P: AsRef<Path>>(world: &mut WorldRenderer, path: P) -> VulkanResult<GltfModel> {
+pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult<GltfModel> {
     let (gltf, buffers, mut images) = match gltf::import(path.as_ref()) {
         Ok(result) => result,
         Err(err) => panic!("Error load gltf model with path: {:?} with error: {:?}", path.as_ref().as_os_str(), err),

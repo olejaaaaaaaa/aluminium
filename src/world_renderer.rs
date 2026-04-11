@@ -146,7 +146,7 @@ impl WorldRenderer {
     ///
     /// There may be many readers, but only one writer in one area
     pub fn camera_mut(&self) -> RefMut<'_, Camera> {
-        RefMut(self.resources.camera.write())
+        RefMut(self.resources.camera.try_write().expect("Camera is already borrowed mutably"))
     }
 
     /// Acquires a shared read lock on the camera [`Ref<'_, Camera>`]
@@ -155,7 +155,7 @@ impl WorldRenderer {
     ///
     /// There may be many readers, but only one writer in one area
     pub fn camera(&self) -> Ref<'_, Camera> {
-        Ref(self.resources.camera.read())
+        Ref(self.resources.camera.try_read().expect("Camera is already borrowed mutably"))
     }
 
     /// Re-creating the main window

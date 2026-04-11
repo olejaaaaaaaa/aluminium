@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 
 use ash::vk;
 use parking_lot::RwLock;
-use slotmap::new_key_type;
+use slotmap::{SlotMap, new_key_type};
 
 use crate::bindless::Bindless;
 use crate::camera::Camera;
@@ -85,7 +85,7 @@ impl<T: Destroy> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
         if ref_count == 1 {
-            T::destroy(self, self.ctx.clone(), self.resources.clone());
+            T::destroy(self.key, self.ctx.clone(), self.resources.clone());
         }
     }
 }
@@ -108,12 +108,12 @@ pub trait Get: Sized + Destroy {
 
 #[allow(missing_docs)]
 pub trait Destroy: Sized {
-    fn destroy(handle: &Res<Self>, ctx: Weak<RenderContext>, resources: Weak<Resources>);
+    fn destroy(key: ResourceKey, ctx: Weak<RenderContext>, resources: Weak<Resources>);
 }
 
 pub struct Resources {
     pub(crate) bindless: Bindless,
-    pub(crate) meshes: RwLock<MeshStore>,
+    pub(crate) meshes: RwLock<SlotMap<ResourceKey, Mesh>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
     pub(crate) camera: RwLock<Camera>,
@@ -123,7 +123,6 @@ impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
         let frame_count = ctx.frame_count();
         let camera = Camera::new(&ctx.device, frame_count)?;
-        let meshes = MeshStore::new();
         let pipeline_cache = PipelineCache::new();
         let transforms = TransformPool::new(&ctx.device, ctx.frame_count())?;
         let bindless = Bindless::new(&ctx)?;
@@ -132,9 +131,23 @@ impl Resources {
             bindless,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
-            meshes: RwLock::new(meshes),
+            meshes: RwLock::new(SlotMap::with_key()),
             camera: RwLock::new(camera),
         }))
+    }
+
+    fn make_handle<T: Destroy>(
+        self: &Arc<Self>,
+        ctx: &Arc<RenderContext>,
+        key: ResourceKey,
+    ) -> Res<T> {
+        Res {
+            key,
+            ref_count: Arc::new(AtomicUsize::new(1)),
+            ctx: Arc::downgrade(ctx),
+            resources: Arc::downgrade(self),
+            _marker: PhantomData,
+        }
     }
 
     // Always Set 0
@@ -151,6 +164,12 @@ impl Resources {
         self.bindless.destroy(device);
         self.camera.write().destroy(device);
         self.transforms.write().destroy(device);
-        self.meshes.write().destroy(device);
+
+        for (_, mut mesh) in self.meshes.write().drain() {
+            mesh.vertex_buffer.destroy(device);
+            if let Some(mut index) = mesh.index_buffer.take() {
+                index.destroy(device);
+            }
+        }
     }
 }

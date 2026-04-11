@@ -1,25 +1,41 @@
 #![allow(missing_docs)]
 
-use bytemuck::{Pod, Zeroable};
+use std::any::Any;
 
-use super::PassContext;
+use super::{PassContext, PassBuilder, Setup};
+
+use std::any::{TypeId};
 
 pub struct PresentPass<'frame> {
     pub(crate) name: String,
-    pub(crate) callback: Box<dyn FnOnce(&mut PassContext) + Send + 'frame>,
+    pub(crate) reads: Vec<bool>,
+    pub(crate) execute: Box<dyn FnOnce(&mut PassContext) + Send + 'frame>,
 }
 
 impl<'frame> PresentPass<'frame> {
-    pub fn new<S: Into<String>>(name: S) -> Self {
+    
+    pub fn new<Name, Type, Setup, Execute>(name: Name, setup: Setup, execute: Execute) -> Self 
+    where 
+        Name: Into<String>, 
+        Type: Any + Send, 
+        Setup: FnOnce(&mut PassBuilder<'frame>) -> Type + Send + 'frame,
+        Execute: FnOnce(&mut PassContext, &Type) + Send + 'frame
+    {
+        let mut builder = PassBuilder {
+            reads: vec![],
+            writes: vec![],
+            render_target_desc: None,
+        };
+        
+        let data = setup(&mut builder);
+        
         Self {
             name: name.into(),
-            callback: Box::new(|_| {}),
+            reads: builder.reads,
+            execute: Box::new(move |ctx| {
+                execute(ctx, &data);
+            }),
         }
-    }
-
-    pub fn execute(mut self, callback: impl FnOnce(&mut PassContext) + Send + 'frame) -> Self {
-        self.callback = Box::new(callback);
-        self
     }
 }
 

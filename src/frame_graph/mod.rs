@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::sync::Arc;
 
 use ash::vk::{self, ClearValue};
@@ -42,9 +43,19 @@ impl FrameGraph {
     }
 
     pub(crate) fn compile(&mut self, temp: &mut TemporalFrameGraph<'_>, _ctx: &Arc<RenderContext>, _resources: &Arc<Resources>) -> VulkanResult<()> {
-        profiling::scope!("FrameGraph::compile");
-        Ok(())
+    profiling::scope!("FrameGraph::compile");
+
+    for i in temp.passes.iter_mut() {
+        match i {
+            Pass::Present(pass) => {
+        
+            },
+            _ => {}
+        }
     }
+
+    Ok(())
+}
 
     pub(crate) fn execute(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::execute");
@@ -53,7 +64,7 @@ impl FrameGraph {
 
         // ------------------------Acquire Next Image-----------------------------
         let image_index = {
-            let window = &ctx.window.read();
+            let window = &ctx.window.try_read().expect("Error borrowed Window for read");
             let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
             // Wait fence for next frame or skip frame
@@ -142,7 +153,7 @@ impl FrameGraph {
                             cbuf: cmd_buffer,
                         };
 
-                        (pass.callback)(&mut pass_ctx);
+                        (pass.execute)(&mut pass_ctx);
 
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);
@@ -155,11 +166,12 @@ impl FrameGraph {
                         }
                     },
                     Pass::Raster(_pass) => {},
+                    Pass::Compute(_pass) => {}
                 }
             }
         }
 
-        let mut window = ctx.window.write();
+        let mut window = ctx.window.try_write().expect("Window already borrowed mutably");
         let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
         // -----------------------Submit-----------------------------

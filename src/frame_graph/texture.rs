@@ -11,9 +11,9 @@ pub struct RenderTarget {
 
 }
 
-pub struct RenderTargetDesc {
-    colors: Vec<Handle<bool>>,
-    depth: Option<Handle<bool>>
+pub struct RenderTargetsDesc<'a> {
+    pub colors: &'a [Handle<bool>],
+    pub depth: Option<Handle<bool>>
 }
 
 pub struct FrameGraphTexture {}

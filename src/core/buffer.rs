@@ -18,6 +18,8 @@ impl GpuBuffer {
         self.count = data.len() as u32;
         let size = std::mem::size_of_val(data);
 
+        assert!(size != 0, "Cannot create empty buffer");
+
         let dst = self
             .allocation
             .as_ref()

@@ -26,9 +26,6 @@ impl DescriptorManager {
             .max_sets(10)
             .build()?;
 
-        // vk::DescriptorSetLayoutBinding::default()
-        //     .
-
         let layout = DescriptorSetLayoutBuilder::new(device)
             .bindings(vec![
                 

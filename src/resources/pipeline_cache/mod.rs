@@ -7,11 +7,11 @@ pub use raster_pipeline::{RasterPipeline, RasterPipelineDesc, VertexInput};
 mod bindings;
 pub use bindings::*;
 
-use crate::{core::PipelineLayout, resources::{Destroy, Pool}};
+use crate::{core::PipelineLayout, resources::{Destroy, Pool, ResourceKey}};
 
 
 impl Destroy for PipelineLayout {
-    fn destroy(handle: &super::Res<Self>, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
+    fn destroy(key: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
         
     }
 }

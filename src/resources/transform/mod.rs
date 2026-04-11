@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::core::{Device, VulkanResult};
 use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
-use crate::resources::{Create, Destroy, LinearPool, Res, Resources};
+use crate::resources::{Create, Destroy, LinearPool, Res, ResourceKey, Resources};
 
 pub const MAX_TRANSFORMS: usize = 1_000;
 
@@ -59,7 +59,7 @@ impl Transform {
 }
 
 impl Destroy for Transform {
-    fn destroy(_handle: &Res<Self>, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
+    fn destroy(_handle: ResourceKey, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
 }
 
 impl Create for Transform {

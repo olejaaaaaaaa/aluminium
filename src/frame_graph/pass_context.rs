@@ -4,7 +4,7 @@ use ash::vk::{self};
 use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
-use crate::resources::{Res, Resources};
+use crate::resources::{Res, Resources, Texture, TextureView};
 use crate::{Mesh, RasterPipeline};
 
 /// The context of the currently running pass
@@ -90,7 +90,10 @@ impl PassContext {
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&self, data: T) {
 
-        #[cfg(debug_assertions)]
+        assert!(size_of_val(&data) <= 64, "The maximum size of Push Constants is 64 bytes");
+        assert!(size_of_val(&data) > 0, "Push Constants cannot be empty");
+
+        #[cfg(feature = "validation")]
         {
             assert!(self.layout.is_some(), "Pipeline must be bind before draw");
         }
@@ -102,17 +105,11 @@ impl PassContext {
         struct PushConstants {
             transform_idx: u32,
             tex_idx: [u32; 8],
-            rw_tex_idx: [u32; 7],
-            user_data: [u8; 64]
+            user_data: [u8; 92]
         }
-
-        #[cfg(debug_assertions)]
-        {
-            assert!(size_of_val(&data) <= 64, "The maximum size of Push Constants is 64 bytes");
-            assert!(size_of_val(&data) > 0, "Push Constants cannot be empty");
-        }
+        
         let data = bytemuck::bytes_of(&data);
-        let mut out = [0u8; 64];
+        let mut out = [0u8; 92];
 
         for (index, data) in data.iter().enumerate() {
             out[index] = *data;
@@ -121,7 +118,6 @@ impl PassContext {
         let push = PushConstants {
             transform_idx: 0,
             tex_idx: [0; 8],
-            rw_tex_idx: [0; 7],
             user_data: out
         };
 
@@ -134,11 +130,15 @@ impl PassContext {
         );
     }
 
+    // pub unsafe fn bind_texture(&self, slot: usize, texture: &Res<TextureView>) {
+
+    // }
+
     pub unsafe fn draw_mesh(&self, mesh: &Res<Mesh>) {
         profiling::scope!("PassContext::draw_mesh");
 
         let binding = self.external_resources.meshes.read();
-        let mesh = binding.data.get(mesh);
+        let mesh = binding.get(mesh.key).unwrap();
 
         if let Some(index_buffer) = &mesh.index_buffer {
             self.device

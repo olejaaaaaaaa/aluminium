@@ -6,7 +6,7 @@ use crate::core::{
     AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, Vertex, load_spv
 };
 use crate::resources::pipeline_cache::Source;
-use crate::resources::{Create, Destroy, Res, Resources, ShaderType};
+use crate::resources::{Create, Destroy, Res, ResourceKey, Resources, ShaderType};
 use crate::VulkanResult;
 
 pub struct VertexInput {
@@ -95,7 +95,7 @@ pub struct RasterPipeline {
 }
 
 impl Destroy for RasterPipeline {
-    fn destroy(_handle: &Res<Self>, _ctx: std::sync::Weak<crate::render_context::RenderContext>, _resources: std::sync::Weak<Resources>) {}
+    fn destroy(key: ResourceKey, _ctx: std::sync::Weak<crate::render_context::RenderContext>, _resources: std::sync::Weak<Resources>) {}
 }
 
 impl Create for RasterPipeline {
