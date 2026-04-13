@@ -8,12 +8,9 @@ pub use compute::ComputePass;
 mod raster;
 pub use raster::*;
 
-use crate::{Handle, frame_graph::{RenderTarget, RenderTargetsDesc}};
-
 use super::PassContext;
-
-type Execute<'a, T> = dyn FnOnce(&mut PassContext, &mut T) + Send + 'a;
-type Setup<'a, T> = dyn FnOnce(&mut PassBuilder, &mut T) + Send + 'a;
+use crate::frame_graph::RenderTarget;
+use crate::Handle;
 
 pub enum Pass<'frame> {
     Raster(RasterPass<'frame>),
@@ -21,26 +18,7 @@ pub enum Pass<'frame> {
     Present(PresentPass<'frame>),
 }
 
-pub struct PassBuilder<'a> {
-    pub(crate) reads: Vec<bool>,
-    pub(crate) writes: Vec<bool>,
-    pub(crate) render_target_desc: Option<RenderTargetsDesc<'a>>
+pub trait IntoPass<'a, T: Copy> {
+    fn into_pass(self) -> (Pass<'a>, T);
 }
-
-impl<'a> PassBuilder<'a> {
-    pub fn read(&mut self, handle: bool) -> Handle<bool> {
-        //vec![]
-        todo!()
-    }
-
-    pub fn write(&mut self, handle: bool) -> Handle<bool> {
-        //vec![]
-        todo!()
-    }
-
-    pub fn render_targets(&mut self, desc: RenderTargetsDesc<'a>) {
-        
-    }
-}
-
 

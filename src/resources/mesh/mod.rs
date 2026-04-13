@@ -69,15 +69,13 @@ impl Create for Mesh {
             None
         };
 
-        let key = resources.meshes.write().insert(
-            Mesh {
-                instance_offset: 0,
-                instance_count: 1,
-                vertex_offset: 0,
-                vertex_buffer,
-                index_buffer,
-            },
-        );
+        let key = resources.meshes.write().insert(Mesh {
+            instance_offset: 0,
+            instance_count: 1,
+            vertex_offset: 0,
+            vertex_buffer,
+            index_buffer,
+        });
 
         Ok(resources.make_handle(ctx, key))
     }
@@ -92,7 +90,5 @@ impl MeshStore {
         Self { data: Pool::new() }
     }
 
-    pub fn destroy(&mut self, device: &Device) {
-
-    }
+    pub fn destroy(&mut self, device: &Device) {}
 }

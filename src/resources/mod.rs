@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 
 use ash::vk;
 use parking_lot::RwLock;
-use slotmap::{SlotMap, new_key_type};
+use slotmap::{new_key_type, SlotMap};
 
 use crate::bindless::Bindless;
 use crate::camera::Camera;
@@ -136,11 +136,7 @@ impl Resources {
         }))
     }
 
-    fn make_handle<T: Destroy>(
-        self: &Arc<Self>,
-        ctx: &Arc<RenderContext>,
-        key: ResourceKey,
-    ) -> Res<T> {
+    fn make_handle<T: Destroy>(self: &Arc<Self>, ctx: &Arc<RenderContext>, key: ResourceKey) -> Res<T> {
         Res {
             key,
             ref_count: Arc::new(AtomicUsize::new(1)),
@@ -150,12 +146,12 @@ impl Resources {
         }
     }
 
-    // Always Set 0
+    /// Always Set 0
     pub fn bindless_set(&self) -> vk::DescriptorSet {
         self.bindless.set
     }
 
-    // Always Set 1
+    /// Always Set 1
     pub fn per_frame_set(&self) -> vk::DescriptorSet {
         todo!()
     }

@@ -1,19 +1,14 @@
+use crate::resources::{Resolution, TextureFormat};
 use crate::Handle;
 
-
 pub struct FrameGraphTextureDesc {
-    //pub format: TextureFormat,
-    //pub resolution: Resolution
+    pub format: TextureFormat,
+    pub resolution: Resolution,
 }
 
-
-pub struct RenderTarget {
-
-}
-
-pub struct RenderTargetsDesc<'a> {
-    pub colors: &'a [Handle<bool>],
-    pub depth: Option<Handle<bool>>
+pub struct RenderTarget<'a> {
+    pub colors: &'a [Handle<FrameGraphTexture>],
+    pub depth: Option<Handle<FrameGraphTexture>>,
 }
 
 pub struct FrameGraphTexture {}

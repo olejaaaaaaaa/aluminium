@@ -18,7 +18,6 @@ impl Fence {
     }
 }
 
-
 pub struct FenceBuilder<'a> {
     pub device: &'a Device,
     pub flags: vk::FenceCreateFlags,

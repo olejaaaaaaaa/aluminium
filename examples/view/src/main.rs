@@ -4,9 +4,9 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::{
-    BackBuffer, FrameGraphTexture, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTargetsDesc, Res, Scissor, ShaderType, VertexInput, Viewport, WorldRenderer
+    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res,
+    Resolution, Scissor, ShaderType, TextureFormat, VertexInput, Viewport, WorldRenderer,
 };
-
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -20,45 +20,41 @@ pub use ui::UiRenderer;
 mod gltf_loader;
 pub use gltf_loader::{GltfModel, load_gltf};
 
-
-
-                    /*
-                    
-                    Compute Pass
-                        Читает:
-                            Uniform Buffer
-                            Storage Buffer (read-only)
-                            Storage Image (read-only)
-                            Sampled Image / Texture
-
-                        Пишет:
-                            Storage Buffer
-                            Storage Image
-
-                    Raster Pass
-                        Читает:
-                            Uniform Buffer
-                            Storage Buffer (read-only)
-                            Sampled Image / Texture
-                            Input Attachment — да, но только то, что было Output в этом же RenderPass (тот же VkRenderPass, subpass dependency). Это subpass input, не между пассами.
-
-                        Пишет:
-                            Color Attachment (RenderTarget) — обязательно хотя бы один, либо depth
-                            Depth/Stencil Attachment
-                            Storage Buffer / Storage Image
-
-                    Ray Tracing Pass
-                        Читает:
-                            Acceleration Structure (TLAS) — это его уникальный ресурс
-                            Uniform Buffer
-                            Storage Buffer
-                            Sampled Image / Texture
-
-                        Пишет:
-                            Storage Image — главный output, обычно пишет финальную картинку именно так
-                            Storage Buffer
-                    */
-
+// Compute Pass
+// Читает:
+// Uniform Buffer
+// Storage Buffer (read-only)
+// Storage Image (read-only)
+// Sampled Image / Texture
+//
+// Пишет:
+// Storage Buffer
+// Storage Image
+//
+// Raster Pass
+// Читает:
+// Uniform Buffer
+// Storage Buffer (read-only)
+// Sampled Image / Texture
+// Input Attachment — да, но только то, что было Output в этом же RenderPass
+// (тот же VkRenderPass, subpass dependency). Это subpass input, не между
+// пассами.
+//
+// Пишет:
+// Color Attachment (RenderTarget) — обязательно хотя бы один, либо depth
+// Depth/Stencil Attachment
+// Storage Buffer / Storage Image
+//
+// Ray Tracing Pass
+// Читает:
+// Acceleration Structure (TLAS) — это его уникальный ресурс
+// Uniform Buffer
+// Storage Buffer
+// Sampled Image / Texture
+//
+// Пишет:
+// Storage Image — главный output, обычно пишет финальную картинку именно так
+// Storage Buffer
 
 #[derive(Default)]
 struct App {
@@ -93,26 +89,33 @@ impl ApplicationHandler for App {
 
                     #[derive(Clone, Copy, Default)]
                     pub struct PassData {
-
+                        
                     }
 
-                    graph.add_pass(
-                        PresentPass::new(
-                            "Final Pass", 
-                            |builder| {
-                               PassData {}
-                            }, 
-                            move |ctx, data| unsafe {
-                                ctx.bind_pipeline(pipeline);
-                                ctx.push_constants([time_sec, 2.0]);
-                                ctx.set_viewport(Viewport::FullRes);
-                                ctx.set_scissor(Scissor::FullRes);
-                                for mesh in &model.meshes {
-                                    ctx.draw_mesh(mesh);
-                                }
+                    let data = graph.add_pass(PresentPass::new(
+                        "Final Pass",
+                        |builder| {
+
+                            let back = builder.backbuffer();
+                            let depth = builder.create(FrameGraphTextureDesc {
+                                format: TextureFormat::D32Sfloat,
+                                resolution: Resolution::FullRes,
+                            });
+
+                            builder.render_target = Some(RenderTarget { colors: &[], depth: None });
+
+                            PassData {}
+                        },
+                        move |ctx, data| unsafe {
+                            ctx.bind_pipeline(pipeline);
+                            ctx.push_constants([time_sec, 2.0]);
+                            ctx.set_viewport(Viewport::FullRes);
+                            ctx.set_scissor(Scissor::FullRes);
+                            for mesh in &model.meshes {
+                                ctx.draw_mesh(mesh);
                             }
-                        )
-                    );
+                        },
+                    ));
                 });
             },
             _ => (),
@@ -138,7 +141,7 @@ impl ApplicationHandler for App {
 
         let pipeline = world
             .create::<RasterPipeline>(
-            RasterPipelineDesc::new()
+                RasterPipelineDesc::new()
                     .vertex_shader("./shaders/spv/raster_vs.spv")
                     .fragment_shader("./shaders/spv/raster_ps.spv")
                     .vertex_input(
@@ -151,11 +154,7 @@ impl ApplicationHandler for App {
             )
             .expect("Error create pipeline");
 
-        let model = load_gltf(
-            &world,
-            "./examples/view/assets/flighthelmet/scene.gltf",
-        )
-        .expect("Error load gltf model");
+        let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf").expect("Error load gltf model");
 
         self.global_time = Some(Instant::now());
         self.model = Some(model);

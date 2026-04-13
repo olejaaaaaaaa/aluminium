@@ -1,4 +1,6 @@
-use crate::{Handle, Res, frame_graph::Pass, resources::Destroy};
+use crate::frame_graph::{IntoPass, Pass};
+use crate::resources::Destroy;
+use crate::{Handle, Res};
 
 pub struct TemporalFrameGraph<'frame> {
     pub passes: Vec<Pass<'frame>>,
@@ -6,11 +8,10 @@ pub struct TemporalFrameGraph<'frame> {
 }
 
 impl<'frame> TemporalFrameGraph<'frame> {
-
     pub fn new() -> Self {
         Self {
             passes: vec![],
-            execution_order: vec![]
+            execution_order: vec![],
         }
     }
 
@@ -23,8 +24,11 @@ impl<'frame> TemporalFrameGraph<'frame> {
         todo!()
     }
 
-    pub fn add_pass<P: Into<Pass<'frame>>>(&mut self, pass: P) {
-        self.passes.push(pass.into());
+    pub fn add_pass<T: Copy, P: IntoPass<'frame, T>>(&mut self, pass: P) -> T
+    {
+        let (pass, data) = pass.into_pass();
+        self.passes.push(pass);
+        data
     }
 
     pub fn import<T: Destroy>(res: &Res<T>) -> Handle<T> {

@@ -3,7 +3,8 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::{
-    AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, Vertex, load_spv
+    load_spv, AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout,
+    PipelineLayoutBuilder, ShaderBuilder, Vertex,
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Destroy, Res, ResourceKey, Resources, ShaderType};
@@ -200,17 +201,13 @@ impl Create for RasterPipeline {
             .build()?;
 
         let mut cache = resources.pipeline_cache.write();
-        let layout = cache.pipeline_layout.insert(
-            Arc::downgrade(ctx), Arc::downgrade(resources),
-            layout
-        );
+        let layout = cache
+            .pipeline_layout
+            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), layout);
 
-        let handle =
-            cache.raster_pipelines
-                .insert(Arc::downgrade(ctx), Arc::downgrade(resources), RasterPipeline { 
-                    pipeline,
-                    layout
-                });
+        let handle = cache
+            .raster_pipelines
+            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), RasterPipeline { pipeline, layout });
 
         Ok(handle)
     }

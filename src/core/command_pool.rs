@@ -18,7 +18,6 @@ impl CommandPool {
     }
 
     pub fn allocate_cmd_buffers(&self, device: &Device, level: vk::CommandBufferLevel, count: u32) -> VulkanResult<Vec<vk::CommandBuffer>> {
-        
         debug_assert!(count != 0, "Cannot create 0 command buffers!");
 
         let create_info = vk::CommandBufferAllocateInfo::default()

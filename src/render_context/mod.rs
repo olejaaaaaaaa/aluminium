@@ -53,9 +53,7 @@ impl RenderContext {
 
         let format_priority = [vk::Format::R8G8B8A8_SRGB];
 
-        let color_space_priority = [
-            vk::ColorSpaceKHR::SRGB_NONLINEAR,
-        ];
+        let color_space_priority = [vk::ColorSpaceKHR::SRGB_NONLINEAR];
 
         let mut format = vk::Format::R8G8B8A8_SRGB;
         let mut color_space = vk::ColorSpaceKHR::SRGB_NONLINEAR;

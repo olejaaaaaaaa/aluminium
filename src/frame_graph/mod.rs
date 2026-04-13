@@ -19,11 +19,10 @@ pub use types::*;
 mod resources;
 pub use resources::*;
 
-use crate::TemporalFrameGraph;
 use crate::core::{CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult};
 use crate::render_context::RenderContext;
 use crate::resources::{Destroy, Res, Resources};
-
+use crate::TemporalFrameGraph;
 
 pub struct FrameGraph {
     cmd_pool: CommandPool,
@@ -36,26 +35,21 @@ impl FrameGraph {
         let cmd_pool = CommandPoolBuilder::reset(&ctx.device).build()?;
         let cmd_buffers = cmd_pool.allocate_cmd_buffers(&ctx.device, vk::CommandBufferLevel::PRIMARY, ctx.frame_count() as u32)?;
 
-        Ok(FrameGraph {
-            cmd_pool,
-            cmd_buffers,
-        })
+        Ok(FrameGraph { cmd_pool, cmd_buffers })
     }
 
-    pub(crate) fn compile(&mut self, temp: &mut TemporalFrameGraph<'_>, _ctx: &Arc<RenderContext>, _resources: &Arc<Resources>) -> VulkanResult<()> {
-    profiling::scope!("FrameGraph::compile");
+    pub(crate) fn compile(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
+        profiling::scope!("FrameGraph::compile");
 
-    for i in temp.passes.iter_mut() {
-        match i {
-            Pass::Present(pass) => {
-        
-            },
-            _ => {}
+        for i in temp.passes.iter_mut() {
+            match i {
+                Pass::Present(pass) => {},
+                _ => {},
+            }
         }
-    }
 
-    Ok(())
-}
+        Ok(())
+    }
 
     pub(crate) fn execute(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::execute");
@@ -64,7 +58,10 @@ impl FrameGraph {
 
         // ------------------------Acquire Next Image-----------------------------
         let image_index = {
-            let window = &ctx.window.try_read().expect("Error borrowed Window for read");
+            let window = &ctx
+                .window
+                .try_read()
+                .expect("Error borrowed Window for read");
             let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
             // Wait fence for next frame or skip frame
@@ -104,7 +101,6 @@ impl FrameGraph {
             let window = ctx.window.read();
             let resolution = window.resolution;
             for pass in temp.passes.drain(..) {
-                
                 match pass {
                     Pass::Present(pass) => {
                         let frame_buffer = &window.frame_buffers[image_index as usize];
@@ -166,12 +162,15 @@ impl FrameGraph {
                         }
                     },
                     Pass::Raster(_pass) => {},
-                    Pass::Compute(_pass) => {}
+                    Pass::Compute(_pass) => {},
                 }
             }
         }
 
-        let mut window = ctx.window.try_write().expect("Window already borrowed mutably");
+        let mut window = ctx
+            .window
+            .try_write()
+            .expect("Window already borrowed mutably");
         let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
         // -----------------------Submit-----------------------------

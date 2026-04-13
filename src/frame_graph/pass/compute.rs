@@ -25,4 +25,3 @@ impl<'a> Into<super::Pass<'a>> for ComputePass<'a> {
         super::Pass::Compute(self)
     }
 }
-

@@ -1,8 +1,8 @@
 use ash::vk;
-
-use crate::core::debug;
 use tracing::debug;
+
 use super::{Device, VulkanError, VulkanResult};
+use crate::core::debug;
 
 pub struct Semaphore {
     pub raw: vk::Semaphore,

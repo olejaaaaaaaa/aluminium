@@ -79,7 +79,8 @@ impl PassContext {
         let cache = self.external_resources.pipeline_cache.read();
         let pipeline = cache.raster_pipelines.get(handle);
         let layout = cache.pipeline_layout.get(&pipeline.layout);
-        self.device.cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline.raw);
+        self.device
+            .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline.raw);
         self.layout = Some(layout.raw.clone());
     }
 
@@ -89,7 +90,6 @@ impl PassContext {
     }
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&self, data: T) {
-
         assert!(size_of_val(&data) <= 64, "The maximum size of Push Constants is 64 bytes");
         assert!(size_of_val(&data) > 0, "Push Constants cannot be empty");
 
@@ -105,9 +105,9 @@ impl PassContext {
         struct PushConstants {
             transform_idx: u32,
             tex_idx: [u32; 8],
-            user_data: [u8; 92]
+            user_data: [u8; 92],
         }
-        
+
         let data = bytemuck::bytes_of(&data);
         let mut out = [0u8; 92];
 
@@ -118,15 +118,15 @@ impl PassContext {
         let push = PushConstants {
             transform_idx: 0,
             tex_idx: [0; 8],
-            user_data: out
+            user_data: out,
         };
 
         self.device.cmd_push_constants(
-            self.cbuf, 
-            layout, 
-            vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX, 
-            0, 
-            bytemuck::bytes_of(&push)
+            self.cbuf,
+            layout,
+            vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
+            0,
+            bytemuck::bytes_of(&push),
         );
     }
 

@@ -25,4 +25,3 @@ impl<'a> Into<super::Pass<'a>> for RasterPass<'a> {
         super::Pass::Raster(self)
     }
 }
-

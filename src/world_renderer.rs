@@ -6,8 +6,9 @@ use winit::window::Window;
 use super::render_context::RenderContext;
 use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
-use crate::frame_graph::{FrameGraph};
-use crate::{TemporalFrameGraph, resources::*};
+use crate::frame_graph::FrameGraph;
+use crate::resources::*;
+use crate::TemporalFrameGraph;
 /// Lightweight abstraction for rendering using Vulkan API
 ///
 /// The Vulkan API is known for its verbosity, and my abstraction tries to solve
@@ -146,7 +147,12 @@ impl WorldRenderer {
     ///
     /// There may be many readers, but only one writer in one area
     pub fn camera_mut(&self) -> RefMut<'_, Camera> {
-        RefMut(self.resources.camera.try_write().expect("Camera is already borrowed mutably"))
+        RefMut(
+            self.resources
+                .camera
+                .try_write()
+                .expect("Camera is already borrowed mutably"),
+        )
     }
 
     /// Acquires a shared read lock on the camera [`Ref<'_, Camera>`]
@@ -155,7 +161,11 @@ impl WorldRenderer {
     ///
     /// There may be many readers, but only one writer in one area
     pub fn camera(&self) -> Ref<'_, Camera> {
-        Ref(self.resources.camera.try_read().expect("Camera is already borrowed mutably"))
+        Ref(self
+            .resources
+            .camera
+            .try_read()
+            .expect("Camera is already borrowed mutably"))
     }
 
     /// Re-creating the main window
@@ -205,19 +215,21 @@ impl WorldRenderer {
     /// - if the pass data is not valid
     /// - if an error occurred while creating new resources
     /// - if device lost (Driver Bug)
-    pub fn draw_frame<'frame, F>(&mut self, callback: F) -> VulkanResult<()> 
-    where F: FnOnce(&mut TemporalFrameGraph<'frame>)
+    pub fn draw_frame<'frame, F>(&mut self, callback: F) -> VulkanResult<()>
+    where
+        F: FnOnce(&mut TemporalFrameGraph<'frame>),
     {
         profiling::scope!("WorldRenderer::draw_frame");
 
         // Create Temporal Frame Graph
         let mut temp_fg = TemporalFrameGraph::new();
-        
+
         // Setup graph
         callback(&mut temp_fg);
 
         // Compile Graph
-        self.graph.compile(&mut temp_fg, &self.ctx, &self.resources)?;
+        self.graph
+            .compile(&mut temp_fg, &self.ctx, &self.resources)?;
 
         // Execute Graph
         if let Err(err) = self.graph.execute(&mut temp_fg, &self.ctx, &self.resources) {

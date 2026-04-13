@@ -118,10 +118,9 @@ impl<'a> SwapchainBuilder<'a> {
             present_mode = ?present_mode,
             color_space = ?color_space,
             old_swapchain = ?old_swapchain,
-            extent = ?extent,             
+            extent = ?extent,
             "Swapchain created"
         );
-
 
         Ok(Swapchain {
             raw: swapchain,
