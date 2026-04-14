@@ -16,6 +16,8 @@ cd aluminium
 cargo run -p view
 ```
 
+![Aluminium render preview](./preview.jpg)
+
 ## Minimal hardware requirments
 To support both PC and mobile hardware, only the common subset is used
 

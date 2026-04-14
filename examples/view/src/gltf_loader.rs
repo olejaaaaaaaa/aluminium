@@ -69,8 +69,8 @@ fn load_gltf_node(world: &WorldRenderer, model: &mut GltfModel, node: gltf::Node
 
             let proj = Mat4::perspective_rh(45.0_f32.to_radians(), 800.0 / 600.0, 0.1, 1000.0);
             let view = Mat4::look_at_rh(
-                Vec3::new(0.0, 0.1, 0.9),
-                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, -0.12, 0.0),
                 Vec3::NEG_Y,
             );
 

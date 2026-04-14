@@ -102,7 +102,10 @@ impl ApplicationHandler for App {
                                 resolution: Resolution::FullRes,
                             });
 
-                            builder.render_target = Some(RenderTarget { colors: &[], depth: None });
+                            builder.render_target = Some(RenderTarget { 
+                                colors: &[], 
+                                depth: None 
+                            });
 
                             PassData {}
                         },
