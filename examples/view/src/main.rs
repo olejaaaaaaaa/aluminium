@@ -111,8 +111,8 @@ impl ApplicationHandler for App {
                             ctx.push_constants([time_sec, 2.0]);
                             ctx.set_viewport(Viewport::FullRes);
                             ctx.set_scissor(Scissor::FullRes);
-                            for mesh in &model.meshes {
-                                ctx.draw_mesh(mesh);
+                            for (mesh, transform) in &model.meshes {
+                                ctx.draw_mesh(mesh, transform);
                             }
                         },
                     ));
@@ -167,7 +167,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::TRACE)
         .init();
 
     let event_loop = EventLoop::new()?;

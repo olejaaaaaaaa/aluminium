@@ -70,7 +70,7 @@ impl RenderContext {
         warn!("Image count: {}:{}", caps.min_image_count, caps.max_image_count);
 
         let swapchain = SwapchainBuilder::new(&device)
-            .min_image_count(caps.max_image_count)
+            .min_image_count(2)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)

@@ -56,6 +56,8 @@ impl FrameGraph {
         let queue = ctx.device.queue_pool.get_present().unwrap();
         let device = &ctx.device;
 
+        
+
         // ------------------------Acquire Next Image-----------------------------
         let image_index = {
             let window = &ctx
@@ -95,6 +97,7 @@ impl FrameGraph {
         };
 
         let cmd_buffer = self.cmd_buffers[image_index as usize];
+        resources.update(0);
 
         // ------------------------Record Command Buffers-----------------------------
         {
@@ -142,6 +145,8 @@ impl FrameGraph {
                         }
 
                         let mut pass_ctx = PassContext {
+                            push: None,
+                            per_frame_set: resources.per_frame_set(),
                             layout: None,
                             external_resources: resources.clone(),
                             resolution,
@@ -166,6 +171,8 @@ impl FrameGraph {
                 }
             }
         }
+
+        
 
         let mut window = ctx
             .window
@@ -217,6 +224,9 @@ impl FrameGraph {
         );
 
         window.current_frame += 1;
+
+        
+
         Ok(())
     }
 

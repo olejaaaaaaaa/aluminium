@@ -11,3 +11,4 @@ image = { workspace = true }
 winit = { workspace = true }
 egui = { workspace = true }
 aluminium = { path = "../.." }
+glam = { workspace = true }

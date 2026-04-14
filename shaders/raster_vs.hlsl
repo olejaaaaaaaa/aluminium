@@ -16,18 +16,17 @@
 //     float   pad;
 // };
 
-// struct Transform {
-//     float4   rot;
-//     float4   scale;
-//     float4   pos;
-// };
+struct Transform {
+    float4x4   mvp;
+};
 
 // [[vk::binding(0, 0)]] Texture2D<float4>           textures[];
 // [[vk::binding(1, 0)]] SamplerState                samplers[5];
 
 // [[vk::binding(0, 1)]] ConstantBuffer<Camera>      camera;
 // [[vk::binding(1, 1)]] ConstantBuffer<FrameValues> frame_values;
-// [[vk::binding(2, 1)]] StructuredBuffer<Transform> transforms;
+
+[[vk::binding(0, 0)]] StructuredBuffer<Transform> transforms;
 
 const uint SAMPLER_REPEAT = 0;
 const uint SAMPLER_CLAMP = 1;
@@ -63,8 +62,9 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    output.position = float4(input.position.xyz * 2.0 * (0.5 + abs(sin(push.user_data[0]))), 1.0);
-    output.color = input.tangent * input.color * input.normal;
+    Transform t = transforms[push.transform_idx];
+    output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
+    output.color = input.normal;
 
     return output;
 }

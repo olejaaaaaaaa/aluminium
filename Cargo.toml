@@ -36,6 +36,7 @@ tracing-subscriber = "0.3.23"
 gltf = "1.4.1"
 image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
 egui = { version = "0.34.1", default-features = false }
+glam = "0.30.5"
 
 [dependencies]
 ash = { workspace = true }

@@ -4,11 +4,11 @@ use crate::core::{DescriptorPool, DescriptorPoolBuilder, DescriptorSetLayoutBuil
 use crate::VulkanResult;
 
 pub struct DescriptorManager {
-    pool: DescriptorPool,
+    pub pool: DescriptorPool,
 }
 
 impl DescriptorManager {
-    fn new(device: &Device) -> VulkanResult<Self> {
+    pub fn new(device: &Device) -> VulkanResult<Self> {
         let pool = DescriptorPoolBuilder::new(device)
             .pool_sizes(&[
                 vk::DescriptorPoolSize::default()
@@ -26,12 +26,6 @@ impl DescriptorManager {
             ])
             .max_sets(10)
             .build()?;
-
-        let layout = DescriptorSetLayoutBuilder::new(device)
-            .bindings(vec![])
-            .build()?;
-
-        let set = pool.create_descriptor_set(device, &[layout.raw])?;
 
         Ok(Self { pool })
     }

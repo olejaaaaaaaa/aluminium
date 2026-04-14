@@ -8,7 +8,7 @@ use slotmap::{new_key_type, SlotMap};
 
 use crate::bindless::Bindless;
 use crate::camera::Camera;
-use crate::core::Device;
+use crate::core::{DescriptorSetLayoutBuilder, Device};
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
 
@@ -85,7 +85,7 @@ impl<T: Destroy> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
         if ref_count == 1 {
-            T::destroy(self.key, self.ctx.clone(), self.resources.clone());
+           T::destroy(self.key, self.ctx.clone(), self.resources.clone());
         }
     }
 }
@@ -113,6 +113,9 @@ pub trait Destroy: Sized {
 
 pub struct Resources {
     pub(crate) bindless: Bindless,
+    pub(crate) descriptors: DescriptorManager,
+    pub(crate) set: vk::DescriptorSet,
+    pub(crate) layout: vk::DescriptorSetLayout,
     pub(crate) meshes: RwLock<SlotMap<ResourceKey, Mesh>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
@@ -126,9 +129,40 @@ impl Resources {
         let pipeline_cache = PipelineCache::new();
         let transforms = TransformPool::new(&ctx.device, ctx.frame_count())?;
         let bindless = Bindless::new(&ctx)?;
+        let descriptors = DescriptorManager::new(&ctx.device)?;
+
+        let layout = DescriptorSetLayoutBuilder::new(&ctx.device)
+            .bindings(vec![
+                vk::DescriptorSetLayoutBinding::default()
+                    .binding(0)
+                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                    .descriptor_count(1)
+                    .stage_flags(vk::ShaderStageFlags::ALL),
+            ])
+            .build()?;
+
+        let set = descriptors.pool.create_descriptor_set(&ctx.device, &[layout.raw])?[0];
+
+        let buffer_info = vk::DescriptorBufferInfo::default()
+            .buffer(transforms.buffer.buffers[0].raw) 
+            .offset(0)
+            .range(vk::WHOLE_SIZE);
+
+        let write = vk::WriteDescriptorSet::default()
+            .dst_set(set)
+            .dst_binding(0)
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+            .buffer_info(std::slice::from_ref(&buffer_info));
+
+        unsafe {
+            ctx.device.update_descriptor_sets(&[write], &[]);
+        }
 
         Ok(Arc::new(Self {
             bindless,
+            descriptors,
+            layout: layout.raw,
+            set,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
             meshes: RwLock::new(SlotMap::with_key()),
@@ -146,6 +180,10 @@ impl Resources {
         }
     }
 
+    pub fn update(&self, image_index: u32) {
+        self.transforms.write().update(0).unwrap();
+    }
+
     /// Always Set 0
     pub fn bindless_set(&self) -> vk::DescriptorSet {
         self.bindless.set
@@ -153,7 +191,7 @@ impl Resources {
 
     /// Always Set 1
     pub fn per_frame_set(&self) -> vk::DescriptorSet {
-        todo!()
+        self.set
     }
 
     pub(crate) fn destroy(&self, device: &Device) {

@@ -7,27 +7,31 @@ use crate::core::{Device, VulkanResult};
 use crate::per_frame::{PerFrameBuffer, PerFrameBufferBuilder};
 use crate::resources::{Create, Destroy, LinearPool, Res, ResourceKey, Resources};
 
-pub const MAX_TRANSFORMS: usize = 1_000;
+pub const MAX_TRANSFORMS: usize = 100;
 
 /// Transform for Mesh
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct TransformDesc {
-    /// Rot
-    pub rot: [f32; 4],
-    /// Scale
-    pub scale: [f32; 4],
-    /// Pos
-    pub pos: [f32; 4],
+    pub mvp: [[f32; 4]; 4],
 }
 
 impl TransformDesc {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            scale: [1.0, 1.0, 1.0, 0.0],
-            rot: [0.0, 0.0, 0.0, 0.0],
-            pos: [0.0, 0.0, 0.0, 0.0],
+            mvp: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32],
+            ]
+        }
+    }
+
+    pub fn from(mvp: [[f32; 4]; 4]) -> Self {
+        Self {
+            mvp
         }
     }
 }
@@ -36,24 +40,19 @@ impl TransformDesc {
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Transform {
-    /// Rot
-    pub rot: [f32; 4],
-    /// Scale
-    pub scale: [f32; 4],
-    /// Pos
-    pub pos: [f32; 4],
-    /// Pad to 64 bytes
-    pub _pad: [f32; 4],
+    pub mvp: [[f32; 4]; 4],
 }
 
 impl Transform {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            scale: [1.0, 1.0, 1.0, 0.0],
-            rot: [0.0, 0.0, 0.0, 0.0],
-            pos: [0.0, 0.0, 0.0, 0.0],
-            _pad: [0.0, 0.0, 0.0, 0.0],
+            mvp: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32],
+            ]
         }
     }
 }
@@ -66,39 +65,20 @@ impl Create for Transform {
     type Desc<'a> = TransformDesc;
 
     fn create(ctx: &Arc<crate::render_context::RenderContext>, resources: &Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
-        let mut transforms = resources.transforms.write();
+        let mut transforms = resources.transforms.try_write().expect("Err write lock");
         transforms.is_dirty = true;
 
         let handle = transforms.pool.insert(
             Arc::downgrade(ctx),
             Arc::downgrade(resources),
             Transform {
-                rot: desc.rot,
-                scale: desc.scale,
-                pos: desc.pos,
-                _pad: [0.0, 0.0, 0.0, 0.0],
+                mvp: desc.mvp,
             },
         );
 
         Ok(handle)
     }
 }
-
-// impl Create for Transform {
-//     type Desc<'a> = TransformDesc;
-//     fn create(resources: &Resources, desc: Self::Desc<'_>) ->
-// VulkanResult<Res<Self>> {         let mut transforms =
-// resources.transforms.write();         let res =
-// transforms.pool.insert(Transform {             rot: desc.rot,
-//             scale: desc.scale,
-//             pos: desc.pos,
-//             _pad: [0.0, 0.0, 0.0, 0.0],
-//         });
-
-//         transforms.is_dirty = true;
-//         Ok(res)
-//     }
-// }
 
 pub struct TransformPool {
     pub is_dirty: bool,
@@ -108,10 +88,11 @@ pub struct TransformPool {
 
 impl TransformPool {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
+
         let mut buffer = PerFrameBufferBuilder::new(device)
-            .buffer_size(size_of::<Transform>() as u64)
+            .buffer_size((size_of::<Transform>() * MAX_TRANSFORMS) as u64)
             .frame_count(frame_count)
-            .usage(vk::BufferUsageFlags::UNIFORM_BUFFER)
+            .usage(vk::BufferUsageFlags::STORAGE_BUFFER)
             .build()?;
 
         let data = vec![Transform::identity(); MAX_TRANSFORMS];
@@ -129,11 +110,12 @@ impl TransformPool {
     }
 
     pub fn update(&mut self, image_index: u32) -> VulkanResult<()> {
-        if self.is_dirty {
-            let buffer = self.buffer.get_mut(image_index);
-            buffer.upload_data(self.pool.as_slice())?;
-            self.is_dirty = false;
+        let slice = self.pool.as_slice();
+        for (i, t) in slice.iter().enumerate() {
+            println!("transform[{}] translation: {:?}", i, [t.mvp[3][0], t.mvp[3][1], t.mvp[3][2]]);
         }
+        let buffer = self.buffer.get_mut(0);
+        buffer.upload_data(slice)?;
         Ok(())
     }
 
