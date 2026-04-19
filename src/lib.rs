@@ -7,20 +7,16 @@ pub(crate) mod frame_values;
 pub(crate) mod per_frame;
 pub(crate) mod render_context;
 pub(crate) mod resources;
-pub(crate) mod temporal;
 pub(crate) mod world_renderer;
 
 pub use core::{VulkanError, VulkanResult};
 
-pub use frame_graph::{
-    BackBuffer, ComputePass, FrameGraphTexture, FrameGraphTextureDesc, Handle, PresentPass, RasterPass, RenderTarget, Scissor, Viewport,
-};
+pub use frame_graph::{BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, Handle, RasterPass, RenderTarget, Scissor, Viewport, FrameGraphUniform, FrameGraphUniformDesc};
 pub use resources::{
     Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, Resolution, ShaderType, TextureFormat, Transform, TransformDesc, VertexInput,
 };
-pub use temporal::TemporalFrameGraph;
 pub use world_renderer::WorldRenderer;
-
+pub use vk_sync::AccessType;
 /// Basic types
 pub mod types {
     pub use super::core::{PbrVertex, TextureVertex, Vertex};

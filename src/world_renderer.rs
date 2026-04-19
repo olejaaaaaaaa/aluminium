@@ -6,9 +6,9 @@ use winit::window::Window;
 use super::render_context::RenderContext;
 use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
+use crate::frame_graph::temporal::TemporalFrameGraph;
 use crate::frame_graph::FrameGraph;
 use crate::resources::*;
-use crate::TemporalFrameGraph;
 /// Lightweight abstraction for rendering using Vulkan API
 ///
 /// The Vulkan API is known for its verbosity, and my abstraction tries to solve
@@ -222,17 +222,17 @@ impl WorldRenderer {
         profiling::scope!("WorldRenderer::draw_frame");
 
         // Create Temporal Frame Graph
-        let mut temp_fg = TemporalFrameGraph::new();
+        let mut frame = TemporalFrameGraph::new();
 
         // Setup graph
-        callback(&mut temp_fg);
+        callback(&mut frame);
 
         // Compile Graph
         self.graph
-            .compile(&mut temp_fg, &self.ctx, &self.resources)?;
+            .compile(&mut frame, &self.ctx, &self.resources)?;
 
         // Execute Graph
-        if let Err(err) = self.graph.execute(&mut temp_fg, &self.ctx, &self.resources) {
+        if let Err(err) = self.graph.execute(&mut frame, &self.ctx, &self.resources) {
             if let VulkanError::Swapchain(err) = err {
                 match err {
                     SwapchainError::SwapchainOutOfDateKhr => {

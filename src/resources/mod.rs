@@ -85,7 +85,7 @@ impl<T: Destroy> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
         if ref_count == 1 {
-           T::destroy(self.key, self.ctx.clone(), self.resources.clone());
+            T::destroy(self.key, self.ctx.clone(), self.resources.clone());
         }
     }
 }
@@ -132,19 +132,19 @@ impl Resources {
         let descriptors = DescriptorManager::new(&ctx.device)?;
 
         let layout = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![
-                vk::DescriptorSetLayoutBinding::default()
-                    .binding(0)
-                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                    .descriptor_count(1)
-                    .stage_flags(vk::ShaderStageFlags::ALL),
-            ])
+            .bindings(vec![vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::ALL)])
             .build()?;
 
-        let set = descriptors.pool.create_descriptor_set(&ctx.device, &[layout.raw])?[0];
+        let set = descriptors
+            .pool
+            .create_descriptor_set(&ctx.device, &[layout.raw])?[0];
 
         let buffer_info = vk::DescriptorBufferInfo::default()
-            .buffer(transforms.buffer.buffers[0].raw) 
+            .buffer(transforms.buffer.buffers[0].raw)
             .offset(0)
             .range(vk::WHOLE_SIZE);
 

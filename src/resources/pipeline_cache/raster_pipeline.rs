@@ -12,15 +12,23 @@ use crate::VulkanResult;
 
 pub struct VertexInput {
     inputs: Vec<ShaderType>,
+    #[cfg(feature = "validation")]
+    names: Vec<&'static str>,
 }
 
 impl VertexInput {
     pub fn new() -> Self {
-        Self { inputs: vec![] }
+        Self {
+            inputs: vec![],
+            #[cfg(feature = "validation")]
+            names: vec![],
+        }
     }
 
-    pub fn with(mut self, ty: ShaderType) -> Self {
+    pub fn attr(mut self, name: &'static str, ty: ShaderType) -> Self {
         self.inputs.push(ty);
+        #[cfg(feature = "validation")]
+        self.names.push(name);
         self
     }
 }
@@ -114,9 +122,7 @@ impl Create for RasterPipeline {
             .vertex_attribute_descriptions(&attrs);
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
-            .set_layouts(vec![
-                resources.layout
-            ])
+            .set_layouts(vec![resources.layout])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)

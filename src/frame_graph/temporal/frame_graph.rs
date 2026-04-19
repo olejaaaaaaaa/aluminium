@@ -1,8 +1,12 @@
-use crate::frame_graph::{IntoPass, Pass};
-use crate::resources::Destroy;
-use crate::{Handle, Res};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+
+use crate::frame_graph::temporal::TemporalFrameGraphResources;
+use crate::frame_graph::{Pass, PassBuilder, PassData};
 
 pub struct TemporalFrameGraph<'frame> {
+    pub resources: TemporalFrameGraphResources,
     pub passes: Vec<Pass<'frame>>,
     execution_order: Vec<usize>,
 }
@@ -11,6 +15,7 @@ impl<'frame> TemporalFrameGraph<'frame> {
     pub fn new() -> Self {
         Self {
             passes: vec![],
+            resources: TemporalFrameGraphResources::new(),
             execution_order: vec![],
         }
     }
@@ -20,18 +25,7 @@ impl<'frame> TemporalFrameGraph<'frame> {
         self.execution_order = (0..self.passes.len()).collect();
     }
 
-    pub fn create<T>(value: T) -> Handle<T> {
-        todo!()
-    }
-
-    pub fn add_pass<T: Copy, P: IntoPass<'frame, T>>(&mut self, pass: P) -> T
-    {
-        let (pass, data) = pass.into_pass();
-        self.passes.push(pass);
-        data
-    }
-
-    pub fn import<T: Destroy>(res: &Res<T>) -> Handle<T> {
-        todo!()
+    pub fn add_pass<P: Into<Pass<'frame>>>(&mut self, value: P) {
+        self.passes.push(value.into());
     }
 }

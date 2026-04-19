@@ -4,8 +4,8 @@ use ash::vk::{self};
 use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
-use crate::resources::{Res, Resources, Texture, TextureView};
-use crate::{Mesh, RasterPipeline, Transform};
+use crate::resources::{Res, Resources};
+use crate::{FrameGraphUniform, Handle, Mesh, RasterPipeline, Transform};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -18,7 +18,7 @@ pub struct PushConstants {
 /// The context of the currently running pass
 pub struct PassContext {
     pub(crate) external_resources: Arc<Resources>,
-    pub push: Option<PushConstants>,
+    pub(crate) push: Option<PushConstants>,
     pub(crate) per_frame_set: vk::DescriptorSet,
     pub(crate) layout: Option<vk::PipelineLayout>,
     pub(crate) resolution: vk::Extent2D,
@@ -40,16 +40,22 @@ impl PassContext {
             Viewport::HalfRes => vk::Viewport::default()
                 .height(self.resolution.height as f32 / 2.0)
                 .width(self.resolution.width as f32 / 2.0)
+                .max_depth(0.0)
+                .max_depth(1.0)
                 .x(0.0)
                 .y(0.0),
             Viewport::QuarterRes => vk::Viewport::default()
                 .height(self.resolution.height as f32 / 4.0)
                 .width(self.resolution.width as f32 / 4.0)
+                .max_depth(0.0)
+                .max_depth(1.0)
                 .x(0.0)
                 .y(0.0),
             Viewport::Custom(width, height) => vk::Viewport::default()
                 .height(width as f32)
                 .width(height as f32)
+                .max_depth(0.0)
+                .max_depth(1.0)
                 .x(0.0)
                 .y(0.0),
         };
@@ -102,7 +108,6 @@ impl PassContext {
     }
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&mut self, data: T) {
-
         let data = bytemuck::bytes_of(&data);
         let mut out = [0u8; 92];
 
@@ -133,11 +138,14 @@ impl PassContext {
         let layout = self.layout.unwrap();
         let mut push = self.push.unwrap();
 
-        let index = self.external_resources.transforms.read().pool.index(transform);
+        let index = self
+            .external_resources
+            .transforms
+            .read()
+            .pool
+            .index(transform);
+        
         push.transform_idx = index as u32;
-
-        // println!("idx: {:?}", push.transform_idx);
-        // println!("pool size: {:?}", self.external_resources.transforms.read().pool.as_slice().len());
 
         self.device.cmd_push_constants(
             self.cbuf,
@@ -147,14 +155,8 @@ impl PassContext {
             bytemuck::bytes_of(&push),
         );
 
-        self.device.cmd_bind_descriptor_sets(
-            self.cbuf, 
-            vk::PipelineBindPoint::GRAPHICS, 
-            layout, 
-            0, 
-            &[self.per_frame_set], 
-            &[]
-        );
+        self.device
+            .cmd_bind_descriptor_sets(self.cbuf, vk::PipelineBindPoint::GRAPHICS, layout, 0, &[self.per_frame_set], &[]);
 
         if let Some(index_buffer) = &mesh.index_buffer {
             self.device
@@ -174,6 +176,14 @@ impl PassContext {
                 mesh.instance_offset,
             );
         }
+    }
+
+    pub unsafe fn bind_uniforms(&self, uniform: Handle<FrameGraphUniform>) {
+        
+    }
+
+    pub unsafe fn bind_texture(&self) {
+
     }
 
     pub unsafe fn draw(&self, vertex_count: u32) {

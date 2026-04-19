@@ -20,19 +20,12 @@ impl TransformDesc {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            mvp: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32],
-            ]
+            mvp: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0f32]],
         }
     }
 
     pub fn from(mvp: [[f32; 4]; 4]) -> Self {
-        Self {
-            mvp
-        }
+        Self { mvp }
     }
 }
 
@@ -47,12 +40,7 @@ impl Transform {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            mvp: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32],
-            ]
+            mvp: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0f32]],
         }
     }
 }
@@ -68,13 +56,9 @@ impl Create for Transform {
         let mut transforms = resources.transforms.try_write().expect("Err write lock");
         transforms.is_dirty = true;
 
-        let handle = transforms.pool.insert(
-            Arc::downgrade(ctx),
-            Arc::downgrade(resources),
-            Transform {
-                mvp: desc.mvp,
-            },
-        );
+        let handle = transforms
+            .pool
+            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), Transform { mvp: desc.mvp });
 
         Ok(handle)
     }
@@ -88,7 +72,6 @@ pub struct TransformPool {
 
 impl TransformPool {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
-
         let mut buffer = PerFrameBufferBuilder::new(device)
             .buffer_size((size_of::<Transform>() * MAX_TRANSFORMS) as u64)
             .frame_count(frame_count)
@@ -110,12 +93,12 @@ impl TransformPool {
     }
 
     pub fn update(&mut self, image_index: u32) -> VulkanResult<()> {
-        let slice = self.pool.as_slice();
-        for (i, t) in slice.iter().enumerate() {
-            println!("transform[{}] translation: {:?}", i, [t.mvp[3][0], t.mvp[3][1], t.mvp[3][2]]);
+        if self.is_dirty {
+            let slice = self.pool.as_slice();
+            let buffer = self.buffer.get_mut(0);
+            buffer.upload_data(slice)?;
+            self.is_dirty = false;
         }
-        let buffer = self.buffer.get_mut(0);
-        buffer.upload_data(slice)?;
         Ok(())
     }
 

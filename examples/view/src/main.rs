@@ -4,8 +4,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::{
-    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, Handle, PresentPass, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res,
-    Resolution, Scissor, ShaderType, TextureFormat, VertexInput, Viewport, WorldRenderer,
+    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, TextureFormat, VertexInput, Viewport, WorldRenderer
 };
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
@@ -25,7 +24,7 @@ pub use gltf_loader::{GltfModel, load_gltf};
 // Uniform Buffer
 // Storage Buffer (read-only)
 // Storage Image (read-only)
-// Sampled Image / Texture
+// Texture
 //
 // Пишет:
 // Storage Buffer
@@ -35,26 +34,13 @@ pub use gltf_loader::{GltfModel, load_gltf};
 // Читает:
 // Uniform Buffer
 // Storage Buffer (read-only)
-// Sampled Image / Texture
-// Input Attachment — да, но только то, что было Output в этом же RenderPass
-// (тот же VkRenderPass, subpass dependency). Это subpass input, не между
-// пассами.
+// Texture
 //
 // Пишет:
 // Color Attachment (RenderTarget) — обязательно хотя бы один, либо depth
 // Depth/Stencil Attachment
 // Storage Buffer / Storage Image
 //
-// Ray Tracing Pass
-// Читает:
-// Acceleration Structure (TLAS) — это его уникальный ресурс
-// Uniform Buffer
-// Storage Buffer
-// Sampled Image / Texture
-//
-// Пишет:
-// Storage Image — главный output, обычно пишет финальную картинку именно так
-// Storage Buffer
 
 #[derive(Default)]
 struct App {
@@ -85,40 +71,45 @@ impl ApplicationHandler for App {
                 let model = self.model.as_ref().unwrap();
                 let time_sec = self.global_time.as_ref().unwrap().elapsed().as_secs_f32();
 
-                let _ = world.draw_frame(move |graph| {
-
-                    #[derive(Clone, Copy, Default)]
-                    pub struct PassData {
-                        
+                let _ = world.draw_frame(move |frame| {
+                    
+                    #[derive(Clone, Copy, Default, Debug)]
+                    pub struct GBuffer {
+                        albedo: Handle<FrameGraphTexture>,
+                        depth: Handle<FrameGraphTexture>
                     }
 
-                    let data = graph.add_pass(PresentPass::new(
-                        "Final Pass",
-                        |builder| {
+                    let gbuffer = frame.add_pass(
+                        RasterPass::new("Simple Pass")
+                            .setup(|setup| {
 
-                            let back = builder.backbuffer();
-                            let depth = builder.create(FrameGraphTextureDesc {
-                                format: TextureFormat::D32Sfloat,
-                                resolution: Resolution::FullRes,
-                            });
+                                let albedo = setup.create_texture(
+                                    "albedo",
+                                    TextureFormat::R8g8b8a8Srgb,
+                                    Resolution::FullRes
+                                );
 
-                            builder.render_target = Some(RenderTarget { 
-                                colors: &[], 
-                                depth: None 
-                            });
+                                let depth = setup.create_texture(
+                                    "depth", 
+                                    TextureFormat::D32Sfloat, 
+                                    Resolution::FullRes
+                                );
 
-                            PassData {}
-                        },
-                        move |ctx, data| unsafe {
-                            ctx.bind_pipeline(pipeline);
-                            ctx.push_constants([time_sec, 2.0]);
-                            ctx.set_viewport(Viewport::FullRes);
-                            ctx.set_scissor(Scissor::FullRes);
-                            for (mesh, transform) in &model.meshes {
-                                ctx.draw_mesh(mesh, transform);
-                            }
-                        },
-                    ));
+                                GBuffer {
+                                    albedo,
+                                    depth
+                                }
+                            })
+                            .execute(move |ctx, _: &() | unsafe {
+                                ctx.bind_pipeline(pipeline);
+                                ctx.push_constants([time_sec, 2.0]);
+                                ctx.set_viewport(Viewport::FullRes);
+                                ctx.set_scissor(Scissor::FullRes);
+                                for (mesh, transform) in &model.meshes {
+                                    ctx.draw_mesh(mesh, transform);
+                                }
+                            })
+                    );
                 });
             },
             _ => (),
@@ -149,8 +140,11 @@ impl ApplicationHandler for App {
                     .fragment_shader("./shaders/spv/raster_ps.spv")
                     .vertex_input(
                         VertexInput::new()
-                            .with(ShaderType::Float3)
-                            .with(ShaderType::Float3),
+                            .attr("position", ShaderType::Float4)
+                            .attr("normal", ShaderType::Float4)
+                            .attr("uv", ShaderType::Float4)
+                            .attr("color", ShaderType::Float4)
+                            .attr("tangent", ShaderType::Float4),
                     )
                     .dynamic_scissors(true)
                     .dynamic_viewport(true),
@@ -170,7 +164,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::TRACE)
+        .with_max_level(LevelFilter::INFO)
         .init();
 
     let event_loop = EventLoop::new()?;
@@ -178,3 +172,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+/*
+
+Texture - объект представляющий собой просто набор пикселей
+TextureView - автоматически бинд в bindless текстуры, только чтение в фрагментном шейдере
+StorageTexture - живет за пределами графа, чтобы использовать в графе, нужен import отдельный, может быть виден как в вершинном, так и во фргментном
+RenderTarget(TransientTexture) - только рендер как color/depth attachments, может быть только прочитан в следующем пассе во фрагментном шейдере или снова использоваться как Rt, временный ресурс графа, за пределами не живет
+TransientStorageTexture - временный ресрус для рендера в него, может быть виден как в фрагментном, так и вершинном через uniforms(descriptro set)
+TransientStorageBuffer - буфер временный, по сути то же только для передачи от одного пасса к другому, дальше не живет
+TemporalStorageTexture - текстура живет между кадрами и болеее... Имеет такие же свойства как и TransientStorageTexture, но хранит данные между кадрами
+TemporalStorageBuffer - ну такая же фигня, как и TransientStorageBuffer и TemporalStorageTexture
+
+
+*/

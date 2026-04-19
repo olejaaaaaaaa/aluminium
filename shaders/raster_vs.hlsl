@@ -25,7 +25,6 @@ struct Transform {
 
 // [[vk::binding(0, 1)]] ConstantBuffer<Camera>      camera;
 // [[vk::binding(1, 1)]] ConstantBuffer<FrameValues> frame_values;
-
 [[vk::binding(0, 0)]] StructuredBuffer<Transform> transforms;
 
 const uint SAMPLER_REPEAT = 0;
@@ -64,7 +63,7 @@ VSOutput main(VSInput input)
 
     Transform t = transforms[push.transform_idx];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
-    output.color = input.normal;
+    output.color = input.normal * (input.color * 2.0 * abs(sin(push.user_data[0])));
 
     return output;
 }
