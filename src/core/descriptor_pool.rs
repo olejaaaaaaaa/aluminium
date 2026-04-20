@@ -17,7 +17,11 @@ impl DescriptorPool {
         );
     }
 
-    pub fn create_descriptor_set(&self, device: &Device, layouts: &[vk::DescriptorSetLayout]) -> VulkanResult<Vec<vk::DescriptorSet>> {
+    pub fn create_descriptor_set(
+        &self,
+        device: &Device,
+        layouts: &[vk::DescriptorSetLayout],
+    ) -> VulkanResult<Vec<vk::DescriptorSet>> {
         #[cfg(debug_assertions)]
         {
             assert!(!layouts.is_empty(), "Cannot allocate 0 descriptor sets!");

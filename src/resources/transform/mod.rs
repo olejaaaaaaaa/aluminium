@@ -20,7 +20,12 @@ impl TransformDesc {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            mvp: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0f32]],
+            mvp: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32],
+            ],
         }
     }
 
@@ -40,25 +45,41 @@ impl Transform {
     /// identity matrix
     pub fn identity() -> Self {
         Self {
-            mvp: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0f32]],
+            mvp: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32],
+            ],
         }
     }
 }
 
 impl Destroy for Transform {
-    fn destroy(_handle: ResourceKey, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
+    fn destroy(
+        _handle: ResourceKey,
+        _ctx: Weak<crate::render_context::RenderContext>,
+        _resources: Weak<Resources>,
+    ) {
+    }
 }
 
 impl Create for Transform {
     type Desc<'a> = TransformDesc;
 
-    fn create(ctx: &Arc<crate::render_context::RenderContext>, resources: &Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>> {
+    fn create(
+        ctx: &Arc<crate::render_context::RenderContext>,
+        resources: &Arc<Resources>,
+        desc: Self::Desc<'_>,
+    ) -> VulkanResult<Res<Self>> {
         let mut transforms = resources.transforms.try_write().expect("Err write lock");
         transforms.is_dirty = true;
 
-        let handle = transforms
-            .pool
-            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), Transform { mvp: desc.mvp });
+        let handle = transforms.pool.insert(
+            Arc::downgrade(ctx),
+            Arc::downgrade(resources),
+            Transform { mvp: desc.mvp },
+        );
 
         Ok(handle)
     }

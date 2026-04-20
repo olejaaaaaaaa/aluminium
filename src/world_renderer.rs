@@ -6,8 +6,8 @@ use winit::window::Window;
 use super::render_context::RenderContext;
 use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
-use crate::frame_graph::temporal::TemporalFrameGraph;
 use crate::frame_graph::FrameGraph;
+use crate::frame_scope::FrameScope;
 use crate::resources::*;
 /// Lightweight abstraction for rendering using Vulkan API
 ///
@@ -201,7 +201,7 @@ impl WorldRenderer {
     ///
     /// world.draw_frame(|graph| {
     ///     graph.add_pass(
-    ///         PresentPass::new("Final Pass").execute(|ctx| unsafe {
+    ///         RasterPass::new("Final Pass").execute(|ctx| unsafe {
     ///             ctx.bind_pipeline(simple_pipeline)
     ///             ctx.draw(3)
     ///         });
@@ -217,19 +217,18 @@ impl WorldRenderer {
     /// - if device lost (Driver Bug)
     pub fn draw_frame<'frame, F>(&mut self, callback: F) -> VulkanResult<()>
     where
-        F: FnOnce(&mut TemporalFrameGraph<'frame>),
+        F: FnOnce(&mut FrameScope<'frame>),
     {
         profiling::scope!("WorldRenderer::draw_frame");
 
-        // Create Temporal Frame Graph
-        let mut frame = TemporalFrameGraph::new();
+        // Create frame scope for this frame
+        let mut frame = FrameScope::new();
 
-        // Setup graph
+        // Collect data for this frame
         callback(&mut frame);
 
         // Compile Graph
-        self.graph
-            .compile(&mut frame, &self.ctx, &self.resources)?;
+        self.graph.compile(&mut frame, &self.ctx, &self.resources)?;
 
         // Execute Graph
         if let Err(err) = self.graph.execute(&mut frame, &self.ctx, &self.resources) {

@@ -37,9 +37,19 @@ impl TexturePool {
 }
 
 impl Destroy for Image {
-    fn destroy(handle: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {}
+    fn destroy(
+        handle: ResourceKey,
+        ctx: std::sync::Weak<crate::render_context::RenderContext>,
+        resources: std::sync::Weak<super::Resources>,
+    ) {
+    }
 }
 
 impl Destroy for ImageView {
-    fn destroy(handle: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {}
+    fn destroy(
+        handle: ResourceKey,
+        ctx: std::sync::Weak<crate::render_context::RenderContext>,
+        resources: std::sync::Weak<super::Resources>,
+    ) {
+    }
 }

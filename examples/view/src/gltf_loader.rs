@@ -74,10 +74,15 @@ fn load_gltf_node(
             let mesh = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
 
             let proj = Mat4::perspective_rh(45.0_f32.to_radians(), 800.0 / 600.0, 0.1, 1000.0);
-            let view = Mat4::look_at_rh(Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, -0.12, 0.0), Vec3::NEG_Y);
+            let view = Mat4::look_at_rh(
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, -0.12, 0.0),
+                Vec3::NEG_Y,
+            );
 
             let mvp = proj * view * node_transform;
-            let transform = world.create::<Transform>(TransformDesc::from(mvp.to_cols_array_2d()))?;
+            let transform =
+                world.create::<Transform>(TransformDesc::from(mvp.to_cols_array_2d()))?;
 
             model.meshes.push((mesh, transform));
         }
@@ -89,7 +94,11 @@ fn load_gltf_node(
 pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult<GltfModel> {
     let (gltf, buffers, mut images) = match gltf::import(path.as_ref()) {
         Ok(result) => result,
-        Err(err) => panic!("Error load gltf model with path: {:?} with error: {:?}", path.as_ref().as_os_str(), err),
+        Err(err) => panic!(
+            "Error load gltf model with path: {:?} with error: {:?}",
+            path.as_ref().as_os_str(),
+            err
+        ),
     };
 
     let mut gltf_model = GltfModel { meshes: vec![] };

@@ -24,7 +24,12 @@ impl<T: Destroy> LinearPool<T> {
         }
     }
 
-    pub fn insert(&mut self, ctx: Weak<RenderContext>, resources: Weak<Resources>, value: T) -> Res<T> {
+    pub fn insert(
+        &mut self,
+        ctx: Weak<RenderContext>,
+        resources: Weak<Resources>,
+        value: T,
+    ) -> Res<T> {
         let key = self.slots.insert(self.current_index);
         self.data.push(value);
         self.current_index += 1;

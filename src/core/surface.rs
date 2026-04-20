@@ -12,7 +12,11 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn new(app: &App, instance: &Instance, window: &winit::window::Window) -> VulkanResult<Surface> {
+    pub fn new(
+        app: &App,
+        instance: &Instance,
+        window: &winit::window::Window,
+    ) -> VulkanResult<Surface> {
         let surface = unsafe {
             profiling::scope!("vkCreateNativeSurface");
             ash_window::create_surface(
@@ -27,7 +31,10 @@ impl Surface {
 
         let loader = ash::khr::surface::Instance::new(&app.entry, &instance.raw);
 
-        Ok(Surface { raw: surface, loader })
+        Ok(Surface {
+            raw: surface,
+            loader,
+        })
     }
 }
 
@@ -40,7 +47,10 @@ impl Surface {
         );
     }
 
-    pub fn get_physical_device_surface_capabilities(&self, phys_dev: vk::PhysicalDevice) -> VulkanResult<vk::SurfaceCapabilitiesKHR> {
+    pub fn get_physical_device_surface_capabilities(
+        &self,
+        phys_dev: vk::PhysicalDevice,
+    ) -> VulkanResult<vk::SurfaceCapabilitiesKHR> {
         unsafe {
             self.loader
                 .get_physical_device_surface_capabilities(phys_dev, self.raw)
@@ -48,7 +58,10 @@ impl Surface {
         }
     }
 
-    pub fn get_physical_device_surface_formats(&self, phys_dev: vk::PhysicalDevice) -> VulkanResult<Vec<vk::SurfaceFormatKHR>> {
+    pub fn get_physical_device_surface_formats(
+        &self,
+        phys_dev: vk::PhysicalDevice,
+    ) -> VulkanResult<Vec<vk::SurfaceFormatKHR>> {
         unsafe {
             self.loader
                 .get_physical_device_surface_formats(phys_dev, self.raw)

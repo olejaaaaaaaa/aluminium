@@ -31,7 +31,10 @@ pub struct ShaderBuilder<'a> {
 
 impl<'a> ShaderBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
-        Self { device, bytecode: None }
+        Self {
+            device,
+            bytecode: None,
+        }
     }
 
     pub fn bytecode(mut self, bytecode: &'a [u32]) -> Self {
@@ -67,7 +70,10 @@ pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
     file.read_to_end(&mut text).unwrap();
 
     assert_eq!(text.len() % 4, 0);
-    assert_eq!(0x07230203, u32::from_le_bytes([text[0], text[1], text[2], text[3]]));
+    assert_eq!(
+        0x07230203,
+        u32::from_le_bytes([text[0], text[1], text[2], text[3]])
+    );
 
     read_shader_from_bytes(&text).unwrap()
 }

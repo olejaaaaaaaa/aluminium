@@ -16,9 +16,11 @@ pub use types::*;
 mod resources;
 pub use resources::*;
 
-use crate::core::{CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult};
+use crate::core::{
+    CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult,
+};
 use crate::frame_graph::Pass;
-use crate::frame_graph::temporal::TemporalFrameGraph;
+use crate::frame_scope::FrameScope;
 use crate::render_context::RenderContext;
 use crate::resources::{Destroy, Res, Resources};
 
@@ -32,17 +34,26 @@ impl FrameGraph {
     /// Create new [`FrameGraph`]
     pub(crate) fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Self> {
         let cmd_pool = CommandPoolBuilder::reset(&ctx.device).build()?;
-        let cmd_buffers = cmd_pool.allocate_cmd_buffers(&ctx.device, vk::CommandBufferLevel::PRIMARY, ctx.frame_count() as u32)?;
+        let cmd_buffers = cmd_pool.allocate_cmd_buffers(
+            &ctx.device,
+            vk::CommandBufferLevel::PRIMARY,
+            ctx.frame_count() as u32,
+        )?;
         let resources = FrameGraphResources::new();
-        
-        Ok(FrameGraph { 
-            cmd_pool, 
+
+        Ok(FrameGraph {
+            cmd_pool,
             cmd_buffers,
-            resources
+            resources,
         })
     }
 
-    pub(crate) fn compile(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
+    pub(crate) fn compile(
+        &mut self,
+        temp: &mut FrameScope<'_>,
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<Resources>,
+    ) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
 
         for i in temp.resources.textures.drain() {
@@ -52,7 +63,12 @@ impl FrameGraph {
         Ok(())
     }
 
-    pub(crate) fn execute(&mut self, temp: &mut TemporalFrameGraph<'_>, ctx: &Arc<RenderContext>, resources: &Arc<Resources>) -> VulkanResult<()> {
+    pub(crate) fn execute(
+        &mut self,
+        temp: &mut FrameScope<'_>,
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<Resources>,
+    ) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::execute");
         let queue = ctx.device.queue_pool.get_present().unwrap();
         let device = &ctx.device;
@@ -79,14 +95,17 @@ impl FrameGraph {
 
             // Get image index or skip a frame
             unsafe {
-                match window
-                    .swapchain
-                    .loader
-                    .acquire_next_image(window.swapchain.raw, u64::MAX, sync.image_available.raw, vk::Fence::null())
-                {
+                match window.swapchain.loader.acquire_next_image(
+                    window.swapchain.raw,
+                    u64::MAX,
+                    sync.image_available.raw,
+                    vk::Fence::null(),
+                ) {
                     Ok((index, _)) => index,
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                        return Err(VulkanError::Swapchain(SwapchainError::SwapchainOutOfDateKhr));
+                        return Err(VulkanError::Swapchain(
+                            SwapchainError::SwapchainOutOfDateKhr,
+                        ));
                     },
                     Err(e) => {
                         return Err(VulkanError::Unknown(e));
@@ -113,16 +132,23 @@ impl FrameGraph {
                                 },
                             },
                             ClearValue {
-                                depth_stencil: vk::ClearDepthStencilValue { depth: 1.0, stencil: 0 },
+                                depth_stencil: vk::ClearDepthStencilValue {
+                                    depth: 1.0,
+                                    stencil: 0,
+                                },
                             },
                         ];
 
                         unsafe {
                             device
-                                .reset_command_buffer(cmd_buffer, vk::CommandBufferResetFlags::empty())
+                                .reset_command_buffer(
+                                    cmd_buffer,
+                                    vk::CommandBufferResetFlags::empty(),
+                                )
                                 .map_err(VulkanError::Unknown)?;
 
-                            let begin_info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+                            let begin_info = vk::CommandBufferBeginInfo::default()
+                                .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
                             device
                                 .begin_command_buffer(cmd_buffer, &begin_info)
@@ -134,12 +160,19 @@ impl FrameGraph {
                             .framebuffer(frame_buffer.raw)
                             .render_area(vk::Rect2D {
                                 offset: vk::Offset2D { x: 0, y: 0 },
-                                extent: resolution,
+                                extent: vk::Extent2D {
+                                    width: resolution.width,
+                                    height: resolution.height,
+                                },
                             })
                             .clear_values(&clear_values);
 
                         unsafe {
-                            device.cmd_begin_render_pass(cmd_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+                            device.cmd_begin_render_pass(
+                                cmd_buffer,
+                                &render_pass_begin_info,
+                                vk::SubpassContents::INLINE,
+                            );
                         }
 
                         let mut pass_ctx = PassContext {
@@ -152,7 +185,7 @@ impl FrameGraph {
                             cbuf: cmd_buffer,
                         };
 
-                        (pass.execute)(&mut pass_ctx);
+                        (pass.execute)(&mut pass_ctx, &*pass.data);
 
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);
@@ -168,10 +201,7 @@ impl FrameGraph {
             }
         }
 
-        let mut window = ctx
-            .window
-            .try_write()
-            .expect("Window already borrowed");
+        let mut window = ctx.window.try_write().expect("Window already borrowed");
 
         let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 

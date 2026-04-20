@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
-use crate::{FrameGraphUniform, Handle, Mesh, RasterPipeline, Transform};
+use crate::{FrameGraphUniform, Handle, Mesh, RasterPipeline, Transform, TransientTexture};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -92,13 +92,24 @@ impl PassContext {
         self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
     }
 
+    pub unsafe fn begin_rendering(&self, colors: &[Handle<TransientTexture>], depth: Option<Handle<TransientTexture>>) {
+
+    }
+
+    pub unsafe fn bind_set(&self, value: u32) {
+
+    }
+
     pub unsafe fn bind_pipeline(&mut self, handle: &Res<RasterPipeline>) {
         profiling::scope!("PassContext::bind_pipeline");
         let cache = self.external_resources.pipeline_cache.read();
         let pipeline = cache.raster_pipelines.get(handle);
         let layout = cache.pipeline_layout.get(&pipeline.layout);
-        self.device
-            .cmd_bind_pipeline(self.cbuf, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline.raw);
+        self.device.cmd_bind_pipeline(
+            self.cbuf,
+            vk::PipelineBindPoint::GRAPHICS,
+            pipeline.pipeline.raw,
+        );
         self.layout = Some(layout.raw.clone());
     }
 
@@ -144,7 +155,7 @@ impl PassContext {
             .read()
             .pool
             .index(transform);
-        
+
         push.transform_idx = index as u32;
 
         self.device.cmd_push_constants(
@@ -155,14 +166,24 @@ impl PassContext {
             bytemuck::bytes_of(&push),
         );
 
-        self.device
-            .cmd_bind_descriptor_sets(self.cbuf, vk::PipelineBindPoint::GRAPHICS, layout, 0, &[self.per_frame_set], &[]);
+        self.device.cmd_bind_descriptor_sets(
+            self.cbuf,
+            vk::PipelineBindPoint::GRAPHICS,
+            layout,
+            0,
+            &[self.per_frame_set],
+            &[],
+        );
 
         if let Some(index_buffer) = &mesh.index_buffer {
             self.device
                 .cmd_bind_vertex_buffers(self.cbuf, 0, &[mesh.vertex_buffer.raw], &[0]);
-            self.device
-                .cmd_bind_index_buffer(self.cbuf, index_buffer.raw, 0, vk::IndexType::UINT32);
+            self.device.cmd_bind_index_buffer(
+                self.cbuf,
+                index_buffer.raw,
+                0,
+                vk::IndexType::UINT32,
+            );
             self.device
                 .cmd_draw_indexed(self.cbuf, index_buffer.count, 1, 0, 0, 0);
         } else {
@@ -179,7 +200,7 @@ impl PassContext {
     }
 
     pub unsafe fn bind_uniforms(&self, uniform: Handle<FrameGraphUniform>) {
-        
+
     }
 
     pub unsafe fn bind_texture(&self) {

@@ -3,12 +3,30 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::{
-    load_spv, AttributeDescriptions, BindingDescriptions, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout,
-    PipelineLayoutBuilder, ShaderBuilder, Vertex,
+    load_spv, AttributeDescriptions, BindingDescriptions, GraphicsPipeline,
+    GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder,
+    Vertex,
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Destroy, Res, ResourceKey, Resources, ShaderType};
 use crate::VulkanResult;
+
+
+
+pub trait Layout {
+    fn layout() -> VertexInput;
+}
+
+impl Layout for PbrVertex {
+    fn layout() -> VertexInput {
+        VertexInput::new()
+            .attr("position", ShaderType::Float4)
+            .attr("normal", ShaderType::Float4)
+            .attr("uv", ShaderType::Float4)
+            .attr("color", ShaderType::Float4)
+            .attr("tangent", ShaderType::Float4)
+    }
+}
 
 pub struct VertexInput {
     inputs: Vec<ShaderType>,
@@ -35,6 +53,7 @@ impl VertexInput {
 
 pub struct RasterPipelineDesc<'a> {
     use_cache: bool,
+    depth_test: bool,
     dynamic_viewport: bool,
     dynamic_scissors: bool,
     vertex_shader: Option<Source<'a>>,
@@ -47,6 +66,7 @@ impl<'a> Default for RasterPipelineDesc<'a> {
     fn default() -> Self {
         Self {
             use_cache: false,
+            depth_test: false,
             dynamic_viewport: false,
             dynamic_scissors: false,
             vertex_shader: None,
@@ -62,13 +82,8 @@ impl<'a> RasterPipelineDesc<'a> {
         Self::default()
     }
 
-    pub fn render_target(mut self, count: usize) -> Self {
-        self.multiple_render_target = Some(count);
-        self
-    }
-
-    pub fn use_cache(mut self, value: bool) -> Self {
-        self.use_cache = value;
+    pub fn depth_test(mut self, value: bool) -> Self {
+        self.depth_test = value;
         self
     }
 
@@ -82,8 +97,8 @@ impl<'a> RasterPipelineDesc<'a> {
         self
     }
 
-    pub fn vertex_input(mut self, input: VertexInput) -> Self {
-        self.vertex_input = Some(input);
+    pub fn vertex_input<T: Layout>(mut self) -> Self {
+        self.vertex_input = Some(T::layout());
         self
     }
 
@@ -104,7 +119,12 @@ pub struct RasterPipeline {
 }
 
 impl Destroy for RasterPipeline {
-    fn destroy(key: ResourceKey, _ctx: std::sync::Weak<crate::render_context::RenderContext>, _resources: std::sync::Weak<Resources>) {}
+    fn destroy(
+        key: ResourceKey,
+        _ctx: std::sync::Weak<crate::render_context::RenderContext>,
+        _resources: std::sync::Weak<Resources>,
+    ) {
+    }
 }
 
 impl Create for RasterPipeline {
@@ -126,11 +146,18 @@ impl Create for RasterPipeline {
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
-                .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT)])
+                .stage_flags(
+                    vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                )])
             .build()?;
 
         let color_blend = vk::PipelineColorBlendAttachmentState::default()
-            .color_write_mask(vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A)
+            .color_write_mask(
+                vk::ColorComponentFlags::R
+                    | vk::ColorComponentFlags::G
+                    | vk::ColorComponentFlags::B
+                    | vk::ColorComponentFlags::A,
+            )
             .blend_enable(false);
 
         let vertex_shader = desc.vertex_shader.unwrap();
@@ -162,6 +189,16 @@ impl Create for RasterPipeline {
         };
 
         let resolution = ctx.resolution();
+
+        let mut dynamic_states = Vec::with_capacity(2);
+
+        if desc.dynamic_viewport {
+            dynamic_states.push(vk::DynamicState::VIEWPORT);
+        }
+
+        if desc.dynamic_scissors {
+            dynamic_states.push(vk::DynamicState::SCISSOR);
+        }
 
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
             .vertex_shader(vertex.raw)
@@ -204,18 +241,21 @@ impl Create for RasterPipeline {
                     .logic_op(vk::LogicOp::COPY)
                     .attachments(&[color_blend]),
             )
-            .dynamic_state(vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR])
+            .dynamic_state(dynamic_states)
             .vertex_input_info(vertex_input_info)
             .build()?;
 
         let mut cache = resources.pipeline_cache.write();
-        let layout = cache
-            .pipeline_layout
-            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), layout);
+        let layout =
+            cache
+                .pipeline_layout
+                .insert(Arc::downgrade(ctx), Arc::downgrade(resources), layout);
 
-        let handle = cache
-            .raster_pipelines
-            .insert(Arc::downgrade(ctx), Arc::downgrade(resources), RasterPipeline { pipeline, layout });
+        let handle = cache.raster_pipelines.insert(
+            Arc::downgrade(ctx),
+            Arc::downgrade(resources),
+            RasterPipeline { pipeline, layout },
+        );
 
         Ok(handle)
     }

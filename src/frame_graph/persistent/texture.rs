@@ -13,17 +13,13 @@ pub struct RenderTarget {
     pub depth: Option<Handle<FrameGraphTexture>>,
 }
 
-pub struct FrameGraphUniform {
+pub struct FrameGraphUniform {}
 
-}
-
-pub struct FrameGraphUniformDesc {
-
-}
+pub struct FrameGraphUniformDesc {}
 
 impl FrameGraphUniformDesc {
     pub fn new() -> Self {
-        Self {  }
+        Self {}
     }
 
     pub fn with<T>(mut self, handle: Handle<T>) -> Self {
@@ -31,10 +27,6 @@ impl FrameGraphUniformDesc {
     }
 }
 
-pub struct FrameGraphTexture {
+pub struct FrameGraphTexture {}
 
-}
-
-pub struct BackBuffer {
-
-}
+pub struct BackBuffer {}

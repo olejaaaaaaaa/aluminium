@@ -3,8 +3,8 @@ use tracing::info;
 
 use super::GraphicsDevice;
 use crate::core::{
-    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder, RenderPass, Surface, Swapchain, SwapchainBuilder,
-    VulkanResult,
+    FrameBuffer, FrameBufferBuilder, FrameSync, Image, ImageBuilder, ImageView, ImageViewBuilder,
+    RenderPass, Surface, Swapchain, SwapchainBuilder, VulkanResult,
 };
 
 /// Manages window-related Vulkan resources (swapchain, framebuffers,

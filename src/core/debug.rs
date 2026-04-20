@@ -120,7 +120,9 @@ unsafe extern "system" fn debug_utils_messenger_callback(
     //
     // See https://github.com/obsproject/obs-studio/issues/9353
     const VUID_VKRENDERPASSBEGININFO_FRAMEBUFFER_04627: i32 = 0x45125641;
-    if cd.message_id_number == VUID_VKRENDERPASSBEGININFO_FRAMEBUFFER_04627 && user_data.has_obs_layer {
+    if cd.message_id_number == VUID_VKRENDERPASSBEGININFO_FRAMEBUFFER_04627
+        && user_data.has_obs_layer
+    {
         return vk::FALSE;
     }
 
@@ -151,7 +153,8 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         _ => tracing::Level::WARN,
     };
 
-    let message_id_name = unsafe { cd.message_id_name_as_c_str() }.map_or(Cow::Borrowed(""), CStr::to_string_lossy);
+    let message_id_name =
+        unsafe { cd.message_id_name_as_c_str() }.map_or(Cow::Borrowed(""), CStr::to_string_lossy);
     let message = unsafe { cd.message_as_c_str() }.map_or(Cow::Borrowed(""), CStr::to_string_lossy);
 
     let _ = std::panic::catch_unwind(|| {
@@ -159,7 +162,8 @@ unsafe extern "system" fn debug_utils_messenger_callback(
     });
 
     if cd.queue_label_count != 0 {
-        let labels = unsafe { slice::from_raw_parts(cd.p_queue_labels, cd.queue_label_count as usize) };
+        let labels =
+            unsafe { slice::from_raw_parts(cd.p_queue_labels, cd.queue_label_count as usize) };
         let names = labels
             .iter()
             .flat_map(|dul_obj| unsafe { dul_obj.label_name_as_c_str() }.map(CStr::to_string_lossy))
@@ -171,7 +175,8 @@ unsafe extern "system" fn debug_utils_messenger_callback(
     }
 
     if cd.cmd_buf_label_count != 0 {
-        let labels = unsafe { slice::from_raw_parts(cd.p_cmd_buf_labels, cd.cmd_buf_label_count as usize) };
+        let labels =
+            unsafe { slice::from_raw_parts(cd.p_cmd_buf_labels, cd.cmd_buf_label_count as usize) };
         let names = labels
             .iter()
             .flat_map(|dul_obj| unsafe { dul_obj.label_name_as_c_str() }.map(CStr::to_string_lossy))
@@ -188,9 +193,13 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         let names = labels
             .iter()
             .map(|obj_info| {
-                let name = unsafe { obj_info.object_name_as_c_str() }.map_or(Cow::Borrowed("?"), CStr::to_string_lossy);
+                let name = unsafe { obj_info.object_name_as_c_str() }
+                    .map_or(Cow::Borrowed("?"), CStr::to_string_lossy);
 
-                format!("(type: {:?}, hndl: 0x{:x}, name: {})", obj_info.object_type, obj_info.object_handle, name)
+                format!(
+                    "(type: {:?}, hndl: 0x{:x}, name: {})",
+                    obj_info.object_type, obj_info.object_handle, name
+                )
             })
             .collect::<Vec<_>>();
 

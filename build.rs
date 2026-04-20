@@ -40,12 +40,18 @@ fn main() {
     let _ = create_dir_all(&spv_output_dir);
 
     if !shaders_dir.exists() {
-        println!("cargo:warning=shaders directory not found: {}", shaders_dir.display());
+        println!(
+            "cargo:warning=shaders directory not found: {}",
+            shaders_dir.display()
+        );
         return;
     }
 
     if !spv_output_dir.exists() {
-        println!("cargo:warning=shaders output directory not found: {}", spv_output_dir.display());
+        println!(
+            "cargo:warning=shaders output directory not found: {}",
+            spv_output_dir.display()
+        );
         return;
     }
 

@@ -11,7 +11,12 @@ use crate::core::PipelineLayout;
 use crate::resources::{Destroy, Pool, ResourceKey};
 
 impl Destroy for PipelineLayout {
-    fn destroy(key: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {}
+    fn destroy(
+        key: ResourceKey,
+        ctx: std::sync::Weak<crate::render_context::RenderContext>,
+        resources: std::sync::Weak<super::Resources>,
+    ) {
+    }
 }
 
 pub struct PipelineCache {

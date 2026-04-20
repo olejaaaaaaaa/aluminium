@@ -14,10 +14,17 @@ pub struct Pool<T: Destroy> {
 
 impl<T: Destroy> Pool<T> {
     pub fn new() -> Self {
-        Self { slots: SlotMap::with_key() }
+        Self {
+            slots: SlotMap::with_key(),
+        }
     }
 
-    pub fn insert(&mut self, ctx: Weak<crate::render_context::RenderContext>, resources: Weak<Resources>, value: T) -> Res<T> {
+    pub fn insert(
+        &mut self,
+        ctx: Weak<crate::render_context::RenderContext>,
+        resources: Weak<Resources>,
+        value: T,
+    ) -> Res<T> {
         let key = self.slots.insert(value);
         Res {
             key,

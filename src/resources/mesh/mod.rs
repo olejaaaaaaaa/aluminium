@@ -41,12 +41,21 @@ impl<'a> MeshDesc<'a> {
 }
 
 impl Destroy for Mesh {
-    fn destroy(key: ResourceKey, _ctx: Weak<crate::render_context::RenderContext>, _resources: Weak<Resources>) {}
+    fn destroy(
+        key: ResourceKey,
+        _ctx: Weak<crate::render_context::RenderContext>,
+        _resources: Weak<Resources>,
+    ) {
+    }
 }
 
 impl Create for Mesh {
     type Desc<'a> = MeshDesc<'a>;
-    fn create(ctx: &Arc<RenderContext>, resources: &Arc<super::Resources>, desc: Self::Desc<'_>) -> VulkanResult<super::Res<Self>> {
+    fn create(
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<super::Resources>,
+        desc: Self::Desc<'_>,
+    ) -> VulkanResult<super::Res<Self>> {
         let size = std::mem::size_of_val(desc.vertices) as u64;
 
         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)

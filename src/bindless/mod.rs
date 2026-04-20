@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use ash::vk;
 
-use crate::core::{DescriptorPool, DescriptorPoolBuilder, DescriptorSetLayout, DescriptorSetLayoutBuilder, Device, VulkanResult};
+use crate::core::{
+    DescriptorPool, DescriptorPoolBuilder, DescriptorSetLayout, DescriptorSetLayoutBuilder, Device,
+    VulkanResult,
+};
 use crate::render_context::RenderContext;
 
 const MAX_SAMPLED_IMAGE: u32 = 16_384;
@@ -48,7 +51,8 @@ impl Bindless {
             })
             .collect();
 
-        let mut binding_flags_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&binding_flags);
+        let mut binding_flags_info =
+            vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&binding_flags);
 
         let set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
             .bindings(layout.clone())

@@ -18,7 +18,12 @@ pub struct Queue {
 }
 
 impl QueuePool {
-    pub fn new(device: &ash::Device, phys_dev: &vk::PhysicalDevice, surface: &Surface, props: &[vk::QueueFamilyProperties]) -> Self {
+    pub fn new(
+        device: &ash::Device,
+        phys_dev: &vk::PhysicalDevice,
+        surface: &Surface,
+        props: &[vk::QueueFamilyProperties],
+    ) -> Self {
         let mut queues = vec![];
 
         for (family_index, prop) in props.iter().enumerate() {
@@ -28,7 +33,11 @@ impl QueuePool {
                 let is_present = unsafe {
                     surface
                         .loader
-                        .get_physical_device_surface_support(*phys_dev, family_index as u32, surface.raw)
+                        .get_physical_device_surface_support(
+                            *phys_dev,
+                            family_index as u32,
+                            surface.raw,
+                        )
                         .map_err(VulkanError::Unknown)
                         .unwrap()
                 };

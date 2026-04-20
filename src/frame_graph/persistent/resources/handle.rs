@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
-use crate::frame_graph::temporal::Id;
+use crate::frame_scope::Id;
 
 pub struct Handle<T> {
     pub(crate) id: Id,
+    pub(crate) version: u64,
     pub(crate) _marker: PhantomData<T>,
 }
 
@@ -10,7 +11,8 @@ impl<T> Clone for Handle<T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
-            _marker: PhantomData
+            version: self.version,
+            _marker: PhantomData,
         }
     }
 }
@@ -18,9 +20,10 @@ impl<T> Clone for Handle<T> {
 impl<T> Copy for Handle<T> {}
 impl<T> Default for Handle<T> {
     fn default() -> Self {
-        Self { 
-            id: Id::default(), 
-            _marker: PhantomData 
+        Self {
+            id: Id::default(),
+            version: 0,
+            _marker: PhantomData,
         }
     }
 }

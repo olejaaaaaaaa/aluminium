@@ -21,7 +21,7 @@
 //     float4   pos;
 // };
 
-// [[vk::binding(0, 0)]] Texture2D<float4>           textures[];
+[[vk::binding(0, 0)]] Texture2D<float4>           textures[];
 // [[vk::binding(1, 0)]] RWTexture2D<float4>         rw_textures[];
 // [[vk::binding(2, 0)]] SamplerState                samplers[5];
 

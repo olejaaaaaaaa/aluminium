@@ -10,14 +10,10 @@ enum AnyFrameGraphResource<'frame, T: Destroy> {
     Internal(Handle<T>),
 }
 
-pub struct FrameGraphResources {
-    
-}
+pub struct FrameGraphResources {}
 
 impl FrameGraphResources {
     pub fn new() -> Self {
-        Self {
-
-        }
+        Self {}
     }
 }

@@ -53,7 +53,10 @@ impl std::ops::Deref for Device {
 }
 
 impl Device {
-    pub fn get_device_extensions(instance: &Instance, phys_dev: &PhysicalDevice) -> VulkanResult<HashSet<&'static CStr>> {
+    pub fn get_device_extensions(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> VulkanResult<HashSet<&'static CStr>> {
         let mut extensions = HashSet::new();
 
         let available_extensions = unsafe {
@@ -72,7 +75,10 @@ impl Device {
             }
         }
 
-        debug!("Available device extension: {:#?}", available_extension_names);
+        debug!(
+            "Available device extension: {:#?}",
+            available_extension_names
+        );
 
         let required_extensions = [
             c"VK_KHR_swapchain",
@@ -83,9 +89,11 @@ impl Device {
 
         for i in required_extensions {
             if !available_extension_names.contains(&i) {
-                return Err(VulkanError::LogicalDevice(crate::core::LogicalDeviceError::MissingRequiredExtension(
-                    i.to_str().unwrap().to_string(),
-                )));
+                return Err(VulkanError::LogicalDevice(
+                    crate::core::LogicalDeviceError::MissingRequiredExtension(
+                        i.to_str().unwrap().to_string(),
+                    ),
+                ));
             } else {
                 extensions.insert(i);
             }
@@ -111,7 +119,10 @@ impl Device {
         Ok(extensions)
     }
 
-    fn get_features2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceFeatures2<'static> {
+    fn get_features2(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> vk::PhysicalDeviceFeatures2<'static> {
         let mut features2 = vk::PhysicalDeviceFeatures2::default();
         unsafe {
             profiling::scope!("vkGetPhysicalDeviceFeatures2");
@@ -122,7 +133,10 @@ impl Device {
         features2
     }
 
-    fn get_driver_props(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceDriverProperties<'static> {
+    fn get_driver_props(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> vk::PhysicalDeviceDriverProperties<'static> {
         let mut driver_props = vk::PhysicalDeviceDriverProperties::default();
         let mut props2 = vk::PhysicalDeviceProperties2::default().push_next(&mut driver_props);
 
@@ -136,7 +150,10 @@ impl Device {
         driver_props
     }
 
-    fn get_props2(instance: &Instance, phys_dev: &PhysicalDevice) -> vk::PhysicalDeviceProperties2<'static> {
+    fn get_props2(
+        instance: &Instance,
+        phys_dev: &PhysicalDevice,
+    ) -> vk::PhysicalDeviceProperties2<'static> {
         let mut props2 = vk::PhysicalDeviceProperties2::default();
 
         unsafe {

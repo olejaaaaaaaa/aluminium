@@ -11,8 +11,8 @@ mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 use crate::core::{
-    App, Device, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder, Instance, PhysicalDevice, QueuePool, RenderPassBuilder, Surface,
-    SwapchainBuilder, VulkanResult,
+    App, Device, FrameBufferBuilder, FrameSync, ImageBuilder, ImageViewBuilder, Instance,
+    PhysicalDevice, QueuePool, RenderPassBuilder, Surface, SwapchainBuilder, VulkanResult,
 };
 
 /// Render Context provides initialized low-level Vulkan objects ready
@@ -67,7 +67,10 @@ impl RenderContext {
             }
         }
 
-        warn!("Image count: {}:{}", caps.min_image_count, caps.max_image_count);
+        warn!(
+            "Image count: {}:{}",
+            caps.min_image_count, caps.max_image_count
+        );
 
         let swapchain = SwapchainBuilder::new(&device)
             .min_image_count(2)
@@ -79,7 +82,9 @@ impl RenderContext {
             .format(format)
             .build()?;
 
-        let render_pass = RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT).build()?;
+        let render_pass =
+            RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT)
+                .build()?;
 
         let depth_image = ImageBuilder::new(&device)
             .extent(caps.current_extent.into())
@@ -131,7 +136,12 @@ impl RenderContext {
             frame_buffers.push(frame_buffer);
         }
 
-        let pool = QueuePool::new(&device.raw, &phys_dev.raw, &surface, &device.queue_family_props);
+        let pool = QueuePool::new(
+            &device.raw,
+            &phys_dev.raw,
+            &surface,
+            &device.queue_family_props,
+        );
         let mut frame_sync = vec![];
 
         for _ in 0..frame_buffers.len() {

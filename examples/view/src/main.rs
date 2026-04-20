@@ -3,8 +3,9 @@
 use std::error::Error;
 use std::time::Instant;
 
+use aluminium::types::PbrVertex;
 use aluminium::{
-    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, TextureFormat, VertexInput, Viewport, WorldRenderer
+    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, LoadOp, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer
 };
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
@@ -18,29 +19,6 @@ pub use ui::UiRenderer;
 
 mod gltf_loader;
 pub use gltf_loader::{GltfModel, load_gltf};
-
-// Compute Pass
-// Читает:
-// Uniform Buffer
-// Storage Buffer (read-only)
-// Storage Image (read-only)
-// Texture
-//
-// Пишет:
-// Storage Buffer
-// Storage Image
-//
-// Raster Pass
-// Читает:
-// Uniform Buffer
-// Storage Buffer (read-only)
-// Texture
-//
-// Пишет:
-// Color Attachment (RenderTarget) — обязательно хотя бы один, либо depth
-// Depth/Stencil Attachment
-// Storage Buffer / Storage Image
-//
 
 #[derive(Default)]
 struct App {
@@ -72,43 +50,38 @@ impl ApplicationHandler for App {
                 let time_sec = self.global_time.as_ref().unwrap().elapsed().as_secs_f32();
 
                 let _ = world.draw_frame(move |frame| {
-                    
+
                     #[derive(Clone, Copy, Default, Debug)]
                     pub struct GBuffer {
-                        albedo: Handle<FrameGraphTexture>,
-                        depth: Handle<FrameGraphTexture>
+                        albedo: Handle<TransientTexture>,
+                        depth: Handle<TransientTexture>,
                     }
 
-                    let gbuffer = frame.add_pass(
+                    let gbuffer: GBuffer = frame.add_pass(
                         RasterPass::new("Simple Pass")
                             .setup(|setup| {
 
-                                let albedo = setup.create_texture(
-                                    "albedo",
-                                    TextureFormat::R8g8b8a8Srgb,
-                                    Resolution::FullRes
-                                );
-
+                                let albedo = setup.backbuffer();
                                 let depth = setup.create_texture(
-                                    "depth", 
-                                    TextureFormat::D32Sfloat, 
-                                    Resolution::FullRes
+                                    "depth",
+                                    TextureFormat::D32Sfloat,
+                                    Resolution::FullRes,
                                 );
 
-                                GBuffer {
-                                    albedo,
-                                    depth
-                                }
+                                let albedo = setup.write_color(albedo, LoadOp::Clear, StoreOp::DontCare);
+                                let depth = setup.write_depth(depth, LoadOp::Clear, StoreOp::DontCare);
+
+                                GBuffer { albedo, depth }
                             })
-                            .execute(move |ctx, _: &() | unsafe {
+                            .execute(move |ctx, data: &GBuffer| unsafe {
+                                ctx.begin_rendering(&[data.albedo], Some(data.depth));
                                 ctx.bind_pipeline(pipeline);
-                                ctx.push_constants([time_sec, 2.0]);
-                                ctx.set_viewport(Viewport::FullRes);
+                                ctx.push_constants(time_sec);
                                 ctx.set_scissor(Scissor::FullRes);
                                 for (mesh, transform) in &model.meshes {
                                     ctx.draw_mesh(mesh, transform);
                                 }
-                            })
+                            }),
                     );
                 });
             },
@@ -138,16 +111,9 @@ impl ApplicationHandler for App {
                 RasterPipelineDesc::new()
                     .vertex_shader("./shaders/spv/raster_vs.spv")
                     .fragment_shader("./shaders/spv/raster_ps.spv")
-                    .vertex_input(
-                        VertexInput::new()
-                            .attr("position", ShaderType::Float4)
-                            .attr("normal", ShaderType::Float4)
-                            .attr("uv", ShaderType::Float4)
-                            .attr("color", ShaderType::Float4)
-                            .attr("tangent", ShaderType::Float4),
-                    )
+                    .vertex_input::<PbrVertex>()
+                    .depth_test(true)
                     .dynamic_scissors(true)
-                    .dynamic_viewport(true),
             )
             .expect("Error create pipeline");
 
@@ -173,16 +139,3 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/*
-
-Texture - объект представляющий собой просто набор пикселей
-TextureView - автоматически бинд в bindless текстуры, только чтение в фрагментном шейдере
-StorageTexture - живет за пределами графа, чтобы использовать в графе, нужен import отдельный, может быть виден как в вершинном, так и во фргментном
-RenderTarget(TransientTexture) - только рендер как color/depth attachments, может быть только прочитан в следующем пассе во фрагментном шейдере или снова использоваться как Rt, временный ресурс графа, за пределами не живет
-TransientStorageTexture - временный ресрус для рендера в него, может быть виден как в фрагментном, так и вершинном через uniforms(descriptro set)
-TransientStorageBuffer - буфер временный, по сути то же только для передачи от одного пасса к другому, дальше не живет
-TemporalStorageTexture - текстура живет между кадрами и болеее... Имеет такие же свойства как и TransientStorageTexture, но хранит данные между кадрами
-TemporalStorageBuffer - ну такая же фигня, как и TransientStorageBuffer и TemporalStorageTexture
-
-
-*/

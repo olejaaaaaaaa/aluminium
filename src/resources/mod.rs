@@ -93,7 +93,11 @@ impl<T: Destroy> Drop for Res<T> {
 #[allow(missing_docs)]
 pub trait Create: Sized + Destroy {
     type Desc<'a>;
-    fn create(ctx: &Arc<RenderContext>, resources: &Arc<Resources>, desc: Self::Desc<'_>) -> VulkanResult<Res<Self>>;
+    fn create(
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<Resources>,
+        desc: Self::Desc<'_>,
+    ) -> VulkanResult<Res<Self>>;
 }
 
 #[allow(missing_docs)]
@@ -170,7 +174,11 @@ impl Resources {
         }))
     }
 
-    fn make_handle<T: Destroy>(self: &Arc<Self>, ctx: &Arc<RenderContext>, key: ResourceKey) -> Res<T> {
+    fn make_handle<T: Destroy>(
+        self: &Arc<Self>,
+        ctx: &Arc<RenderContext>,
+        key: ResourceKey,
+    ) -> Res<T> {
         Res {
             key,
             ref_count: Arc::new(AtomicUsize::new(1)),

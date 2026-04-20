@@ -48,7 +48,10 @@ impl Instance {
         true
     }
 
-    fn get_instance_extensions(window: &winit::window::Window, app: &App) -> VulkanResult<HashSet<&'static CStr>> {
+    fn get_instance_extensions(
+        window: &winit::window::Window,
+        app: &App,
+    ) -> VulkanResult<HashSet<&'static CStr>> {
         let mut extensions = HashSet::new();
 
         let available_extensions = unsafe {
@@ -65,7 +68,10 @@ impl Instance {
             }
         }
 
-        debug!("Available Instance Extensions: {:#?}", available_extension_names);
+        debug!(
+            "Available Instance Extensions: {:#?}",
+            available_extension_names
+        );
 
         let required_extensions = [
             c"VK_KHR_get_physical_device_properties2",
@@ -79,9 +85,9 @@ impl Instance {
 
         for i in required_extensions {
             if !available_extension_names.contains(i) {
-                return Err(VulkanError::Instance(InstanceError::MissingRequiredExtension(
-                    i.to_str().unwrap().to_string(),
-                )));
+                return Err(VulkanError::Instance(
+                    InstanceError::MissingRequiredExtension(i.to_str().unwrap().to_string()),
+                ));
             } else {
                 extensions.insert(i);
             }
@@ -100,9 +106,9 @@ impl Instance {
 
         for i in &window_extensions {
             if !available_extension_names.contains(i) {
-                return Err(VulkanError::Instance(InstanceError::MissingRequiredExtension(
-                    i.to_str().unwrap().to_string(),
-                )));
+                return Err(VulkanError::Instance(
+                    InstanceError::MissingRequiredExtension(i.to_str().unwrap().to_string()),
+                ));
             }
         }
 
@@ -176,7 +182,9 @@ impl Instance {
 
         // Warn! Only 33% Android devices supported VK_EXT_debug_utils
         // TODO: For android use VK_EXT_debug_report
-        let debug_callback = if extensions.contains(&c"VK_EXT_debug_utils") && layers.contains(&c"VK_LAYER_KHRONOS_validation") {
+        let debug_callback = if extensions.contains(&c"VK_EXT_debug_utils")
+            && layers.contains(&c"VK_LAYER_KHRONOS_validation")
+        {
             Some(DebugCallback::new(&app.entry, &instance))
         } else {
             None

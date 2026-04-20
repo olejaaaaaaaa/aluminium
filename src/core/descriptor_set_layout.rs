@@ -29,7 +29,10 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
         self
     }
 
-    pub fn push_next(mut self, value: &'a mut vk::DescriptorSetLayoutBindingFlagsCreateInfo<'a>) -> Self {
+    pub fn push_next(
+        mut self,
+        value: &'a mut vk::DescriptorSetLayoutBindingFlagsCreateInfo<'a>,
+    ) -> Self {
         self.push_next = Some(value);
         self
     }
