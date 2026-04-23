@@ -15,11 +15,11 @@ pub use core::{VulkanError, VulkanResult};
 pub use frame_graph::{
     BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc,
     Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientTexture, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
-    TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp
+    TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location
 };
 pub use resources::{
     Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, Resolution, ShaderType, TextureFormat,
-    Transform, TransformDesc, VertexInput,
+    Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc
 };
 pub use vk_sync::AccessType;
 pub use world_renderer::WorldRenderer;

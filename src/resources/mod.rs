@@ -25,7 +25,7 @@ mod pool;
 pub use pool::{LinearPool, Pool};
 
 mod mesh;
-pub use mesh::{Mesh, MeshDesc, MeshStore};
+pub use mesh::*;
 
 mod pipeline_cache;
 pub use pipeline_cache::*;
@@ -120,7 +120,8 @@ pub struct Resources {
     pub(crate) descriptors: DescriptorManager,
     pub(crate) set: vk::DescriptorSet,
     pub(crate) layout: vk::DescriptorSetLayout,
-    pub(crate) meshes: RwLock<SlotMap<ResourceKey, Mesh>>,
+    pub(crate) indices: RwLock<SlotMap<ResourceKey, IndexBuffer>>,
+    pub(crate) vertices: RwLock<SlotMap<ResourceKey, VertexBuffer>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
     pub(crate) camera: RwLock<Camera>,
@@ -169,7 +170,8 @@ impl Resources {
             set,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
-            meshes: RwLock::new(SlotMap::with_key()),
+            vertices: RwLock::new(SlotMap::with_key()),
+            indices: RwLock::new(SlotMap::with_key()),
             camera: RwLock::new(camera),
         }))
     }
@@ -206,12 +208,5 @@ impl Resources {
         self.bindless.destroy(device);
         self.camera.write().destroy(device);
         self.transforms.write().destroy(device);
-
-        for (_, mut mesh) in self.meshes.write().drain() {
-            mesh.vertex_buffer.destroy(device);
-            if let Some(mut index) = mesh.index_buffer.take() {
-                index.destroy(device);
-            }
-        }
     }
 }

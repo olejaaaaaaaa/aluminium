@@ -4,7 +4,6 @@ use aluminium::WorldRenderer;
 use egui::epaint::{ImageDelta, Primitive};
 use egui::{ClippedPrimitive, ImageData, TextureId};
 
-const MAX_TEXTURE_COUNT: u32 = 1024;
 
 /// Vulkan renderer for egui.
 pub struct UiRenderer {

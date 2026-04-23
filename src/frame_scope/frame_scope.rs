@@ -43,7 +43,5 @@ impl<'frame> FrameScope<'frame> {
                 return r;
             }
         }
-
-        panic!("Аборт!");
     }
 }

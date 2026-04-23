@@ -34,12 +34,10 @@ const uint SAMPLER_MIP_LINEAR = 3;
 const uint SAMPLER_MIP_POINT = 4;
 
 [[vk::push_constant]] struct Push {
-    // 4 bytes
-    uint transform_idx;  
     // 4 * 8 = 32 bytes
     uint tex_idx[8];    
-    // 24 * 4 = 92 bytes
-    float user_data[23];       
+    // 24 * 4 = 96 bytes
+    float user_data[24];       
 } push;
 
 struct VSInput
@@ -61,7 +59,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    Transform t = transforms[push.transform_idx];
+    Transform t = transforms[0];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
     output.color = input.normal * (input.color * 2.0 * abs(sin(push.user_data[0])));
 

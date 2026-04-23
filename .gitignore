@@ -3,3 +3,10 @@
 /kajiya-shaders
 /.vscode
 *.txt
+*.exe
+*.dll
+*.so
+*.dylib
+*.log
+*.tmp
+*.ini

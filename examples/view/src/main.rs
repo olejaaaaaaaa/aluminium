@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use aluminium::types::PbrVertex;
 use aluminium::{
-    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, LoadOp, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer
+    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer
 };
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
@@ -51,7 +51,7 @@ impl ApplicationHandler for App {
 
                 let _ = world.draw_frame(move |frame| {
 
-                    #[derive(Clone, Copy, Default, Debug)]
+                    #[derive(Clone, Copy)]
                     pub struct GBuffer {
                         albedo: Handle<TransientTexture>,
                         depth: Handle<TransientTexture>,
@@ -59,27 +59,29 @@ impl ApplicationHandler for App {
 
                     let gbuffer: GBuffer = frame.add_pass(
                         RasterPass::new("Simple Pass")
-                            .setup(|setup| {
+                            .setup(|builder| {
 
-                                let albedo = setup.backbuffer();
-                                let depth = setup.create_texture(
+                                let albedo = builder.backbuffer();
+                                let depth = builder.create_texture(
                                     "depth",
                                     TextureFormat::D32Sfloat,
                                     Resolution::FullRes,
                                 );
 
-                                let albedo = setup.write_color(albedo, LoadOp::Clear, StoreOp::DontCare);
-                                let depth = setup.write_depth(depth, LoadOp::Clear, StoreOp::DontCare);
+                                let albedo = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
+                                let depth = builder.write_depth(depth, LoadOp::Load, StoreOp::Store);
 
-                                GBuffer { albedo, depth }
+                                GBuffer {
+                                    albedo,
+                                    depth
+                                }
                             })
-                            .execute(move |ctx, data: &GBuffer| unsafe {
-                                ctx.begin_rendering(&[data.albedo], Some(data.depth));
+                            .execute(move |ctx| unsafe {
                                 ctx.bind_pipeline(pipeline);
                                 ctx.push_constants(time_sec);
                                 ctx.set_scissor(Scissor::FullRes);
-                                for (mesh, transform) in &model.meshes {
-                                    ctx.draw_mesh(mesh, transform);
+                                for (mesh, _) in &model.meshes {
+                                    ctx.draw_indexed(&mesh.vertex, &mesh.index);
                                 }
                             }),
                     );

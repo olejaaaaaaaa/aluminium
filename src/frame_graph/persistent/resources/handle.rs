@@ -29,6 +29,6 @@ impl<T> Default for Handle<T> {
 }
 impl<T> std::fmt::Debug for Handle<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.id)
+        write!(f, "{:?}, {}", self.id, self.version)
     }
 }

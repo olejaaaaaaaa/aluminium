@@ -50,14 +50,18 @@ impl FrameGraph {
 
     pub(crate) fn compile(
         &mut self,
-        temp: &mut FrameScope<'_>,
+        scope: &mut FrameScope<'_>,
         ctx: &Arc<RenderContext>,
         resources: &Arc<Resources>,
     ) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
 
-        for i in temp.resources.textures.drain() {
+        for i in scope.resources.textures.drain() {
             println!("id: {:?}, desc: {:?}", i.0, i.1);
+        }
+
+        for i in &scope.passes {
+            println!("Pass: {:?}", i.name());
         }
 
         Ok(())
@@ -65,7 +69,7 @@ impl FrameGraph {
 
     pub(crate) fn execute(
         &mut self,
-        temp: &mut FrameScope<'_>,
+        scope: &mut FrameScope<'_>,
         ctx: &Arc<RenderContext>,
         resources: &Arc<Resources>,
     ) -> VulkanResult<()> {
@@ -120,7 +124,7 @@ impl FrameGraph {
         {
             let window = ctx.window.read();
             let resolution = window.resolution;
-            for pass in temp.passes.drain(..) {
+            for pass in scope.passes.drain(..) {
                 match pass {
                     Pass::Raster(pass) => {
                         let frame_buffer = &window.frame_buffers[image_index as usize];
@@ -185,7 +189,7 @@ impl FrameGraph {
                             cbuf: cmd_buffer,
                         };
 
-                        (pass.execute)(&mut pass_ctx, &*pass.data);
+                        (pass.execute)(&mut pass_ctx);
 
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);

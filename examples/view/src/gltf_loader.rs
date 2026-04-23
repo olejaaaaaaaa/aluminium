@@ -1,13 +1,19 @@
 use std::path::Path;
 
 use aluminium::types::{PbrVertex, Vertex};
-use aluminium::{Mesh, MeshDesc, Res, Transform, TransformDesc, VulkanResult, WorldRenderer};
+use aluminium::{IndexBuffer, IndexBufferDesc, Res, Transform, TransformDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 
 #[derive(Clone)]
+pub struct Mesh {
+    pub index: Res<IndexBuffer>,
+    pub vertex: Res<VertexBuffer>
+}
+
+#[derive(Clone)]
 pub struct GltfModel {
-    pub meshes: Vec<(Res<Mesh>, Res<Transform>)>,
+    pub meshes: Vec<(Mesh, Res<Transform>)>,
 }
 
 fn load_gltf_node(
@@ -71,7 +77,8 @@ fn load_gltf_node(
                 });
             }
 
-            let mesh = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
+            let vertex = world.create::<VertexBuffer>(VertexBufferDesc::new(&vertices))?;
+            let index = world.create::<IndexBuffer>(IndexBufferDesc::new(&indices))?;
 
             let proj = Mat4::perspective_rh(45.0_f32.to_radians(), 800.0 / 600.0, 0.1, 1000.0);
             let view = Mat4::look_at_rh(
@@ -84,7 +91,7 @@ fn load_gltf_node(
             let transform =
                 world.create::<Transform>(TransformDesc::from(mvp.to_cols_array_2d()))?;
 
-            model.meshes.push((mesh, transform));
+            model.meshes.push((Mesh { vertex, index }, transform));
         }
     }
 

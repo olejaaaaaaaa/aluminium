@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 
 use super::PassContext;
 use crate::frame_graph::{LoadOp, Pass, RenderTarget, StoreOp, TransientTexture};
-use crate::frame_scope::{Id, TemporalFrameGraphResources};
+use crate::frame_scope::{Id, TemporalFrameGraphResources, TransientTextureDesc};
 use crate::resources::Destroy;
 use crate::{FrameGraphTexture, Handle, Res, Resolution, TextureFormat};
 
@@ -19,7 +19,7 @@ pub struct RasterPass<'frame> {
     pub(crate) name: String,
     pub(crate) data: Box<dyn Any>,
     pub(crate) setup: Option<Box<dyn for<'a> FnOnce(&mut PassBuilder<'a>) -> Box<dyn Any> + Send + 'frame>>,
-    pub(crate) execute: Box<dyn FnOnce(&mut PassContext, &dyn Any) + Send + 'frame>,
+    pub(crate) execute: Box<dyn FnOnce(&mut PassContext) + Send + 'frame>,
 }
 
 impl<'frame> RasterPass<'frame> {
@@ -28,7 +28,7 @@ impl<'frame> RasterPass<'frame> {
             name: name.into(),
             data: Box::new(()),
             setup: None,
-            execute: Box::new(|_, _| {}),
+            execute: Box::new(|_| {}),
         }
     }
 
@@ -43,21 +43,24 @@ impl<'frame> RasterPass<'frame> {
         self
     }
 
-    pub fn execute<F, T>(mut self, f: F) -> Self
+    pub fn execute<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(&mut PassContext, &T) + Send + 'frame,
-        T: Copy + Any + Send + 'frame,
+        F: FnOnce(&mut PassContext) + Send + 'frame,
     {
-        self.execute = Box::new(move |ctx, data| {
-            let data = data.downcast_ref::<T>().expect("type mismatch between setup and execute");
-            f(ctx, data);
+        self.execute = Box::new(move |ctx| {
+            f(ctx);
         });
         self
     }
 }
 
+pub struct Location {
+    pub set: u32,
+    pub binding: u32
+}
+
 pub struct PassBuilder<'a> {
-    pub resources: &'a mut TemporalFrameGraphResources,
+    pub(crate) resources: &'a mut TemporalFrameGraphResources,
 }
 
 impl<'a> PassBuilder<'a> {
@@ -84,6 +87,10 @@ impl<'a> PassBuilder<'a> {
             _marker: PhantomData
         }
     }
+
+    pub fn read_texture(&mut self, texture: Handle<TransientTexture>, location: Location) -> Handle<TransientTexture> {
+        Handle::default()
+    }
  
     pub fn write_color(&mut self, texture: Handle<TransientTexture>, load: LoadOp, store: StoreOp) -> Handle<TransientTexture> {
         Handle { 
@@ -93,13 +100,44 @@ impl<'a> PassBuilder<'a> {
         }
     }
 
+    pub fn create_storage_texture(&mut self, name: &'static str, format: TextureFormat, resolution: Resolution) -> Handle<TransientTexture> {
+        Handle::default()
+    }
+
+    pub fn create_storage_buffer(&mut self, name: &'static str, size: u64) -> Handle<TransientTexture> {
+        Handle::default()
+    }
+
+    pub fn get_or_create_temporal_texture(&mut self, name: &'static str, format: TextureFormat, resolution: Resolution) -> Handle<TransientTexture> {
+        Handle::default()
+    }
+
+    pub fn get_or_create_temporal_buffer(&mut self, name: &'static str, size: u64) -> Handle<TransientTexture> {
+        Handle::default()
+    }
+
+    pub fn create_buffer(&mut self, name: &'static str, size: u64) -> Handle<TransientTexture> {
+        Handle::default()
+    }
+
     pub fn create_texture(
         &mut self,
         name: &'static str,
         format: TextureFormat,
         resolution: Resolution,
     ) -> Handle<TransientTexture> {
-        Handle::default()
+
+        let id = self.resources.textures.insert(TransientTextureDesc {
+            name,
+            format,
+            resolution,
+        });
+
+        Handle {
+            id,
+            version: 0,
+            _marker: PhantomData,
+        }
     }
 }
 

@@ -15,3 +15,13 @@ use crate::Handle;
 pub enum Pass<'a> {
     Raster(RasterPass<'a>),
 }
+
+impl<'a> Pass<'a> {
+    pub fn name(&self) -> String {
+        match self {
+            Pass::Raster(pass) => {
+                pass.name.clone()
+            }
+        }
+    }
+}

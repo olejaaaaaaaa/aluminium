@@ -5,14 +5,13 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
-use crate::{FrameGraphUniform, Handle, Mesh, RasterPipeline, Transform, TransientTexture};
+use crate::{FrameGraphUniform, Handle, IndexBuffer, Mesh, RasterPipeline, Transform, TransientTexture, VertexBuffer};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PushConstants {
-    transform_idx: u32,
     tex_idx: [u32; 8],
-    user_data: [u8; 92],
+    user_data: [u8; 96],
 }
 
 /// The context of the currently running pass
@@ -92,14 +91,6 @@ impl PassContext {
         self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
     }
 
-    pub unsafe fn begin_rendering(&self, colors: &[Handle<TransientTexture>], depth: Option<Handle<TransientTexture>>) {
-
-    }
-
-    pub unsafe fn bind_set(&self, value: u32) {
-
-    }
-
     pub unsafe fn bind_pipeline(&mut self, handle: &Res<RasterPipeline>) {
         profiling::scope!("PassContext::bind_pipeline");
         let cache = self.external_resources.pipeline_cache.read();
@@ -120,14 +111,13 @@ impl PassContext {
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&mut self, data: T) {
         let data = bytemuck::bytes_of(&data);
-        let mut out = [0u8; 92];
+        let mut out = [0u8; 96];
 
         for (index, data) in data.iter().enumerate() {
             out[index] = *data;
         }
 
         let push = PushConstants {
-            transform_idx: 0,
             tex_idx: [0; 8],
             user_data: out,
         };
@@ -135,12 +125,14 @@ impl PassContext {
         self.push = Some(push);
     }
 
-    pub unsafe fn draw_mesh(&self, mesh: &Res<Mesh>, transform: &Res<Transform>) {
-        profiling::scope!("PassContext::draw_mesh");
+    pub unsafe fn draw_indexed(&self, vertices: &Res<VertexBuffer>, indices: &Res<IndexBuffer>) {
 
-        let binding = self.external_resources.meshes.read();
-        let mesh = binding.get(mesh.key).unwrap();
+        let binding = self.external_resources.vertices.read();
+        let vertex_buffer = binding.get(vertices.key).unwrap();
 
+        let binding = self.external_resources.indices.read();
+        let index_buffer = binding.get(indices.key).unwrap();
+        
         #[cfg(feature = "validation")]
         {
             assert!(self.layout.is_some(), "Pipeline must be bind before draw");
@@ -148,15 +140,6 @@ impl PassContext {
 
         let layout = self.layout.unwrap();
         let mut push = self.push.unwrap();
-
-        let index = self
-            .external_resources
-            .transforms
-            .read()
-            .pool
-            .index(transform);
-
-        push.transform_idx = index as u32;
 
         self.device.cmd_push_constants(
             self.cbuf,
@@ -175,36 +158,18 @@ impl PassContext {
             &[],
         );
 
-        if let Some(index_buffer) = &mesh.index_buffer {
-            self.device
-                .cmd_bind_vertex_buffers(self.cbuf, 0, &[mesh.vertex_buffer.raw], &[0]);
-            self.device.cmd_bind_index_buffer(
-                self.cbuf,
-                index_buffer.raw,
-                0,
-                vk::IndexType::UINT32,
-            );
-            self.device
-                .cmd_draw_indexed(self.cbuf, index_buffer.count, 1, 0, 0, 0);
-        } else {
-            self.device
-                .cmd_bind_vertex_buffers(self.cbuf, 0, &[mesh.vertex_buffer.raw], &[0]);
-            self.device.cmd_draw(
-                self.cbuf,
-                mesh.vertex_buffer.count,
-                mesh.instance_count,
-                mesh.vertex_offset,
-                mesh.instance_offset,
-            );
-        }
-    }
+        self.device
+            .cmd_bind_vertex_buffers(self.cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
 
-    pub unsafe fn bind_uniforms(&self, uniform: Handle<FrameGraphUniform>) {
+        self.device.cmd_bind_index_buffer(
+            self.cbuf,
+            index_buffer.buffer.raw,
+            0,
+            vk::IndexType::UINT32,
+        );
 
-    }
-
-    pub unsafe fn bind_texture(&self) {
-
+        self.device
+            .cmd_draw_indexed(self.cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
     }
 
     pub unsafe fn draw(&self, vertex_count: u32) {

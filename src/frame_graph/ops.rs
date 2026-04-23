@@ -2,13 +2,12 @@
 
 
 pub enum LoadOp {
+    Load,
     Clear,
-    Store,
     DontCare,
 }
 
 pub enum StoreOp {
-    Clear,
     Store,
     DontCare
 }
