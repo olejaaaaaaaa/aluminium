@@ -86,8 +86,6 @@ let _ = world.draw_frame(move |frame| {
                 // The order of execution is critically important
                 // There are minimal checks for the correctness of the transmitted data
                 ctx.bind_pipeline(pipeline);
-                // The Push Constants function can be omitted
-                ctx.push_constants(time_sec);
                 // The pipeline must be created with the dynamic_scissors flag
                 ctx.set_scissor(Scissor::FullRes);
                 // Draw mesh
