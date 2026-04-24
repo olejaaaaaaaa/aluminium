@@ -13,7 +13,6 @@ pub(crate) mod world_renderer;
 pub use core::{VulkanError, VulkanResult};
 
 pub use frame_graph::{
-    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc,
     Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientTexture, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
     TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location
 };

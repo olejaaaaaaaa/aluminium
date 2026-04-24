@@ -1,13 +1,12 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{Resolution, TextureFormat};
+use crate::{Handle, Resolution, TextureFormat, TransientTexture, core::ImageView, render_context::RenderContext};
 
 new_key_type! {
     pub struct Id;
 }
-
 
 #[derive(Debug)]
 pub struct TransientTextureDesc {
@@ -16,13 +15,15 @@ pub struct TransientTextureDesc {
     pub resolution: Resolution,
 }
 
-pub struct TemporalFrameGraphResources {
+pub struct FrameResources {
+    pub backbuffers: SlotMap<Id, TransientTextureDesc>,
     pub textures: SlotMap<Id, TransientTextureDesc>,
 }
 
-impl TemporalFrameGraphResources {
+impl FrameResources {
     pub fn new() -> Self {
         Self {
+            backbuffers: SlotMap::with_key(),
             textures: SlotMap::with_key(),
         }
     }

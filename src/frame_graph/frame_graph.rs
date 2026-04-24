@@ -1,28 +1,17 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use ash::vk::{self, ClearValue};
-
-mod texture;
-pub use texture::*;
-
-pub mod pass_context;
-pub use pass_context::*;
-
-pub mod types;
+use ash::vk::{self, ClearValue, ComponentMapping};
 use tracing::{error, trace};
-pub use types::*;
 
-mod resources;
-pub use resources::*;
-
+use crate::TextureFormat;
 use crate::core::{
-    CommandPool, CommandPoolBuilder, Device, SwapchainError, VulkanError, VulkanResult,
+    CommandPool, CommandPoolBuilder, Device, ImageBuilder, ImageViewBuilder, SwapchainError, VulkanError, VulkanResult
 };
-use crate::frame_graph::Pass;
+use crate::frame_graph::{FrameGraphResources, Pass, PassContext};
 use crate::frame_scope::FrameScope;
 use crate::render_context::RenderContext;
-use crate::resources::{Destroy, Res, Resources};
+use crate::resources::Resources;
 
 pub struct FrameGraph {
     resources: FrameGraphResources,
@@ -34,11 +23,13 @@ impl FrameGraph {
     /// Create new [`FrameGraph`]
     pub(crate) fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Self> {
         let cmd_pool = CommandPoolBuilder::reset(&ctx.device).build()?;
+
         let cmd_buffers = cmd_pool.allocate_cmd_buffers(
             &ctx.device,
             vk::CommandBufferLevel::PRIMARY,
             ctx.frame_count() as u32,
         )?;
+
         let resources = FrameGraphResources::new();
 
         Ok(FrameGraph {
@@ -56,12 +47,40 @@ impl FrameGraph {
     ) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
 
-        for i in scope.resources.textures.drain() {
-            println!("id: {:?}, desc: {:?}", i.0, i.1);
-        }
+        let index = ctx.window.read().current_frame % ctx.window.read().frame_sync.len();
+        println!("index: {}", index);
 
-        for i in &scope.passes {
-            println!("Pass: {:?}", i.name());
+        for (id, desc) in &scope.resources.textures {
+
+            let extent = match desc.resolution {
+                _ => {
+                    ctx.window.read().resolution
+                }
+            };
+
+            let format = match desc.format {
+                TextureFormat::D32Sfloat => { vk::Format::D32_SFLOAT },
+                TextureFormat::R8g8b8a8Srgb => { vk::Format::R8G8B8A8_SRGB },
+                TextureFormat::R8g8b8a8Unorm => { vk::Format::R8G8B8A8_UNORM }
+            };
+
+            let image = ImageBuilder::new(&ctx.device)
+                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+                .array_layers(1)
+                .extent(extent.into())
+                .format(format)
+                .image_type(vk::ImageType::TYPE_2D)
+                .build()?;
+
+            let image_view = ImageViewBuilder::new(&ctx.device)
+                .image(image.raw)
+                .subresource_range(vk::ImageSubresourceRange::default())
+                .components(ComponentMapping::default())
+                .format(format)
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .build()?;
+
+            self.resources.transient_textures.insert(id, image_view);
         }
 
         Ok(())
@@ -117,6 +136,13 @@ impl FrameGraph {
                 }
             }
         };
+
+        // Setup Backbufer Id -> ImageView
+        self.resources.prepare_backbuffers(image_index, scope, ctx);
+
+        
+        // allocate FrameBuffers
+
 
         let cmd_buffer = self.cmd_buffers[image_index as usize];
 

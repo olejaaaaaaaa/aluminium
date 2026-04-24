@@ -59,7 +59,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    Transform t = transforms[0];
+    Transform t = transforms[(uint)push.user_data[1]];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
     output.color = input.normal * (input.color * 2.0 * abs(sin(push.user_data[0])));
 

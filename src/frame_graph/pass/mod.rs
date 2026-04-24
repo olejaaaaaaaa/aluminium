@@ -5,12 +5,13 @@ use std::sync::Arc;
 use parking_lot::{Mutex, MutexGuard};
 pub use raster::*;
 
+mod builder;
+pub use builder::*;
+
 mod compute;
 pub use compute::*;
 
 use super::PassContext;
-use crate::frame_graph::RenderTarget;
-use crate::Handle;
 
 pub enum Pass<'a> {
     Raster(RasterPass<'a>),

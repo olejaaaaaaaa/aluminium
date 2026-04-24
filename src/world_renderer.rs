@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use tracing::error;
 use winit::window::Window;
 
 use super::render_context::RenderContext;
-use crate::camera::Camera;
 use crate::core::{SwapchainError, VulkanError, VulkanResult};
 use crate::frame_graph::FrameGraph;
 use crate::frame_scope::FrameScope;
@@ -231,18 +231,20 @@ impl WorldRenderer {
 impl Drop for WorldRenderer {
     fn drop(&mut self) {
         let device = &self.ctx.device;
+        
         // Wait all gpu work before destroy resources
-        unsafe { device.device_wait_idle().expect("Error device wait idle") };
+        if let Ok(()) = unsafe { device.device_wait_idle() } {
+            if Arc::strong_count(&self.resources) > 1 {
+                error!("Resources has another clone!");
+            }
+            self.graph.destroy(device);
+            self.resources.destroy(device);
 
-        if Arc::strong_count(&self.resources) > 1 {
-            panic!("Resources has another clone!");
-        }
-
-        self.graph.destroy(device);
-        self.resources.destroy(device);
-
-        if Arc::strong_count(&self.ctx) > 1 {
-            panic!("Render Context has another clone!");
+            if Arc::strong_count(&self.ctx) > 1 {
+                error!("Render Context has another clone!");
+            }
+        } else {
+            error!("Error destroy vulkan resources");
         }
 
         // Render Context drop here

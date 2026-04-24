@@ -4,9 +4,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::types::PbrVertex;
-use aluminium::{
-    BackBuffer, FrameGraphTexture, FrameGraphTextureDesc, FrameGraphUniform, FrameGraphUniformDesc, Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer
-};
+use aluminium::{Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -78,9 +76,9 @@ impl ApplicationHandler for App {
                             })
                             .execute(move |ctx| unsafe {
                                 ctx.bind_pipeline(pipeline);
-                                ctx.push_constants(time_sec);
                                 ctx.set_scissor(Scissor::FullRes);
-                                for (mesh, _) in &model.meshes {
+                                for (index, (mesh, _)) in model.meshes.iter().enumerate() {
+                                    ctx.push_constants([time_sec, index as f32]);
                                     ctx.draw_indexed(&mesh.vertex, &mesh.index);
                                 }
                             }),
@@ -132,7 +130,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::DEBUG)
         .init();
 
     let event_loop = EventLoop::new()?;

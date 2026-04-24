@@ -115,6 +115,10 @@ pub trait Destroy: Sized {
     fn destroy(key: ResourceKey, ctx: Weak<RenderContext>, resources: Weak<Resources>);
 }
 
+pub struct StorageBuffer;
+pub struct StorageTexture;
+pub struct Texture;
+
 pub struct Resources {
     pub(crate) bindless: Bindless,
     pub(crate) descriptors: DescriptorManager,

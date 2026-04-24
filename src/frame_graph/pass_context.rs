@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
-use crate::{FrameGraphUniform, Handle, IndexBuffer, Mesh, RasterPipeline, Transform, TransientTexture, VertexBuffer};
+use crate::{IndexBuffer, Mesh, RasterPipeline, Transform, VertexBuffer};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -139,7 +139,7 @@ impl PassContext {
         }
 
         let layout = self.layout.unwrap();
-        let mut push = self.push.unwrap();
+        let push = self.push.unwrap();
 
         self.device.cmd_push_constants(
             self.cbuf,

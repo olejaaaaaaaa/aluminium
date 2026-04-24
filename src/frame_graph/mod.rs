@@ -1,19 +1,22 @@
 mod pass;
-use std::marker::PhantomData;
-
 pub use pass::*;
 
 mod ops;
 pub use ops::*;
 
-mod persistent;
-pub use persistent::*;
+mod types;
+pub use types::{Scissor, Viewport, Location, ColorAttachment, DepthAttachment};
 
-pub struct StorageBuffer;
-pub struct StorageTexture;
-pub struct TransientTexture;
-pub struct TransientBuffer;
-pub struct TransientStorageTexture;
-pub struct TransientStorageBuffer;
-pub struct TemporalStorageTexture;
-pub struct TemporalStorageBuffer;
+mod resources;
+pub use resources::*;
+
+mod pass_context;
+pub use pass_context::*;
+
+mod frame_graph;
+pub use frame_graph::*;
+
+
+
+
+
