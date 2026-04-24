@@ -98,45 +98,11 @@ impl WorldRenderer {
     }
 
     /// Acquires a shared read lock on the resource [`Ref<'_, T>`]
-    ///
-    /// There may be many readers, but only one writer in one area
-    ///
-    /// # Example
-    /// ```ignore
-    /// 
-    /// let transform = world.create::<Transform>(TransformDesc::identity())?;
-    /// // Ok
-    /// let scale = world.get(&transform).scale;
-    ///
-    /// {
-    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
-    ///   let transform1 = world.get(&transform);
-    ///   // Error: Deadlock
-    ///   let transform2 = world.get_mut(&transform);
-    /// }
-    /// ```
     pub fn get<T: Get>(&self, res: &Res<T>) -> Ref<'_, T> {
         T::get(&self.resources, res)
     }
 
     /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
-    ///
-    /// Only one writer in scope
-    ///
-    /// # Example
-    /// ```ignore
-    /// 
-    /// let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
-    /// // Ok
-    /// world.get_mut(&transform).scale[0] *= 0.2;
-    ///
-    /// {
-    ///   let transform: Res<Transform> = world.create::<Transform>(TransformDesc::identity())?;
-    ///   let transform1 = world.get_mut(&transform);
-    ///   // Error: Deadlock! transform1 is alive!
-    ///   let transform2 = world.get_mut(&transform);
-    /// }
-    /// ```
     pub fn get_mut<T: GetMut>(&self, res: &Res<T>) -> RefMut<'_, T> {
         T::get_mut(&self.resources, res)
     }
