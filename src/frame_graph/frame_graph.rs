@@ -27,7 +27,7 @@ impl FrameGraph {
         let cmd_buffers = cmd_pool.allocate_cmd_buffers(
             &ctx.device,
             vk::CommandBufferLevel::PRIMARY,
-            ctx.frame_count() as u32,
+            ctx.frame_in_flight() as u32,
         )?;
 
         let resources = FrameGraphResources::new();

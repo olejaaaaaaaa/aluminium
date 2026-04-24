@@ -133,10 +133,9 @@ pub struct Resources {
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
-        let frame_count = ctx.frame_count();
-        let camera = Camera::new(&ctx.device, frame_count)?;
+        let camera = Camera::new(&ctx.device, ctx.frame_in_flight())?;
         let pipeline_cache = PipelineCache::new();
-        let transforms = TransformPool::new(&ctx.device, ctx.frame_count())?;
+        let transforms = TransformPool::new(&ctx.device, ctx.frame_in_flight())?;
         let bindless = Bindless::new(&ctx)?;
         let descriptors = DescriptorManager::new(&ctx.device)?;
 

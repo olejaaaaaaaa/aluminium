@@ -25,7 +25,7 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
-    pub fn frame_count(&self) -> usize {
+    pub fn frame_in_flight(&self) -> usize {
         self.window.read().frame_buffers.len()
     }
 
