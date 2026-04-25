@@ -116,8 +116,6 @@ impl PassContext {
                 .extent(vk::Extent2D { width, height })
                 .offset(vk::Offset2D { x: 0, y: 0 }),
         };
-        //let scissors = vec![scissor];
-        //self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
         self.runtime_data.scissor = Some(scissor);
     }
 
@@ -137,11 +135,6 @@ impl PassContext {
         }
         
     }
-
-    // pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {
-    //     profiling::scope!("PassContext::dispatch");
-    //     //self.device.cmd_dispatch(self.cbuf, x, y, z);
-    // }
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&mut self, data: T) {
         let data = bytemuck::bytes_of(&data);
@@ -201,7 +194,7 @@ impl PassContext {
 
         device.cmd_bind_descriptor_sets(
             cbuf,
-            vk::PipelineBindPoint::GRAPHICS,
+            bind_point,
             layout,
             0,
             &[per_frame_set],
@@ -221,8 +214,4 @@ impl PassContext {
         device
             .cmd_draw_indexed(cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
     }
-
-    // pub unsafe fn draw(&self, vertex_count: u32) {
-    //     self.device.cmd_draw(self.cbuf, vertex_count, 1, 0, 0);
-    // }
 }
