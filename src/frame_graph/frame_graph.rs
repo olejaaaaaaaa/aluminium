@@ -8,7 +8,7 @@ use crate::TextureFormat;
 use crate::core::{
     CommandPool, CommandPoolBuilder, Device, ImageBuilder, ImageViewBuilder, SwapchainError, VulkanError, VulkanResult
 };
-use crate::frame_graph::{FrameGraphResources, Pass, PassContext};
+use crate::frame_graph::{FrameGraphResources, Pass, PassContext, RuntimeData, StaticData};
 use crate::frame_scope::FrameScope;
 use crate::render_context::RenderContext;
 use crate::resources::Resources;
@@ -50,39 +50,39 @@ impl FrameGraph {
         let index = ctx.window.read().current_frame % ctx.window.read().frame_sync.len();
         println!("index: {}", index);
 
-        for (id, desc) in &scope.resources.textures {
+        // for (id, desc) in &scope.resources.textures {
 
-            let extent = match desc.resolution {
-                _ => {
-                    ctx.window.read().resolution
-                }
-            };
+        //     let extent = match desc.resolution {
+        //         _ => {
+        //             ctx.window.read().resolution
+        //         }
+        //     };
 
-            let format = match desc.format {
-                TextureFormat::Depth | TextureFormat::DepthStencil => { vk::Format::D32_SFLOAT },
-                TextureFormat::Color => { vk::Format::R8G8B8A8_SRGB },
-                TextureFormat::Data => { vk::Format::R8G8B8A8_UNORM },
-                _ => { todo!() }
-            };
+        //     let format = match desc.format {
+        //         TextureFormat::Depth | TextureFormat::DepthStencil => { vk::Format::D32_SFLOAT },
+        //         TextureFormat::Color => { vk::Format::R8G8B8A8_SRGB },
+        //         TextureFormat::Data => { vk::Format::R8G8B8A8_UNORM },
+        //         _ => { todo!() }
+        //     };
 
-            let image = ImageBuilder::new(&ctx.device)
-                .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
-                .array_layers(1)
-                .extent(extent.into())
-                .format(format)
-                .image_type(vk::ImageType::TYPE_2D)
-                .build()?;
+        //     let image = ImageBuilder::new(&ctx.device)
+        //         .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+        //         .array_layers(1)
+        //         .extent(extent.into())
+        //         .format(format)
+        //         .image_type(vk::ImageType::TYPE_2D)
+        //         .build()?;
 
-            let image_view = ImageViewBuilder::new(&ctx.device)
-                .image(image.raw)
-                .subresource_range(vk::ImageSubresourceRange::default())
-                .components(ComponentMapping::default())
-                .format(format)
-                .view_type(vk::ImageViewType::TYPE_2D)
-                .build()?;
+        //     let image_view = ImageViewBuilder::new(&ctx.device)
+        //         .image(image.raw)
+        //         .subresource_range(vk::ImageSubresourceRange::default())
+        //         .components(ComponentMapping::default())
+        //         .format(format)
+        //         .view_type(vk::ImageViewType::TYPE_2D)
+        //         .build()?;
 
-            self.resources.transient_textures.insert(id, image_view);
-        }
+        //     self.resources.transient_textures.insert(id, image_view);
+        // }
 
         Ok(())
     }
@@ -207,13 +207,21 @@ impl FrameGraph {
                         }
 
                         let mut pass_ctx = PassContext {
-                            push: None,
-                            per_frame_set: resources.per_frame_set(),
-                            layout: None,
                             external_resources: resources.clone(),
-                            resolution,
-                            device: ctx.device.raw.clone(),
-                            cbuf: cmd_buffer,
+                            static_data: StaticData {
+                                device: ctx.device.raw.clone(),
+                                cbuf: cmd_buffer,
+                                per_frame: resources.per_frame_set(),
+                                resolution,
+                            },
+                            runtime_data: RuntimeData {
+                                push: None,
+                                bind_point: None,
+                                layout: None,
+                                pipeline: None,
+                                viewport: None,
+                                scissor: None,
+                            },
                         };
 
                         (pass.execute)(&mut pass_ctx);

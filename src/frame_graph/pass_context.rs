@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
-use crate::{IndexBuffer, Mesh, RasterPipeline, Transform, VertexBuffer};
+use crate::{IndexBuffer, Mesh, RasterPipeline, Transform, VertexBuffer, per_frame};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -14,38 +14,64 @@ pub struct PushConstants {
     user_data: [u8; 96],
 }
 
+#[derive(Default)]
+pub struct RuntimeData {
+    pub push: Option<PushConstants>,
+    pub bind_point: Option<vk::PipelineBindPoint>,
+    pub pipeline: Option<vk::Pipeline>,
+    pub viewport: Option<vk::Viewport>,
+    pub scissor: Option<vk::Rect2D>,
+    pub layout: Option<vk::PipelineLayout>,
+}
+
+pub struct StaticData {
+    pub per_frame: vk::DescriptorSet,
+    pub resolution: vk::Extent2D,
+    pub device: ash::Device,
+    pub cbuf: vk::CommandBuffer
+}
+
+enum Pipeline<'a> {
+    Raster(&'a Res<RasterPipeline>)
+}
+
+impl<'a> Into<Pipeline<'a>> for &'a Res<RasterPipeline> {
+    fn into(self) -> Pipeline<'a> {
+        Pipeline::Raster(self)
+    }
+}
+
 /// The context of the currently running pass
 pub struct PassContext {
     pub(crate) external_resources: Arc<Resources>,
-    pub(crate) push: Option<PushConstants>,
-    pub(crate) per_frame_set: vk::DescriptorSet,
-    pub(crate) layout: Option<vk::PipelineLayout>,
-    pub(crate) resolution: vk::Extent2D,
-    pub(crate) device: ash::Device,
-    pub(crate) cbuf: vk::CommandBuffer,
+    pub(crate) static_data: StaticData,
+    pub(crate) runtime_data: RuntimeData
 }
 
 impl PassContext {
-    pub unsafe fn set_viewport(&self, viewport: Viewport) {
+    pub unsafe fn set_viewport(&mut self, viewport: Viewport) {
         profiling::scope!("PassContext::set_viewport");
+
+        let resolution = self.static_data.resolution;
+
         let viewport = match viewport {
             Viewport::FullRes => vk::Viewport::default()
-                .height(self.resolution.height as f32)
-                .width(self.resolution.width as f32)
+                .height(resolution.height as f32)
+                .width(resolution.width as f32)
                 .max_depth(0.0)
                 .max_depth(1.0)
                 .x(0.0)
                 .y(0.0),
             Viewport::HalfRes => vk::Viewport::default()
-                .height(self.resolution.height as f32 / 2.0)
-                .width(self.resolution.width as f32 / 2.0)
+                .height(resolution.height as f32 / 2.0)
+                .width(resolution.width as f32 / 2.0)
                 .max_depth(0.0)
                 .max_depth(1.0)
                 .x(0.0)
                 .y(0.0),
             Viewport::QuarterRes => vk::Viewport::default()
-                .height(self.resolution.height as f32 / 4.0)
-                .width(self.resolution.width as f32 / 4.0)
+                .height(resolution.height as f32 / 4.0)
+                .width(resolution.width as f32 / 4.0)
                 .max_depth(0.0)
                 .max_depth(1.0)
                 .x(0.0)
@@ -58,56 +84,64 @@ impl PassContext {
                 .x(0.0)
                 .y(0.0),
         };
-        let viewports = vec![viewport];
-        self.device.cmd_set_viewport(self.cbuf, 0, &viewports);
+
+        self.runtime_data.viewport = Some(viewport);
     }
 
-    pub unsafe fn set_scissor(&self, scissor: Scissor) {
+    pub unsafe fn set_scissor(&mut self, scissor: Scissor) {
         profiling::scope!("PassContext::set_scissor");
+
+        let resolution = self.static_data.resolution;
+
         let scissor = match scissor {
             Scissor::FullRes => vk::Rect2D::default()
                 .extent(vk::Extent2D {
-                    width: self.resolution.width,
-                    height: self.resolution.height,
+                    width: resolution.width,
+                    height: resolution.height,
                 })
                 .offset(vk::Offset2D { x: 0, y: 0 }),
             Scissor::HalfRes => vk::Rect2D::default()
                 .extent(vk::Extent2D {
-                    width: self.resolution.width / 2,
-                    height: self.resolution.height / 2,
+                    width: resolution.width / 2,
+                    height: resolution.height / 2,
                 })
                 .offset(vk::Offset2D { x: 0, y: 0 }),
             Scissor::QuarterRes => vk::Rect2D::default()
                 .extent(vk::Extent2D {
-                    width: self.resolution.width / 4,
-                    height: self.resolution.height / 4,
+                    width: resolution.width / 4,
+                    height: resolution.height / 4,
                 })
                 .offset(vk::Offset2D { x: 0, y: 0 }),
             Scissor::Custom(width, height) => vk::Rect2D::default()
                 .extent(vk::Extent2D { width, height })
                 .offset(vk::Offset2D { x: 0, y: 0 }),
         };
-        let scissors = vec![scissor];
-        self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
+        //let scissors = vec![scissor];
+        //self.device.cmd_set_scissor(self.cbuf, 0, &scissors);
+        self.runtime_data.scissor = Some(scissor);
     }
 
-    pub unsafe fn bind_pipeline(&mut self, handle: &Res<RasterPipeline>) {
+    pub unsafe fn bind_pipeline<'a, P: Into<Pipeline<'a>>>(&mut self, handle: P) {
         profiling::scope!("PassContext::bind_pipeline");
-        let cache = self.external_resources.pipeline_cache.read();
-        let pipeline = cache.raster_pipelines.get(handle);
-        let layout = cache.pipeline_layout.get(&pipeline.layout);
-        self.device.cmd_bind_pipeline(
-            self.cbuf,
-            vk::PipelineBindPoint::GRAPHICS,
-            pipeline.pipeline.raw,
-        );
-        self.layout = Some(layout.raw.clone());
+
+        match handle.into() {
+            Pipeline::Raster(handle) => {
+                let cache = self.external_resources.pipeline_cache.read();
+                let pipeline = cache.raster_pipelines.get(handle);
+                let layout = cache.pipeline_layout.get(&pipeline.layout);
+
+                self.runtime_data.layout = Some(layout.raw.clone());
+                self.runtime_data.pipeline = Some(pipeline.pipeline.raw);
+                self.runtime_data.bind_point = Some(vk::PipelineBindPoint::GRAPHICS);
+            }
+        }
+        
     }
 
-    pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {
-        profiling::scope!("PassContext::dispatch");
-        self.device.cmd_dispatch(self.cbuf, x, y, z);
-    }
+    // pub unsafe fn dispatch(&self, x: u32, y: u32, z: u32) {
+    //     profiling::scope!("PassContext::dispatch");
+    //     //self.device.cmd_dispatch(self.cbuf, x, y, z);
+    // }
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&mut self, data: T) {
         let data = bytemuck::bytes_of(&data);
@@ -122,7 +156,7 @@ impl PassContext {
             user_data: out,
         };
 
-        self.push = Some(push);
+        self.runtime_data.push = Some(push);
     }
 
     pub unsafe fn draw_indexed(&self, vertices: &Res<VertexBuffer>, indices: &Res<IndexBuffer>) {
@@ -132,47 +166,63 @@ impl PassContext {
 
         let binding = self.external_resources.indices.read();
         let index_buffer = binding.get(indices.key).unwrap();
-        
-        #[cfg(feature = "validation")]
-        {
-            assert!(self.layout.is_some(), "Pipeline must be bind before draw");
+
+        let device = &self.static_data.device;
+        let cbuf = self.static_data.cbuf;
+        let per_frame_set = self.static_data.per_frame;
+        let pipeline = self.runtime_data.pipeline.expect("Required Bind pipeline");
+        let layout = self.runtime_data.layout.unwrap();
+        let bind_point = self.runtime_data.bind_point.unwrap();
+
+        let push = self.runtime_data.push.unwrap_or(PushConstants {
+            tex_idx: [0u32; 8],
+            user_data: [0u8; 96]
+        });
+
+        device.cmd_bind_pipeline(cbuf, bind_point, pipeline);
+
+        if let Some(viewport) = self.runtime_data.viewport {
+            let views = [viewport];
+            device.cmd_set_viewport(cbuf, 0, &views);
         }
 
-        let layout = self.layout.unwrap();
-        let push = self.push.unwrap();
+        if let Some(scissor) = self.runtime_data.scissor {
+            let scissors = [scissor];
+            device.cmd_set_scissor(cbuf, 0, &scissors);
+        }
 
-        self.device.cmd_push_constants(
-            self.cbuf,
+        device.cmd_push_constants(
+            cbuf,
             layout,
             vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
             0,
             bytemuck::bytes_of(&push),
         );
 
-        self.device.cmd_bind_descriptor_sets(
-            self.cbuf,
+        device.cmd_bind_descriptor_sets(
+            cbuf,
             vk::PipelineBindPoint::GRAPHICS,
             layout,
             0,
-            &[self.per_frame_set],
+            &[per_frame_set],
             &[],
         );
 
-        self.device
-            .cmd_bind_vertex_buffers(self.cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
+        device
+            .cmd_bind_vertex_buffers(cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
 
-        self.device.cmd_bind_index_buffer(
-            self.cbuf,
+        device.cmd_bind_index_buffer(
+            cbuf,
             index_buffer.buffer.raw,
             0,
             vk::IndexType::UINT32,
         );
 
-        self.device
-            .cmd_draw_indexed(self.cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
+        device
+            .cmd_draw_indexed(cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
     }
 
-    pub unsafe fn draw(&self, vertex_count: u32) {
-        self.device.cmd_draw(self.cbuf, vertex_count, 1, 0, 0);
-    }
+    // pub unsafe fn draw(&self, vertex_count: u32) {
+    //     self.device.cmd_draw(self.cbuf, vertex_count, 1, 0, 0);
+    // }
 }

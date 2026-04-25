@@ -15,11 +15,16 @@ pub use render_target::*;
 mod handle;
 pub use handle::Handle;
 
-use crate::{core::ImageView, frame_scope::{FrameScope, Id}, render_context::RenderContext};
+use crate::{core::ImageView, frame_scope::{FrameScope, Id, TransientTextureDesc}, render_context::RenderContext};
 
 pub struct FrameGraphResources {
     pub backbuffers: SecondaryMap<Id, ash::vk::ImageView>,
     pub transient_textures: SecondaryMap<Id, ImageView>
+}
+
+pub struct FrameSlot {
+    desc: TransientTextureDesc,
+    index: usize
 }
 
 impl FrameGraphResources {
