@@ -12,3 +12,4 @@ winit = { workspace = true }
 egui = { workspace = true }
 aluminium = { path = "../.." }
 glam = { workspace = true }
+egui-winit = { workspace = true }

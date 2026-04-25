@@ -23,12 +23,16 @@ struct App {
     global_time: Option<std::time::Instant>,
     model: Option<GltfModel>,
     pipeline: Option<Res<RasterPipeline>>,
+    ui: Option<UiRenderer>,
     world: Option<WorldRenderer>,
     window: Option<winit::window::Window>,
 }
 
 impl ApplicationHandler for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+
+        //self.ui.as_ref().unwrap().on_window_event(self, &event);
+
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -119,6 +123,7 @@ impl ApplicationHandler for App {
 
         let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf").expect("Error load gltf model");
 
+        self.ui = Some(UiRenderer::new(&world, &window).expect("Error create Ui renderer"));
         self.global_time = Some(Instant::now());
         self.model = Some(model);
         self.pipeline = Some(pipeline);

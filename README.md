@@ -40,6 +40,8 @@ let pipeline = world
             // We can dynamically crop the image if we want
             // If the flag is enabled, you need to configure this parameter in the execute phase
             .dynamic_scissors(true)
+            // Auto resize
+            .dynamic_viewport(true)
     )
     .expect("Error create pipeline");
 
@@ -64,14 +66,14 @@ let _ = world.draw_frame(move |frame| {
             .setup(|builder| {
 
                 // Getting a texture for display on the screen
-                let back = builder.backbuffer();
+                let back: Res<TransientTexture> = builder.backbuffer();
 
                 // Create a Depth texture for depth testing
-                let depth = builder.create_texture(
+                let depth: Res<TransientTexture> = builder.create_texture(
                     // Name for debug and profiling
                     "depth",
                     // Standart Format for Depth image without Stencil
-                    TextureFormat::D32Sfloat,
+                    TextureFormat::Depth,
                     // Full Resolution
                     Resolution::FullRes,
                 );
@@ -79,7 +81,7 @@ let _ = world.draw_frame(move |frame| {
                 // Writing to a BackBuffer texture
                 let _ = builder.write_color(back, LoadOp::Clear, StoreOp::Store);
                 // Writing to a Depth texture
-                let _ = builder.write_depth(depth, LoadOp::Load, StoreOp::Store);
+                let _ = builder.write_depth(depth, LoadOp::Clear, StoreOp::DontCare);
             })
             .execute(move |ctx| unsafe {
                 // Incorrect use will cause the driver to crash
@@ -88,6 +90,7 @@ let _ = world.draw_frame(move |frame| {
                 ctx.bind_pipeline(pipeline);
                 // The pipeline must be created with the dynamic_scissors flag
                 ctx.set_scissor(Scissor::FullRes);
+                ctx.set_viewport(Viewport::FullRes);
                 // Draw mesh
                 ctx.draw_indexed(&vertex_buffer, &index_buffer);
             }),
