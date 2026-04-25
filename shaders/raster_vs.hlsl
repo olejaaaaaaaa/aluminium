@@ -1,37 +1,9 @@
 
-// struct Camera {
-//     float4x4 view;           
-//     float4x4 proj;           
-//     float4x4 view_proj;      
-//     float4x4 inv_view;       
-//     float4x4 inv_proj;       
-//     float4x4 inv_view_proj;
-// };
-
-// struct FrameValues {
-//     uint2   resolution;
-//     uint    frame_idx;
-//     float   delta_time_sec;
-//     float   time_sec;
-//     float   pad;
-// };
-
 struct Transform {
     float4x4   mvp;
 };
 
-// [[vk::binding(0, 0)]] Texture2D<float4>           textures[];
-// [[vk::binding(1, 0)]] SamplerState                samplers[5];
-
-// [[vk::binding(0, 1)]] ConstantBuffer<Camera>      camera;
-// [[vk::binding(1, 1)]] ConstantBuffer<FrameValues> frame_values;
 [[vk::binding(0, 0)]] StructuredBuffer<Transform> transforms;
-
-const uint SAMPLER_REPEAT = 0;
-const uint SAMPLER_CLAMP = 1;
-const uint SAMPLER_BORDER = 2;
-const uint SAMPLER_MIP_LINEAR = 3;
-const uint SAMPLER_MIP_POINT = 4;
 
 [[vk::push_constant]] struct Push {
     // 4 * 8 = 32 bytes
@@ -61,7 +33,9 @@ VSOutput main(VSInput input)
 
     Transform t = transforms[(uint)push.user_data[1]];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
-    output.color = input.normal * (input.color * 2.0 * abs(sin(push.user_data[0])));
+
+    float depth = input.position.z;
+    output.color = float4(depth, depth, depth, 1.0) * input.normal;
 
     return output;
 }

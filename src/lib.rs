@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 pub(crate) mod bindless;
-pub(crate) mod camera;
 pub(crate) mod core;
 pub(crate) mod frame_graph;
 pub(crate) mod frame_values;

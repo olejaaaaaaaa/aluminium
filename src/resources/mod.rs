@@ -7,7 +7,6 @@ use parking_lot::RwLock;
 use slotmap::{new_key_type, SlotMap};
 
 use crate::bindless::Bindless;
-use crate::camera::Camera;
 use crate::core::{DescriptorSetLayoutBuilder, Device};
 use crate::render_context::RenderContext;
 use crate::VulkanResult;
@@ -128,12 +127,11 @@ pub struct Resources {
     pub(crate) vertices: RwLock<SlotMap<ResourceKey, VertexBuffer>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
-    pub(crate) camera: RwLock<Camera>,
 }
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
-        let camera = Camera::new(&ctx.device, ctx.frame_in_flight())?;
+
         let pipeline_cache = PipelineCache::new();
         let transforms = TransformPool::new(&ctx.device, ctx.frame_in_flight())?;
         let bindless = Bindless::new(&ctx)?;
@@ -175,7 +173,6 @@ impl Resources {
             transforms: RwLock::new(transforms),
             vertices: RwLock::new(SlotMap::with_key()),
             indices: RwLock::new(SlotMap::with_key()),
-            camera: RwLock::new(camera),
         }))
     }
 
@@ -209,7 +206,6 @@ impl Resources {
 
     pub(crate) fn destroy(&self, device: &Device) {
         self.bindless.destroy(device);
-        self.camera.write().destroy(device);
         self.transforms.write().destroy(device);
     }
 }
