@@ -14,6 +14,14 @@ pub enum Scissor {
     Custom(u32, u32),
 }
 
+#[derive(Debug)]
+pub enum Resolution {
+    FullRes,
+    HalfRes,
+    QuarterRes,
+    Custom(u32, u32)
+}
+
 pub struct Location {
     pub set: u32,
     pub binding: u32

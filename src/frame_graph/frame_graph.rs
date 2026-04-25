@@ -59,9 +59,10 @@ impl FrameGraph {
             };
 
             let format = match desc.format {
-                TextureFormat::D32Sfloat => { vk::Format::D32_SFLOAT },
-                TextureFormat::R8g8b8a8Srgb => { vk::Format::R8G8B8A8_SRGB },
-                TextureFormat::R8g8b8a8Unorm => { vk::Format::R8G8B8A8_UNORM }
+                TextureFormat::Depth | TextureFormat::DepthStencil => { vk::Format::D32_SFLOAT },
+                TextureFormat::Color => { vk::Format::R8G8B8A8_SRGB },
+                TextureFormat::Data => { vk::Format::R8G8B8A8_UNORM },
+                _ => { todo!() }
             };
 
             let image = ImageBuilder::new(&ctx.device)

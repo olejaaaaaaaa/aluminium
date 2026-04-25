@@ -62,7 +62,7 @@ impl ApplicationHandler for App {
                                 let albedo = builder.backbuffer();
                                 let depth = builder.create_texture(
                                     "depth",
-                                    TextureFormat::D32Sfloat,
+                                    TextureFormat::Depth,
                                     Resolution::FullRes,
                                 );
 

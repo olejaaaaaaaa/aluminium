@@ -5,7 +5,7 @@ mod ops;
 pub use ops::*;
 
 mod types;
-pub use types::{Scissor, Viewport, Location, ColorAttachment, DepthAttachment};
+pub use types::{Scissor, Viewport, Location, ColorAttachment, DepthAttachment, Resolution};
 
 mod resources;
 pub use resources::*;

@@ -14,10 +14,10 @@ pub use core::{VulkanError, VulkanResult};
 
 pub use frame_graph::{
     Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientTexture, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
-    TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location
+    TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location, Resolution
 };
 pub use resources::{
-    Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, Resolution, ShaderType, TextureFormat,
+    Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, ShaderType, TextureFormat,
     Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc
 };
 pub use vk_sync::AccessType;

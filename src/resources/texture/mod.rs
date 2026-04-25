@@ -1,9 +1,16 @@
 use crate::core::{Image, ImageView};
 use crate::resources::{Destroy, ResourceKey};
 use crate::Res;
-mod texture;
-pub use texture::{Resolution, TextureFormat};
 const MAX_TEXTURE: usize = 100000;
+
+#[derive(Debug)]
+pub enum TextureFormat {
+    Depth,
+    DepthStencil,
+    HDR,
+    Color,
+    Data
+}
 
 #[derive(Clone, Copy)]
 pub struct TextureHandle(usize);

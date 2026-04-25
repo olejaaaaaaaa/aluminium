@@ -2,7 +2,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{Handle, Resolution, TextureFormat, TransientTexture, core::ImageView, render_context::RenderContext};
+use crate::{Resolution, TextureFormat};
 
 new_key_type! {
     pub struct Id;

@@ -12,7 +12,7 @@ impl<'a> PassBuilder<'a> {
         
         let id = self.resources.backbuffers.insert(TransientTextureDesc { 
             name: "BackBuffer", 
-            format: TextureFormat::R8g8b8a8Srgb, 
+            format: TextureFormat::Color, 
             resolution: Resolution::FullRes 
         });
 
