@@ -2,7 +2,7 @@ mod source;
 pub use source::Source;
 
 mod raster_pipeline;
-pub use raster_pipeline::{RasterPipeline, RasterPipelineDesc, VertexInput};
+pub use raster_pipeline::{RasterPipeline, RasterPipelineDesc, VertexInput, Layout};
 
 mod bindings;
 pub use bindings::*;
