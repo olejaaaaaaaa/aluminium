@@ -30,7 +30,7 @@ impl Layout for PbrVertex {
 
 pub struct VertexInput {
     inputs: Vec<ShaderType>,
-    #[cfg(feature = "validation")]
+    #[cfg(feature = "reflection")]
     names: Vec<&'static str>,
 }
 
@@ -38,14 +38,14 @@ impl VertexInput {
     pub fn new() -> Self {
         Self {
             inputs: vec![],
-            #[cfg(feature = "validation")]
+            #[cfg(feature = "reflection")]
             names: vec![],
         }
     }
 
     pub fn attr(mut self, name: &'static str, ty: ShaderType) -> Self {
         self.inputs.push(ty);
-        #[cfg(feature = "validation")]
+        #[cfg(feature = "reflection")]
         self.names.push(name);
         self
     }

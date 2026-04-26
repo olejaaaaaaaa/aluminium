@@ -136,7 +136,7 @@ impl Instance {
         debug!("Available Instance layers: {:#?}", available_layer_names);
 
         let optional_layers = [
-            #[cfg(any(feature = "validation_layer", debug_assertions))]
+            #[cfg(any(feature = "layer_khronos_validation", debug_assertions))]
             c"VK_LAYER_KHRONOS_validation",
         ];
 

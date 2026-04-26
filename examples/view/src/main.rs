@@ -31,8 +31,6 @@ struct App {
 impl ApplicationHandler for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
 
-        //self.ui.as_ref().unwrap().on_window_event(self, &event);
-
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -81,6 +79,7 @@ impl ApplicationHandler for App {
                             .execute(move |ctx| unsafe {
                                 ctx.bind_pipeline(pipeline);
                                 ctx.set_scissor(Scissor::FullRes);
+                                ctx.set_viewport(Viewport::FullRes);
                                 for (index, (mesh, _)) in model.meshes.iter().enumerate() {
                                     ctx.push_constants([time_sec, index as f32]);
                                     ctx.draw_indexed(&mesh.vertex, &mesh.index);
@@ -118,6 +117,7 @@ impl ApplicationHandler for App {
                     .vertex_input::<PbrVertex>()
                     .depth_test(true)
                     .dynamic_scissors(true)
+                    .dynamic_viewport(true)
             )
             .expect("Error create pipeline");
 

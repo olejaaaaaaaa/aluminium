@@ -54,10 +54,10 @@ profiling = { workspace = true }
 naga = { workspace = true , optional = true }
 
 [features]
-default = ["layer_khronos_validation", "validation"]
+default = ["runtime-checks"]
 layer_khronos_validation = []
 reflection = []
-validation = ["reflection"]
+runtime-checks = []
 
 [profile.dev]
 opt-level = 1      
