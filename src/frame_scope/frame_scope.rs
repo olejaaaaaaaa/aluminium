@@ -31,6 +31,8 @@ impl<'frame> FrameScope<'frame> {
                 if let Some(setup) = pass.setup.take() {
 
                     let mut builder = PassBuilder {
+                        write_textures: vec![],
+                        read_textures: vec![],
                         render_target: RenderTarget {
                             colors: vec![],
                             depth: None

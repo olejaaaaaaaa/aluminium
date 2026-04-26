@@ -3,6 +3,8 @@ use crate::{Handle, LoadOp, RenderTarget, Resolution, StoreOp, TextureFormat, Tr
 
 pub struct PassBuilder<'a> {
     pub(crate) render_target: RenderTarget,
+    pub(crate) write_textures: Vec<Handle<TransientTexture>>,
+    pub(crate) read_textures: Vec<(Handle<TransientTexture>, Location)>,
     pub(crate) resources: &'a mut FrameResources,
 }
 
@@ -31,6 +33,8 @@ impl<'a> PassBuilder<'a> {
             store,
         });
 
+        self.write_textures.push(texture);
+
         Handle { 
             id: texture.id, 
             version: texture.version.add(1), 
@@ -49,6 +53,8 @@ impl<'a> PassBuilder<'a> {
             load,
             store
         });
+
+        self.write_textures.push(texture);
 
         Handle { 
             id: texture.id, 

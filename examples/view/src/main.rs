@@ -61,15 +61,15 @@ impl ApplicationHandler for App {
                         RasterPass::new("Simple Pass")
                             .setup(|builder| {
 
-                                let albedo = builder.backbuffer();
-                                let depth = builder.create_texture(
+                                let albedo: Handle<TransientTexture> = builder.backbuffer();
+                                let depth: Handle<TransientTexture> = builder.create_texture(
                                     "depth",
                                     TextureFormat::Depth,
                                     Resolution::FullRes,
                                 );
 
-                                let albedo = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
-                                let depth = builder.write_depth(depth, LoadOp::Load, StoreOp::Store);
+                                let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
+                                let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
 
                                 GBuffer {
                                     albedo,
