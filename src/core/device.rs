@@ -84,7 +84,7 @@ impl Device {
             c"VK_KHR_swapchain",
             c"VK_EXT_descriptor_indexing",
             c"VK_KHR_driver_properties",
-            c"VK_KHR_synchronization2",
+            c"VK_KHR_imageless_framebuffer"
         ];
 
         for i in required_extensions {

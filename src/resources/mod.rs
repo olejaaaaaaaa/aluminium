@@ -7,9 +7,9 @@ use parking_lot::RwLock;
 use slotmap::{new_key_type, SlotMap};
 
 use crate::bindless::Bindless;
-use crate::core::{DescriptorSetLayoutBuilder, Device};
+use crate::core::{DescriptorSetLayoutBuilder, Device, ImageBuilder, ImageViewBuilder};
 use crate::render_context::RenderContext;
-use crate::VulkanResult;
+use crate::{VulkanResult};
 
 mod texture;
 pub use texture::*;
@@ -125,6 +125,7 @@ pub struct Resources {
     pub(crate) layout: vk::DescriptorSetLayout,
     pub(crate) indices: RwLock<SlotMap<ResourceKey, IndexBuffer>>,
     pub(crate) vertices: RwLock<SlotMap<ResourceKey, VertexBuffer>>,
+    pub(crate) transient_textures: RwLock<SlotMap<ResourceKey, TransientTexture>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
 }
@@ -171,9 +172,78 @@ impl Resources {
             set,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
+            transient_textures: RwLock::new(SlotMap::with_key()),
             vertices: RwLock::new(SlotMap::with_key()),
             indices: RwLock::new(SlotMap::with_key()),
         }))
+    }
+
+    pub fn create_transient(self: &Arc<Self>, ctx: &Arc<RenderContext>, desc: TransientTextureDesc) -> VulkanResult<Res<TransientTexture>> 
+    {
+        let extent = ctx.resolution();
+
+        let (image, view) = match desc.format {
+            TextureFormat::Depth => { 
+
+                let image = ImageBuilder::new(&ctx.device)
+                    .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+                    .array_layers(1)
+                    .extent(extent.into())
+                    .format(vk::Format::D32_SFLOAT)
+                    .image_type(vk::ImageType::TYPE_2D)
+                    .build()?;
+
+                let image_view = ImageViewBuilder::new(&ctx.device)
+                    .image(image.raw)
+                    .format(vk::Format::D32_SFLOAT)
+                    .subresource_range(
+                        vk::ImageSubresourceRange::default()
+                            .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                            .base_array_layer(0)
+                            .layer_count(1)
+                            .base_mip_level(0)
+                            .level_count(1)
+                    )
+                    .view_type(vk::ImageViewType::TYPE_2D)
+                    .build()?;
+
+                (image, image_view)
+            },
+            TextureFormat::Color => {  
+
+                let image = ImageBuilder::new(&ctx.device)
+                    .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+                    .array_layers(1)
+                    .extent(extent.into())
+                    .format(vk::Format::R8G8B8A8_SRGB)
+                    .image_type(vk::ImageType::TYPE_2D)
+                    .build()?;
+
+                let image_view = ImageViewBuilder::new(&ctx.device)
+                    .image(image.raw)
+                    .format(vk::Format::R8G8B8A8_SRGB)
+                    .subresource_range(
+                        vk::ImageSubresourceRange::default()
+                            .aspect_mask(vk::ImageAspectFlags::COLOR)
+                            .base_array_layer(0)
+                            .layer_count(1)
+                            .base_mip_level(0)
+                            .level_count(1)
+                    )
+                    .view_type(vk::ImageViewType::TYPE_2D)
+                    .build()?;
+
+                (image, image_view)
+            },
+            _ => { todo!() }
+        };
+
+        let key = self.transient_textures.try_write().expect("Error lock").insert(TransientTexture {
+          image,
+          view
+        });
+
+        Ok(self.make_handle(ctx, key))
     }
 
     fn make_handle<T: Destroy>(

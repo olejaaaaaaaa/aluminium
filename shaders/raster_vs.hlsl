@@ -34,8 +34,8 @@ VSOutput main(VSInput input)
     Transform t = transforms[(uint)push.user_data[1]];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
 
-    float depth = input.position.z;
-    output.color = float4(depth, depth, depth, 1.0) * input.normal;
+    float depth = 0.5 + input.position.z;
+    output.color = float4(depth, depth, depth, 1.0);
 
     return output;
 }

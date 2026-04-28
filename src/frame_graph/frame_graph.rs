@@ -2,9 +2,10 @@ use std::any::Any;
 use std::sync::Arc;
 
 use ash::vk::{self, ClearValue, ComponentMapping};
-use tracing::{error, trace};
+use slotmap::Key;
+use tracing::{debug, error, trace};
 
-use crate::TextureFormat;
+use crate::{RasterPass, TextureFormat};
 use crate::core::{
     CommandPool, CommandPoolBuilder, Device, ImageBuilder, ImageViewBuilder, SwapchainError, VulkanError, VulkanResult
 };
@@ -14,7 +15,7 @@ use crate::render_context::RenderContext;
 use crate::resources::Resources;
 
 pub struct FrameGraph {
-    resources: FrameGraphResources,
+    pub resources: FrameGraphResources,
     cmd_pool: CommandPool,
     cmd_buffers: Vec<vk::CommandBuffer>,
 }
@@ -39,6 +40,30 @@ impl FrameGraph {
         })
     }
 
+    fn topological_sort(dependencies: &[Vec<usize>]) -> Vec<usize> {
+        let n = dependencies.len();
+        
+        let mut in_degree: Vec<usize> = dependencies.iter().map(|d| d.len()).collect();
+        
+        let mut queue: Vec<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
+        let mut result = Vec::with_capacity(n);
+
+        while let Some(node) = queue.pop() {
+            result.push(node);
+
+            for j in 0..n {
+                if dependencies[j].contains(&node) {
+                    in_degree[j] -= 1;
+                    if in_degree[j] == 0 {
+                        queue.push(j);
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
     pub(crate) fn compile(
         &mut self,
         scope: &mut FrameScope<'_>,
@@ -47,42 +72,47 @@ impl FrameGraph {
     ) -> VulkanResult<()> {
         profiling::scope!("FrameGraph::compile");
 
-        let index = ctx.window.read().current_frame % ctx.window.read().frame_sync.len();
-        println!("index: {}", index);
+        let mut dependencies: Vec<Vec<usize>> = vec![vec![]; scope.passes.len()];
 
-        // for (id, desc) in &scope.resources.textures {
+       for (i, pass_a) in scope.passes.iter().enumerate() {
+            let writes = pass_a.texture_writes();
+            for (j, pass_b) in scope.passes.iter().enumerate() {
+                if i != j && pass_b.texture_reads().iter().any(|r| writes.contains(r)) {
+                    dependencies[j].push(i);
+                }
+            }
+        }
 
-        //     let extent = match desc.resolution {
-        //         _ => {
-        //             ctx.window.read().resolution
-        //         }
-        //     };
+        let sorted_indices = Self::topological_sort(&dependencies);
+        debug!("topological sorted: {:?}", sorted_indices);
 
-        //     let format = match desc.format {
-        //         TextureFormat::Depth | TextureFormat::DepthStencil => { vk::Format::D32_SFLOAT },
-        //         TextureFormat::Color => { vk::Format::R8G8B8A8_SRGB },
-        //         TextureFormat::Data => { vk::Format::R8G8B8A8_UNORM },
-        //         _ => { todo!() }
-        //     };
+        scope.execution_order = sorted_indices;
 
-        //     let image = ImageBuilder::new(&ctx.device)
-        //         .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
-        //         .array_layers(1)
-        //         .extent(extent.into())
-        //         .format(format)
-        //         .image_type(vk::ImageType::TYPE_2D)
-        //         .build()?;
+        for (id, scope_desc) in &scope.resources.textures {
+            // Backbuffer
+            if id.is_null() {
+                for i in &ctx.window.read().image_views {
+                    
+                }
+            } else {
+                let frame_in_flight = ctx.frame_in_flight();
+                let mut count = 0;
+                for (trans_desc, _) in &self.resources.transient_textures {
+                    if scope_desc == trans_desc {
+                        count += 1;
+                    }
+                }
+                if !(count >= frame_in_flight) {
+                    for _ in 0..frame_in_flight - count {
+                        //println!("Texture create");
+                        let texture = resources.create_transient(ctx, *scope_desc)?;
+                        //println!("Desc: {:?}", scope_desc);
+                        self.resources.transient_textures.push((*scope_desc, texture));
+                    }
+                }
+            }
+        }
 
-        //     let image_view = ImageViewBuilder::new(&ctx.device)
-        //         .image(image.raw)
-        //         .subresource_range(vk::ImageSubresourceRange::default())
-        //         .components(ComponentMapping::default())
-        //         .format(format)
-        //         .view_type(vk::ImageViewType::TYPE_2D)
-        //         .build()?;
-
-        //     self.resources.transient_textures.insert(id, image_view);
-        // }
 
         Ok(())
     }
@@ -96,6 +126,11 @@ impl FrameGraph {
         profiling::scope!("FrameGraph::execute");
         let queue = ctx.device.queue_pool.get_present().unwrap();
         let device = &ctx.device;
+
+        // Should I handle this case more correctly?
+        if scope.execution_order.is_empty() {
+            return Ok(());
+        }
 
         // ------------------------Acquire Next Image-----------------------------
         let image_index = {
@@ -138,22 +173,16 @@ impl FrameGraph {
             }
         };
 
-        // Setup Backbufer Id -> ImageView
-        self.resources.prepare_backbuffers(image_index, scope, ctx);
-
-        
-        // allocate FrameBuffers
-
-
         let cmd_buffer = self.cmd_buffers[image_index as usize];
 
         // ------------------------Record Command Buffers-----------------------------
         {
             let window = ctx.window.read();
             let resolution = window.resolution;
-            for pass in scope.passes.drain(..) {
+            for index in scope.execution_order.drain(..) {
+                let pass = scope.passes.get_mut(index).unwrap();
                 match pass {
-                    Pass::Raster(pass) => {
+                    Pass::Raster(ref mut pass) => {
                         let frame_buffer = &window.frame_buffers[image_index as usize];
 
                         let clear_values = vec![
@@ -224,7 +253,9 @@ impl FrameGraph {
                             },
                         };
 
-                        (pass.execute)(&mut pass_ctx);
+                        if let Some(execute) = pass.execute.take() {
+                            (execute)(&mut pass_ctx);
+                        }
 
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);
@@ -287,7 +318,7 @@ impl FrameGraph {
             current_frame = ?window.current_frame
         );
 
-        resources.update(0);
+        resources.update(image_index);
 
         window.current_frame += 1;
 

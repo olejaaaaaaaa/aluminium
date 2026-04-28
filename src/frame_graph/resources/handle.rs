@@ -7,6 +7,12 @@ pub struct Handle<T> {
     pub(crate) _marker: PhantomData<T>,
 }
 
+impl<T> PartialEq for Handle<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl<T> Clone for Handle<T> {
     fn clone(&self) -> Self {
         Self {
