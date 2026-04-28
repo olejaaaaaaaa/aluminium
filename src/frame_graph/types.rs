@@ -1,5 +1,6 @@
-use crate::{Handle, LoadOp, StoreOp, TransientTexture};
+use crate::{Handle, LoadOp, StoreOp, resources::TransientTexture};
 
+#[derive(Debug)]
 pub enum Viewport {
     FullRes,
     HalfRes,
@@ -7,6 +8,7 @@ pub enum Viewport {
     Custom(u32, u32),
 }
 
+#[derive(Debug)]
 pub enum Scissor {
     FullRes,
     HalfRes,
@@ -14,7 +16,7 @@ pub enum Scissor {
     Custom(u32, u32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Resolution {
     FullRes,
     HalfRes,
@@ -22,6 +24,7 @@ pub enum Resolution {
     Custom(u32, u32)
 }
 
+#[derive(Debug)]
 pub struct Location {
     pub set: u32,
     pub binding: u32

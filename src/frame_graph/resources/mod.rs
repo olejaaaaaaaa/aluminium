@@ -1,7 +1,7 @@
 
 
 mod buffers;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 pub use buffers::*;
 
@@ -15,31 +15,33 @@ pub use render_target::*;
 mod handle;
 pub use handle::Handle;
 
-use crate::{core::ImageView, frame_scope::{FrameScope, Id, TransientTextureDesc}, render_context::RenderContext};
+use crate::{Res, TransientTexture, core::ImageView, frame_scope::{FrameScope, Id}, render_context::RenderContext, resources::TransientTextureDesc};
+
+type ImageIndex = u32;
 
 pub struct FrameGraphResources {
-    pub backbuffers: SecondaryMap<Id, ash::vk::ImageView>,
-    pub transient_textures: SecondaryMap<Id, ImageView>
+    pub transient_textures: Vec<(TransientTextureDesc, Res<TransientTexture>)>,
+    pub transient_textures_resolve: HashMap<Id, usize>
 }
 
-pub struct FrameSlot {
-    desc: TransientTextureDesc,
-    index: usize
+struct FrameSlot<T> {
+    data: T,
+    last_index: u32
 }
 
 impl FrameGraphResources {
     pub fn new() -> Self {
         Self {
-            backbuffers: SecondaryMap::new(),
-            transient_textures: SecondaryMap::new()
+            transient_textures: vec![],
+            transient_textures_resolve: HashMap::new()
         }
     }
 
-    pub fn prepare_backbuffers(&mut self, index: u32, scope: &FrameScope<'_>, ctx: &Arc<RenderContext>) {
-        let image_views = &ctx.window.read().image_views;
-        let image_view = image_views[index as usize].raw;
-        for i in scope.resources.backbuffers.keys() {
-            self.backbuffers.insert(i, image_view);
-        }
+    fn prepare_frame_data(&mut self, image_index: u32) {
+
+    }
+
+    fn transient_texture(&mut self, handle: Handle<TransientTexture>) -> Res<TransientTexture> {
+        todo!()
     }
 }

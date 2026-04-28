@@ -1,5 +1,5 @@
 use std::{marker::PhantomData, ops::Add as _};
-use crate::{Handle, LoadOp, RenderTarget, Resolution, StoreOp, TextureFormat, TransientTexture, frame_graph::types::{ColorAttachment, DepthAttachment, Location}, frame_scope::{FrameResources, Id, TransientTextureDesc}};
+use crate::{Handle, LoadOp, RenderTarget, Resolution, StoreOp, TextureFormat, frame_graph::types::{ColorAttachment, DepthAttachment, Location}, frame_scope::{FrameResources, Id}, resources::{TransientTexture, TransientTextureDesc}};
 
 pub struct PassBuilder<'a> {
     pub(crate) render_target: RenderTarget,
@@ -11,15 +11,9 @@ pub struct PassBuilder<'a> {
 impl<'a> PassBuilder<'a> {
 
     pub fn backbuffer(&mut self) -> Handle<TransientTexture> {
-        
-        let id = self.resources.backbuffers.insert(TransientTextureDesc { 
-            name: "BackBuffer", 
-            format: TextureFormat::Color, 
-            resolution: Resolution::FullRes 
-        });
-
+        // the only handle that will be invalid
         Handle { 
-            id, 
+            id: Id::default(), 
             version: 0, 
             _marker: PhantomData 
         }
@@ -42,8 +36,8 @@ impl<'a> PassBuilder<'a> {
         }
     }
 
-    pub fn read_texture(&mut self, texture: Handle<TransientTexture>, location: Location) -> Handle<TransientTexture> {
-        todo!()
+    pub fn read_texture(&mut self, texture: Handle<TransientTexture>, location: Location) {
+        self.read_textures.push((texture, location));
     }
  
     pub fn write_color(&mut self, texture: Handle<TransientTexture>, load: LoadOp, store: StoreOp) -> Handle<TransientTexture> {

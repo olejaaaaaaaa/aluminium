@@ -12,11 +12,11 @@ pub(crate) mod world_renderer;
 pub use core::{VulkanError, VulkanResult};
 
 pub use frame_graph::{
-    Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientTexture, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
+    Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
     TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location, Resolution
 };
 pub use resources::{
-    Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, ShaderType, TextureFormat, 
+    Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, ShaderType, TextureFormat, TransientTexture,
     Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc, Layout
 };
 pub use vk_sync::AccessType;

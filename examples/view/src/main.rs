@@ -57,35 +57,62 @@ impl ApplicationHandler for App {
                         depth: Handle<TransientTexture>,
                     }
 
-                    let gbuffer: GBuffer = frame.add_pass(
-                        RasterPass::new("Simple Pass")
-                            .setup(|builder| {
+                    if time_sec >= 2.0 {
+                        let gbuffer: GBuffer = frame.add_pass(
+                            RasterPass::new("Simple GBuffer Pass")
+                                .setup(|builder| {
 
-                                let albedo: Handle<TransientTexture> = builder.backbuffer();
-                                let depth: Handle<TransientTexture> = builder.create_texture(
-                                    "depth",
-                                    TextureFormat::Depth,
-                                    Resolution::FullRes,
-                                );
+                                    let albedo: Handle<TransientTexture> = builder.create_texture(
+                                        "albedo", 
+                                        TextureFormat::Color, 
+                                        Resolution::FullRes
+                                    );
 
-                                let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
-                                let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
+                                    let depth: Handle<TransientTexture> = builder.create_texture(
+                                        "depth",
+                                        TextureFormat::Depth,
+                                        Resolution::FullRes,
+                                    );
 
-                                GBuffer {
-                                    albedo,
-                                    depth
-                                }
-                            })
-                            .execute(move |ctx| unsafe {
-                                ctx.bind_pipeline(pipeline);
-                                ctx.set_scissor(Scissor::FullRes);
-                                ctx.set_viewport(Viewport::FullRes);
-                                for (index, (mesh, _)) in model.meshes.iter().enumerate() {
-                                    ctx.push_constants([time_sec, index as f32]);
-                                    ctx.draw_indexed(&mesh.vertex, &mesh.index);
-                                }
-                            }),
-                    );
+                                    let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
+                                    let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
+
+                                    GBuffer {
+                                        albedo,
+                                        depth
+                                    }
+                                })
+                                .execute(move |ctx| unsafe {
+                                    ctx.bind_pipeline(pipeline);
+                                    ctx.set_scissor(Scissor::FullRes);
+                                    ctx.set_viewport(Viewport::FullRes);
+                                    for (index, (mesh, _)) in model.meshes.iter().enumerate() {
+                                        ctx.push_constants([time_sec, index as f32]);
+                                        ctx.draw_indexed(&mesh.vertex, &mesh.index);
+                                    }
+                                }),
+                        );
+
+                        if time_sec >= 5.0 {
+                            let () = frame.add_pass(
+                                RasterPass::new("Output Pass")
+                                    .setup(move |builder| {
+                                        builder.read_texture(gbuffer.albedo, Location { set: 0, binding: 0 });
+
+                                        let back = builder.backbuffer();
+                                        let _ = builder.write_color(back, LoadOp::Clear, StoreOp::DontCare);
+                                        let _ = builder.write_depth(gbuffer.depth, LoadOp::Clear, StoreOp::DontCare);
+                                        
+                                    })
+                                    .execute(move |ctx| unsafe {
+                                        ctx.bind_pipeline(pipeline);
+                                        ctx.set_scissor(Scissor::FullRes);
+                                        ctx.set_viewport(Viewport::FullRes);
+                                        //ctx.draw(3, 1, 0, 0);    
+                                    })
+                            );
+                        }
+                    }
                 });
             },
             _ => (),

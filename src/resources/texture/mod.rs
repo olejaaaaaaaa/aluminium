@@ -1,9 +1,9 @@
 use crate::core::{Image, ImageView};
 use crate::resources::{Destroy, ResourceKey};
-use crate::Res;
+use crate::{Res, Resolution};
 const MAX_TEXTURE: usize = 100000;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TextureFormat {
     Depth,
     DepthStencil,
@@ -58,5 +58,29 @@ impl Destroy for ImageView {
         ctx: std::sync::Weak<crate::render_context::RenderContext>,
         resources: std::sync::Weak<super::Resources>,
     ) {
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct TransientTextureDesc {
+    pub name: &'static str,
+    pub format: TextureFormat,
+    pub resolution: Resolution,
+}
+
+pub struct TransientTexture {
+    pub(crate) image: Image,
+    pub(crate) view: ImageView
+}
+
+impl Destroy for TransientTexture {
+    fn destroy(key: ResourceKey, ctx: std::sync::Weak<crate::render_context::RenderContext>, resources: std::sync::Weak<super::Resources>) {
+        
+    }
+}
+
+impl PartialEq for TransientTexture {
+    fn eq(&self, other: &Self) -> bool {
+        self.image.raw == other.image.raw && self.view.raw == other.view.raw
     }
 }

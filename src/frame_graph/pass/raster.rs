@@ -11,16 +11,19 @@ use parking_lot::Mutex;
 
 use super::PassContext;
 use crate::frame_graph::{LoadOp, Pass, PassBuilder, StoreOp};
-use crate::frame_scope::{Id, TransientTextureDesc};
-use crate::resources::Destroy;
-use crate::{RenderTarget, Res, Resolution, TextureFormat};
+use crate::frame_scope::{Id};
+use crate::resources::{Destroy, TransientTexture};
+use crate::{Handle, Location, RenderTarget, Res, Resolution, TextureFormat};
+
 
 pub struct RasterPass<'frame> {
     pub(crate) name: String,
     pub(crate) data: Box<dyn Any>,
     pub(crate) render_target: RenderTarget,
+    pub(crate) write_textures: Vec<Handle<TransientTexture>>,
+    pub(crate) read_textures: Vec<(Handle<TransientTexture>, Location)>,
     pub(crate) setup: Option<Box<dyn for<'a> FnOnce(&mut PassBuilder<'a>) -> Box<dyn Any> + Send + 'frame>>,
-    pub(crate) execute: Box<dyn FnOnce(&mut PassContext) + Send + 'frame>,
+    pub(crate) execute: Option<Box<dyn FnOnce(&mut PassContext) + Send + 'frame>>,
 }
 
 impl<'frame> RasterPass<'frame> {
@@ -28,9 +31,11 @@ impl<'frame> RasterPass<'frame> {
         Self {
             name: name.into(),
             render_target: RenderTarget { colors: vec![], depth: None },
+            write_textures: vec![],
+            read_textures: vec![],
             data: Box::new(()),
             setup: None,
-            execute: Box::new(|_| {}),
+            execute: None,
         }
     }
 
@@ -49,9 +54,9 @@ impl<'frame> RasterPass<'frame> {
     where
         F: FnOnce(&mut PassContext) + Send + 'frame,
     {
-        self.execute = Box::new(move |ctx| {
+        self.execute = Some(Box::new(move |ctx| {
             f(ctx);
-        });
+        }));
         self
     }
 }
