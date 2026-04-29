@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use aluminium::types::{PbrVertex, Vertex};
-use aluminium::{IndexBuffer, IndexBufferDesc, Res, Transform, TransformDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
+use aluminium::{IndexBuffer, IndexBufferDesc, Res, TextureDesc, Transform, TransformDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
+use gltf::image::Format;
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -12,8 +13,17 @@ pub struct Mesh {
 }
 
 #[derive(Clone)]
+pub struct Material {
+    pub diffuse_map: u32,
+    pub normal_map: u32,
+    pub metallic_roughness_map: u32,
+    pub occlusion_map: u32,
+}
+
+#[derive(Clone)]
 pub struct GltfModel {
-    pub meshes: Vec<(Mesh, Res<Transform>)>,
+    pub meshes: Vec<(Mesh, Res<Transform>, Material)>,
+    pub textures: Vec<Res<aluminium::Texture>>
 }
 
 fn load_gltf_node(
@@ -87,11 +97,43 @@ fn load_gltf_node(
                 Vec3::NEG_Y,
             );
 
+            let material = i.material();
+            let pbr = material.pbr_metallic_roughness();
+
+            let diffuse_index = pbr
+                .base_color_texture()
+                .map_or(0, |texture| {
+                    texture.texture().index() as u32
+                });
+
+            let normal_index = material
+                .normal_texture()
+                .map_or(0, |texture| {
+                    texture.texture().index() as u32
+                });
+
+            let metallic_roughness_index = pbr
+                .metallic_roughness_texture()
+                .map_or(0, |texture| {
+                    texture.texture().index() as u32
+                });
+
+            let occlusion_index = material
+                .occlusion_texture()
+                .map_or(0, |texture| {
+                    texture.texture().index() as u32
+                });
+
             let mvp = proj * view * node_transform;
             let transform =
                 world.create::<Transform>(TransformDesc::from(mvp.to_cols_array_2d()))?;
 
-            model.meshes.push((Mesh { vertex, index }, transform));
+            model.meshes.push((Mesh { vertex, index }, transform, Material {
+                diffuse_map: diffuse_index,
+                normal_map: normal_index,
+                metallic_roughness_map: metallic_roughness_index,
+                occlusion_map: occlusion_index
+            }));
         }
     }
 
@@ -99,7 +141,7 @@ fn load_gltf_node(
 }
 
 pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult<GltfModel> {
-    let (gltf, buffers, mut images) = match gltf::import(path.as_ref()) {
+    let (gltf, buffers, images) = match gltf::import(path.as_ref()) {
         Ok(result) => result,
         Err(err) => panic!(
             "Error load gltf model with path: {:?} with error: {:?}",
@@ -108,7 +150,55 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
         ),
     };
 
-    let mut gltf_model = GltfModel { meshes: vec![] };
+    let mut textures = vec![];
+
+    for mut image in images {
+        if image.format == Format::R8G8B8A8 {
+            let dynamic_image = image::DynamicImage::ImageRgb8(
+                image::RgbImage::from_raw(
+                    image.width,
+                    image.height,
+                    std::mem::take(&mut image.pixels),
+                )
+                .unwrap(),
+            );
+
+            let rgba8_image = dynamic_image.to_rgba8();
+            let texture = world.create::<aluminium::Texture>(TextureDesc {
+                width: image.width,
+                height: image.height,
+                format: aluminium::TextureFormat::Color,
+                pixels: &rgba8_image.into_raw()
+            })?;
+
+            textures.push(texture);
+        } else if image.format == Format::R8G8B8 {
+
+            let dynamic_image = image::DynamicImage::ImageRgb8(
+                image::RgbImage::from_raw(
+                    image.width,
+                    image.height,
+                    std::mem::take(&mut image.pixels),
+                )
+                .unwrap(),
+            );
+
+            let rgba8_image = dynamic_image.to_rgba8();
+            let texture = world.create::<aluminium::Texture>(TextureDesc {
+                width: image.width,
+                height: image.height,
+                format: aluminium::TextureFormat::Color,
+                pixels: &rgba8_image.into_raw()
+            })?;
+
+            textures.push(texture);
+
+        } else {
+            eprintln!("Skip texture foramt: {:?}", image.format);
+        }
+    }
+
+    let mut gltf_model = GltfModel { meshes: vec![], textures };
 
     for scene in gltf.scenes() {
         for node in scene.nodes() {

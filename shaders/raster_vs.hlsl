@@ -1,19 +1,15 @@
-
 struct Transform {
-    float4x4   mvp;
+    float4x4 mvp;
 };
 
-[[vk::binding(0, 0)]] StructuredBuffer<Transform> transforms;
+[[vk::binding(0, 1)]] StructuredBuffer<Transform> transforms;
 
 [[vk::push_constant]] struct Push {
-    // 4 * 8 = 32 bytes
     uint tex_idx[8];    
-    // 24 * 4 = 96 bytes
     float user_data[24];       
 } push;
 
-struct VSInput
-{
+struct VSInput {
     float4 position : POSITION;  
     float4 normal   : NORMAL; 
     float2 uv       : TEXCOORD0;
@@ -21,21 +17,19 @@ struct VSInput
     float4 tangent  : TANGENT;
 };
 
-struct VSOutput
-{
+struct VSOutput {
     float4 position : SV_POSITION;
-    float4 color    : COLOR0;      
+    float3 normal   : TEXCOORD0;   // float3 вместо float4
+    float3 tangent  : TEXCOORD1;   // float3 вместо float4
+    float2 uv       : TEXCOORD2;
 };
 
-VSOutput main(VSInput input)
-{
+VSOutput main(VSInput input) {
     VSOutput output;
-
     Transform t = transforms[(uint)push.user_data[1]];
     output.position = mul(t.mvp, float4(input.position.xyz, 1.0));
-
-    float depth = 0.5 + input.position.z;
-    output.color = float4(depth, depth, depth, 1.0);
-
+    output.uv      = input.uv;
+    output.normal  = input.normal.xyz;   // берём xyz
+    output.tangent = input.tangent.xyz;
     return output;
 }

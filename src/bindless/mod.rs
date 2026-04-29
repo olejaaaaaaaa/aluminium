@@ -32,24 +32,17 @@ impl Bindless {
                 .stage_flags(vk::ShaderStageFlags::ALL),
             vk::DescriptorSetLayoutBinding::default()
                 .binding(1)
-                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-                .descriptor_count(MAX_STORAGE_IMAGES)
-                .stage_flags(vk::ShaderStageFlags::ALL),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(2)
                 .descriptor_type(vk::DescriptorType::SAMPLER)
-                .descriptor_count(MAX_SAMPLER)
+                .descriptor_count(1)
                 .stage_flags(vk::ShaderStageFlags::ALL),
         ];
 
-        let binding_flags: Vec<vk::DescriptorBindingFlags> = layout
-            .iter()
-            .map(|_| {
-                vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
-                    | vk::DescriptorBindingFlags::PARTIALLY_BOUND
-                    | vk::DescriptorBindingFlags::UPDATE_UNUSED_WHILE_PENDING
-            })
-            .collect();
+        let binding_flags = vec![
+            vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
+                | vk::DescriptorBindingFlags::PARTIALLY_BOUND
+                | vk::DescriptorBindingFlags::UPDATE_UNUSED_WHILE_PENDING,
+            vk::DescriptorBindingFlags::empty(), // для сэмплера
+        ];
 
         let mut binding_flags_info =
             vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&binding_flags);
@@ -79,6 +72,30 @@ impl Bindless {
         let layouts = [set_layout.raw];
         let set = pool.create_descriptor_set(&ctx.device, &layouts)?[0];
 
+        let sampler_info = vk::SamplerCreateInfo::default()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR)
+            .address_mode_u(vk::SamplerAddressMode::REPEAT)
+            .address_mode_v(vk::SamplerAddressMode::REPEAT)
+            .address_mode_w(vk::SamplerAddressMode::REPEAT)
+            .mip_lod_bias(0.0)
+            .min_lod(0.0)
+            .max_lod(0.0);
+
+        let sampler = unsafe { ctx.device.create_sampler(&sampler_info, None).unwrap() };
+
+        let sampler_info_desc = vk::DescriptorImageInfo::default()
+            .sampler(sampler);
+
+        let sampler_write = vk::WriteDescriptorSet::default()
+            .dst_set(set)
+            .dst_binding(1)
+            .dst_array_element(0)
+            .descriptor_type(vk::DescriptorType::SAMPLER)
+            .image_info(std::slice::from_ref(&sampler_info_desc));
+
+        unsafe { ctx.device.update_descriptor_sets(&[sampler_write], &[]) };
+
         Ok(Self {
             next_texture: AtomicU32::new(0),
             set_layout,
@@ -104,6 +121,8 @@ impl Bindless {
             .dst_array_element(index)
             .descriptor_type(vk::DescriptorType::SAMPLED_IMAGE)
             .image_info(std::slice::from_ref(&image_info));
+
+        println!("Bindless index: {}", index);
 
         unsafe { device.update_descriptor_sets(&[write], &[]) };
     }

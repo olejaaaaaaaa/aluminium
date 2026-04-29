@@ -4,7 +4,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::types::PbrVertex;
-use aluminium::{Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
+use aluminium::{Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -57,62 +57,50 @@ impl ApplicationHandler for App {
                         depth: Handle<TransientTexture>,
                     }
 
-                    if time_sec >= 2.0 {
-                        let gbuffer: GBuffer = frame.add_pass(
-                            RasterPass::new("Simple GBuffer Pass")
-                                .setup(|builder| {
+   
+                    let gbuffer: GBuffer = frame.add_pass(
+                        RasterPass::new("Simple GBuffer Pass")
+                            .setup(|builder| {
 
-                                    let albedo: Handle<TransientTexture> = builder.create_texture(
-                                        "albedo", 
-                                        TextureFormat::Color, 
-                                        Resolution::FullRes
-                                    );
+                                let albedo: Handle<TransientTexture> = builder.create_texture(
+                                    "albedo", 
+                                    TextureFormat::Color, 
+                                    Resolution::FullRes
+                                );
 
-                                    let depth: Handle<TransientTexture> = builder.create_texture(
-                                        "depth",
-                                        TextureFormat::Depth,
-                                        Resolution::FullRes,
-                                    );
+                                let depth: Handle<TransientTexture> = builder.create_texture(
+                                    "depth",
+                                    TextureFormat::Depth,
+                                    Resolution::FullRes,
+                                );
 
-                                    let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
-                                    let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
+                                let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
+                                let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
 
-                                    GBuffer {
-                                        albedo,
-                                        depth
-                                    }
-                                })
-                                .execute(move |ctx| unsafe {
-                                    ctx.bind_pipeline(pipeline);
-                                    ctx.set_scissor(Scissor::FullRes);
-                                    ctx.set_viewport(Viewport::FullRes);
-                                    for (index, (mesh, _)) in model.meshes.iter().enumerate() {
-                                        ctx.push_constants([time_sec, index as f32]);
-                                        ctx.draw_indexed(&mesh.vertex, &mesh.index);
-                                    }
-                                }),
-                        );
+                                GBuffer {
+                                    albedo,
+                                    depth
+                                }
+                            })
+                            .execute(move |ctx| unsafe {
+                                ctx.bind_pipeline(pipeline);
+                                ctx.set_scissor(Scissor::FullRes);
+                                ctx.set_viewport(Viewport::FullRes);
+                                for (index, (mesh, _, material)) in model.meshes.iter().enumerate() {
+                                    ctx.push_constants([time_sec, index as f32]);
+                                    let textures = vec![
+                                        &model.textures[material.diffuse_map as usize],
+                                        &model.textures[material.metallic_roughness_map as usize],
+                                        &model.textures[material.occlusion_map as usize],
+                                        &model.textures[material.normal_map as usize]
+                                    ];
+                                    ctx.bind_texture(&textures);
+                                    ctx.draw_indexed(&mesh.vertex, &mesh.index);
+                                }
+                            }),
+                    );
 
-                        if time_sec >= 5.0 {
-                            let () = frame.add_pass(
-                                RasterPass::new("Output Pass")
-                                    .setup(move |builder| {
-                                        builder.read_texture(gbuffer.albedo, Location { set: 0, binding: 0 });
-
-                                        let back = builder.backbuffer();
-                                        let _ = builder.write_color(back, LoadOp::Clear, StoreOp::DontCare);
-                                        let _ = builder.write_depth(gbuffer.depth, LoadOp::Clear, StoreOp::DontCare);
-                                        
-                                    })
-                                    .execute(move |ctx| unsafe {
-                                        ctx.bind_pipeline(pipeline);
-                                        ctx.set_scissor(Scissor::FullRes);
-                                        ctx.set_viewport(Viewport::FullRes);
-                                        //ctx.draw(3, 1, 0, 0);    
-                                    })
-                            );
-                        }
-                    }
+                    
                 });
             },
             _ => (),

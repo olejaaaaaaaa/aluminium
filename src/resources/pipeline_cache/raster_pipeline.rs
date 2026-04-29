@@ -142,7 +142,10 @@ impl Create for RasterPipeline {
             .vertex_attribute_descriptions(&attrs);
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
-            .set_layouts(vec![resources.layout])
+            .set_layouts(vec![
+                resources.bindless.set_layout.raw,
+                resources.layout
+            ])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)

@@ -45,6 +45,15 @@ pub struct VertexBuffer {
     pub(crate) buffer: GpuBuffer
 }
 
+pub struct UniformBuffer {
+    buffers: Vec<GpuBuffer>,
+    data: bool
+}
+
+pub struct StorageBuffer {
+
+}
+
 pub struct VertexBufferDesc<'a> {
     vertices: &'a [u8],
 }

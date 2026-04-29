@@ -239,6 +239,7 @@ impl FrameGraph {
                             external_resources: resources.clone(),
                             static_data: StaticData {
                                 device: ctx.device.raw.clone(),
+                                bindless: resources.bindless_set(),
                                 cbuf: cmd_buffer,
                                 per_frame: resources.per_frame_set(),
                                 resolution,

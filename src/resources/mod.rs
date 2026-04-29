@@ -116,7 +116,6 @@ pub trait Destroy: Sized {
 
 pub struct StorageBuffer;
 pub struct StorageTexture;
-pub struct Texture;
 
 pub struct Resources {
     pub(crate) bindless: Bindless,
@@ -125,6 +124,7 @@ pub struct Resources {
     pub(crate) layout: vk::DescriptorSetLayout,
     pub(crate) indices: RwLock<SlotMap<ResourceKey, IndexBuffer>>,
     pub(crate) vertices: RwLock<SlotMap<ResourceKey, VertexBuffer>>,
+    pub(crate) textures: RwLock<SlotMap<ResourceKey, Texture>>,
     pub(crate) transient_textures: RwLock<SlotMap<ResourceKey, TransientTexture>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
@@ -139,11 +139,13 @@ impl Resources {
         let descriptors = DescriptorManager::new(&ctx.device)?;
 
         let layout = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![vk::DescriptorSetLayoutBinding::default()
-                .binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::ALL)])
+            .bindings(vec![
+                vk::DescriptorSetLayoutBinding::default()
+                    .binding(0)
+                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                    .descriptor_count(1)
+                    .stage_flags(vk::ShaderStageFlags::ALL),
+            ])
             .build()?;
 
         let set = descriptors
@@ -172,6 +174,7 @@ impl Resources {
             set,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
+            textures: RwLock::new(SlotMap::with_key()),
             transient_textures: RwLock::new(SlotMap::with_key()),
             vertices: RwLock::new(SlotMap::with_key()),
             indices: RwLock::new(SlotMap::with_key()),

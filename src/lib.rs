@@ -17,7 +17,7 @@ pub use frame_graph::{
 };
 pub use resources::{
     Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, ShaderType, TextureFormat, TransientTexture,
-    Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc, Layout
+    Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc, Layout, Texture, TextureDesc
 };
 pub use vk_sync::AccessType;
 pub use world_renderer::WorldRenderer;

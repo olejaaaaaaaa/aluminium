@@ -5,10 +5,10 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::frame_graph::{Scissor, Viewport};
 use crate::resources::{Res, Resources};
-use crate::{IndexBuffer, Mesh, RasterPipeline, Transform, VertexBuffer, per_frame};
+use crate::{IndexBuffer, Mesh, RasterPipeline, Texture, Transform, VertexBuffer, per_frame};
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
+#[derive(Clone, Copy, Pod, Zeroable, Debug)]
 pub struct PushConstants {
     tex_idx: [u32; 8],
     user_data: [u8; 96],
@@ -26,6 +26,7 @@ pub struct RuntimeData {
 
 pub struct StaticData {
     pub per_frame: vk::DescriptorSet,
+    pub bindless: vk::DescriptorSet,
     pub resolution: vk::Extent2D,
     pub device: ash::Device,
     pub cbuf: vk::CommandBuffer
@@ -49,6 +50,15 @@ pub struct PassContext {
 }
 
 impl PassContext {
+
+    pub unsafe fn bind_texture(&mut self, textures: &[&Res<Texture>]) {
+        let push = self.runtime_data.push.as_mut().unwrap();
+        for i in 0..textures.len() {
+            push.tex_idx[i] = self.external_resources.textures.read().get(textures[i].key).unwrap().index;
+        }
+        
+    }
+
     pub unsafe fn set_viewport(&mut self, viewport: Viewport) {
         profiling::scope!("PassContext::set_viewport");
 
@@ -163,6 +173,7 @@ impl PassContext {
         let device = &self.static_data.device;
         let cbuf = self.static_data.cbuf;
         let per_frame_set = self.static_data.per_frame;
+        let bindless = self.static_data.bindless;
         let pipeline = self.runtime_data.pipeline.expect("Required Bind pipeline");
         let layout = self.runtime_data.layout.unwrap();
         let bind_point = self.runtime_data.bind_point.unwrap();
@@ -197,7 +208,7 @@ impl PassContext {
             bind_point,
             layout,
             0,
-            &[per_frame_set],
+            &[bindless, per_frame_set],
             &[],
         );
 
