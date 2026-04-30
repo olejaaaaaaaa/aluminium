@@ -65,6 +65,7 @@ let index_buffer: Res<IndexBuffer> = world.create::<IndexBuffer>(IndexBufferDesc
 // We can handle the case when the frame was not rendered for some reason
 // (lack of memory, driver error, device loss), but in most cases I will just ignore it
 let _ = world.draw_frame(move |frame| {
+    // An explicit indication of the output value is required even if we do not return anything from the setup phase.
     let () = frame.add_pass(
         RasterPass::new("Simple Pass")
             .setup(|builder| {
