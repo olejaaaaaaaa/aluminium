@@ -18,8 +18,6 @@ cargo run -p view
 
 ## Example - Triangle
 
-A minimal end-to-end example: build a pipeline, upload geometry, and render a triangle
-
 ```rust
 // The structure through which all interaction will take place
 let world = WorldRenderer::new(&window);
@@ -118,7 +116,7 @@ To support both PC and mobile hardware, only the common subset is used
 
 I use Vulkan API 1.1+/1.2 version
 
-Extensions
+Required extensions
 
     - VK_KHR_swapchain
     - VK_EXT_descriptor_indexing
@@ -130,19 +128,21 @@ Extensions
     - VK_KHR_device_group
 
 
-Formats
+Required formats
 
     D32_SFLOAT          (SAMPLED/DEPTH_STENCIL)
     R8G8B8A8_SRGB       (SAMPLED/COLOR_ATTACHEMENT)
     R16G16B16A16_SFLOAT (SAMPLED/COLOR_ATTACHMENT)
 
+Other extensions and formats are optional and may not be supported on the target device
+
 ## Note
-Aluminum is a **data visualization** engine optimized for rendering performance.
+Aluminum is a **data visualization** engine optimized for rendering performance
 
 It intentionally excludes:
 
     - Asset loaders (glTF, OBJ, PNG, etc.)
-    - UI frameworks (egui, imgui, etc.)
+    - Ui tools (egui, imgui, etc.)
 
 ## Known issues
 Not all resources are cleared correctly
