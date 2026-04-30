@@ -41,7 +41,7 @@ impl View {
             )
             .expect("Error create pipeline");
 
-        let model = load_gltf(&world, r"C:\Users\Oleja\Desktop\aluminium\examples\view\assets\flighthelmet\scene.gltf").expect("Error load gltf model");
+        let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf").expect("Error load gltf model");
 
         Self {
             global_time: Instant::now(),
