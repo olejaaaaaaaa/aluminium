@@ -59,6 +59,53 @@ impl PassContext {
         
     }
 
+    pub unsafe fn draw_fullscreen(&self) {
+
+        let device = &self.static_data.device;
+        let cbuf = self.static_data.cbuf;
+        let per_frame_set = self.static_data.per_frame;
+        let bindless = self.static_data.bindless;
+        let pipeline = self.runtime_data.pipeline.expect("Required Bind pipeline");
+        let layout = self.runtime_data.layout.unwrap();
+        let bind_point = self.runtime_data.bind_point.unwrap();
+
+        let push = self.runtime_data.push.unwrap_or(PushConstants {
+            tex_idx: [0u32; 8],
+            user_data: [0u8; 96]
+        });
+
+        device.cmd_bind_pipeline(cbuf, bind_point, pipeline);
+
+        if let Some(viewport) = self.runtime_data.viewport {
+            let views = [viewport];
+            device.cmd_set_viewport(cbuf, 0, &views);
+        }
+
+        if let Some(scissor) = self.runtime_data.scissor {
+            let scissors = [scissor];
+            device.cmd_set_scissor(cbuf, 0, &scissors);
+        }
+
+        device.cmd_push_constants(
+            cbuf,
+            layout,
+            vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
+            0,
+            bytemuck::bytes_of(&push),
+        );
+
+        device.cmd_bind_descriptor_sets(
+            cbuf,
+            bind_point,
+            layout,
+            0,
+            &[bindless, per_frame_set],
+            &[],
+        );
+
+        device.cmd_draw(cbuf, 3, 1, 0, 0);
+    }
+
     pub unsafe fn set_viewport(&mut self, viewport: Viewport) {
         profiling::scope!("PassContext::set_viewport");
 

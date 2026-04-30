@@ -23,6 +23,7 @@ pub struct FrameValues {
 
 impl FrameValues {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
+        
         let buffer = PerFrameBufferBuilder::new(device)
             .frame_count(frame_count)
             .buffer_size(size_of::<FrameData>() as u64)

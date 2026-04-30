@@ -12,6 +12,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use winit::*;
 
+mod view;
+pub use view::View;
+
 mod ui;
 pub use ui::UiRenderer;
 
@@ -20,90 +23,21 @@ pub use gltf_loader::{GltfModel, load_gltf};
 
 #[derive(Default)]
 struct App {
-    global_time: Option<std::time::Instant>,
-    model: Option<GltfModel>,
-    pipeline: Option<Res<RasterPipeline>>,
-    ui: Option<UiRenderer>,
-    world: Option<WorldRenderer>,
+    view: Option<View>,
     window: Option<winit::window::Window>,
 }
 
 impl ApplicationHandler for App {
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
 
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             },
-            WindowEvent::Resized(size) => {
-                let (width, height) = (size.width, size.height);
-                let world = self.world.as_mut().unwrap();
-                world.resize(width, height).expect("Error resize window");
+            _ => {
+                let view = self.view.as_mut().unwrap();
+                view.handle_event(event_loop, id, event);
             },
-            WindowEvent::RedrawRequested => {
-                let window = self.window.as_ref().unwrap();
-                window.pre_present_notify();
-
-                let world = self.world.as_mut().unwrap();
-                let pipeline = self.pipeline.as_ref().unwrap();
-                let model = self.model.as_ref().unwrap();
-                let time_sec = self.global_time.as_ref().unwrap().elapsed().as_secs_f32();
-
-                let _ = world.draw_frame(move |frame| {
-
-                    #[derive(Clone, Copy)]
-                    pub struct GBuffer {
-                        albedo: Handle<TransientTexture>,
-                        depth: Handle<TransientTexture>,
-                    }
-
-   
-                    let gbuffer: GBuffer = frame.add_pass(
-                        RasterPass::new("Simple GBuffer Pass")
-                            .setup(|builder| {
-
-                                let albedo: Handle<TransientTexture> = builder.create_texture(
-                                    "albedo", 
-                                    TextureFormat::Color, 
-                                    Resolution::FullRes
-                                );
-
-                                let depth: Handle<TransientTexture> = builder.create_texture(
-                                    "depth",
-                                    TextureFormat::Depth,
-                                    Resolution::FullRes,
-                                );
-
-                                let albedo: Handle<TransientTexture> = builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
-                                let depth: Handle<TransientTexture> = builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
-
-                                GBuffer {
-                                    albedo,
-                                    depth
-                                }
-                            })
-                            .execute(move |ctx| unsafe {
-                                ctx.bind_pipeline(pipeline);
-                                ctx.set_scissor(Scissor::FullRes);
-                                ctx.set_viewport(Viewport::FullRes);
-                                for (index, (mesh, _, material)) in model.meshes.iter().enumerate() {
-                                    ctx.push_constants([time_sec, index as f32]);
-                                    let textures = vec![
-                                        &model.textures[material.diffuse_map as usize],
-                                        &model.textures[material.metallic_roughness_map as usize],
-                                        &model.textures[material.occlusion_map as usize],
-                                        &model.textures[material.normal_map as usize]
-                                    ];
-                                    ctx.bind_texture(&textures);
-                                    ctx.draw_indexed(&mesh.vertex, &mesh.index);
-                                }
-                            }),
-                    );
-
-                    
-                });
-            },
-            _ => (),
         }
     }
 
@@ -122,27 +56,8 @@ impl ApplicationHandler for App {
             .create_window(window_attributes)
             .expect("Error create window");
 
-        let world = WorldRenderer::new(&window).expect("Error create world renderer");
-
-        let pipeline = world
-            .create::<RasterPipeline>(
-                RasterPipelineDesc::new()
-                    .vertex_shader("./shaders/spv/raster_vs.spv")
-                    .fragment_shader("./shaders/spv/raster_ps.spv")
-                    .vertex_input::<PbrVertex>()
-                    .depth_test(true)
-                    .dynamic_scissors(true)
-                    .dynamic_viewport(true)
-            )
-            .expect("Error create pipeline");
-
-        let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf").expect("Error load gltf model");
-
-        self.ui = Some(UiRenderer::new(&world, &window).expect("Error create Ui renderer"));
-        self.global_time = Some(Instant::now());
-        self.model = Some(model);
-        self.pipeline = Some(pipeline);
-        self.world = Some(world);
+        let view = View::new(&window);
+        self.view = Some(view);
         self.window = Some(window);
     }
 }
@@ -150,7 +65,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::INFO)
+        .with_max_level(LevelFilter::ERROR)
         .init();
 
     let event_loop = EventLoop::new()?;

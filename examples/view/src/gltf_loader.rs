@@ -194,7 +194,7 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
             textures.push(texture);
 
         } else {
-            eprintln!("Skip texture foramt: {:?}", image.format);
+            println!("Skip texture foramt: {:?}", image.format);
         }
     }
 
