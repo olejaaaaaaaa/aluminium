@@ -25,14 +25,14 @@ A minimal end-to-end example: build a pipeline, upload geometry, and render a tr
 let world = WorldRenderer::new(&window);
 
 // The Rasterization Pipeline is used to render an image to the 
-// screen or to an offscreen texture and cannot be changed while it is in use.
+// screen or to an offscreen texture and cannot be changed after creation
 let pipeline: Res<RasterPipeline> = world
     .create::<RasterPipeline>(
         RasterPipelineDesc::new()
             // You can pass either the path to the spv byte code or directly pass a slice of bytes
             .vertex_shader("./shaders/spv/raster_vs.spv")
             // The shader must have the correct header for this type of pipeline
-            // See the usage example in the file ./examples/view/src/view.rs
+            // See the usage example in the file ./shaders/raster_vs.hlsl and ./shaders/raster_ps.hlsl
             .fragment_shader("./shaders/spv/raster_ps.spv")
             // The format of vertices that this pipeline can work with
             .vertex_input::<Vertex>()
@@ -103,6 +103,10 @@ let _ = world.draw_frame(move |frame| {
     );
 });
 ```
+
+## Shaders
+Any shader language works as long as it creates a valid SPIR-V and
+conforms to the pipeline layout. I use GLSL and HLSL mostly
 
 ## Minimal hardware requirments
 To support both PC and mobile hardware, only the common subset is used
