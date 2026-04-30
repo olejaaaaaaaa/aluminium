@@ -95,7 +95,8 @@ let _ = world.draw_frame(move |frame| {
                 // There are minimal checks for the correctness of the transmitted data
                 ctx.bind_pipeline(pipeline);
                 // The Push Constants function can be omitted
-                ctx.push_constants(time_sec);
+                // Some amount of data can be passed through push_constants instead of binding uniforms
+                ctx.push_constants([1.0, 0.2f32]);
                 // The pipeline must be created with the dynamic_scissors flag
                 ctx.set_scissor(Scissor::FullRes);
                 // The pipeline must be created with the dynamic_viewport flag
