@@ -84,7 +84,9 @@ impl Device {
             c"VK_KHR_swapchain",
             c"VK_EXT_descriptor_indexing",
             c"VK_KHR_driver_properties",
-            c"VK_KHR_imageless_framebuffer"
+            c"VK_KHR_imageless_framebuffer",
+            c"VK_KHR_buffer_device_address",
+            c"VK_KHR_device_group"
         ];
 
         for i in required_extensions {
@@ -100,8 +102,7 @@ impl Device {
         }
 
         let optional_extensions: Vec<Vec<&'static CStr>> = vec![
-            // Buffer Device Address
-            vec![c"VK_KHR_buffer_device_address", c"VK_KHR_device_group"],
+            vec![],
         ];
 
         for i in &optional_extensions {
