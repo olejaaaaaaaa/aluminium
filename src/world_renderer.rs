@@ -86,25 +86,39 @@ impl WorldRenderer {
     ///     Vertex { pos: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
     ///     Vertex { pos: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }
     /// ];
-    /// // Ok
-    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices))?;
-    ///
-    /// let indices: Vec<u32> = vec![];
-    /// // Error: Indices must be not empty!
-    /// let mesh: Res<Mesh> = world.create::<Mesh>(MeshDesc::new(&vertices).with_indices(&indices))?;
-    /// ```
+    /// 
+    /// let vertex_buffer: Res<VertexBuffer> = world.create::<VertexBuffer>(
+    ///     VertexBufferDesc::new(&vertices)
+    /// )?;
+    /// 
+    ///```
+    /// 
     pub fn create<T: Create>(&self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.ctx, &self.resources, desc)
     }
 
     /// Acquires a shared read lock on the resource [`Ref<'_, T>`]
-    pub fn get<T: Get>(&self, res: &Res<T>) -> Ref<'_, T> {
-        T::get(&self.resources, res)
+    /// # Panics
+    /// - if the resource is already borrowed mutably
+    pub fn get<T: Get>(&self, handle: &Res<T>) -> Ref<'_, T> {
+        T::get(&self.resources, handle).expect("Already borrowed")
     }
 
     /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
-    pub fn get_mut<T: GetMut>(&self, res: &Res<T>) -> RefMut<'_, T> {
-        T::get_mut(&self.resources, res)
+    pub fn try_get<T: Get>(&self, handle: &Res<T>) -> Option<Ref<'_, T>> {
+        T::get(&self.resources, handle)
+    }
+
+    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
+    /// # Panics
+    /// - if the resource is already borrowed mutably
+    pub fn get_mut<T: GetMut>(&self, handle: &Res<T>) -> RefMut<'_, T> {
+        T::get_mut(&self.resources, handle).expect("Already borrowed")
+    }
+
+    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
+    pub fn try_get_mut<T: GetMut>(&self, handle: &Res<T>) -> Option<RefMut<'_, T>> {
+        T::get_mut(&self.resources, handle)
     }
 
     /// Re-creating the main window
@@ -140,9 +154,9 @@ impl WorldRenderer {
     ///
     /// world.draw_frame(|graph| {
     ///     graph.add_pass(
-    ///         RasterPass::new("Final Pass").execute(|ctx| unsafe {
-    ///             ctx.bind_pipeline(simple_pipeline)
-    ///             ctx.draw(3)
+    ///         RasterPass::new("Final Pass").execute(move |ctx| unsafe {
+    ///             ctx.bind_pipeline(&simple_pipeline)
+    ///             ctx.draw_fullscreen();
     ///         });
     ///     );
     /// })?;

@@ -1,11 +1,12 @@
 use std::sync::{Arc, Weak};
 
 use ash::vk;
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, bytes_of};
+use parking_lot::RwLockReadGuard;
 
 use crate::core::{Device, GpuBuffer, GpuBufferBuilder};
 use crate::render_context::RenderContext;
-use crate::resources::{Create, Destroy, Pool, ResourceKey, Resources};
+use crate::resources::{Create, Destroy, Get, Pool, ResourceKey, Resources};
 use crate::VulkanResult;
 
 pub struct Mesh {
@@ -50,8 +51,47 @@ pub struct UniformBuffer {
     data: bool
 }
 
-pub struct StorageBuffer {
+pub struct StorageBufferDesc<'a> {
+    data: &'a [u8]
+}
 
+impl<'a> StorageBufferDesc<'a> {
+    pub fn new<T: Pod + Zeroable>(data: &'a [T]) -> Self {
+        Self { data: bytemuck::cast_slice(data) }
+    }
+}
+
+impl Destroy for StorageBuffer {
+    fn destroy(key: ResourceKey, ctx: Weak<RenderContext>, resources: Weak<Resources>) {
+        
+    }
+}
+
+impl Create for StorageBuffer {
+    type Desc<'a> = StorageBufferDesc<'a>;
+    fn create(
+            ctx: &Arc<RenderContext>,
+            resources: &Arc<Resources>,
+            desc: Self::Desc<'_>,
+        ) -> VulkanResult<super::Res<Self>> {
+        todo!()
+    }
+}
+
+impl Get for StorageBuffer {
+    fn get<'a>(resources: &'a Resources, res: &super::Res<Self>) -> Option<super::Ref<'a, Self>> {
+        if let Some(guard) = resources.storage_buffers.try_read() {
+            let mapped = RwLockReadGuard::map(guard, |x| {
+                x.get(res.key).unwrap()
+            });
+            return Some(super::Ref(mapped));
+        } 
+        None
+    }
+}
+
+pub struct StorageBuffer {
+    buffer: GpuBuffer
 }
 
 pub struct VertexBufferDesc<'a> {

@@ -34,9 +34,9 @@ new_key_type! {
     pub struct ResourceKey;
 }
 
-pub struct Ref<'a, T>(pub(crate) parking_lot::RwLockReadGuard<'a, T>);
+pub struct Ref<'a, T>(pub(crate) parking_lot::MappedRwLockReadGuard<'a, T>);
 
-pub struct RefMut<'a, T>(pub(crate) parking_lot::RwLockWriteGuard<'a, T>);
+pub struct RefMut<'a, T>(pub(crate) parking_lot::MappedRwLockWriteGuard<'a, T>);
 
 impl<'a, T> std::ops::Deref for Ref<'a, T> {
     type Target = T;
@@ -101,21 +101,18 @@ pub trait Create: Sized + Destroy {
 
 #[allow(missing_docs)]
 pub trait GetMut: Sized + Destroy {
-    fn get_mut<'a>(resources: &'a Resources, res: &Res<Self>) -> RefMut<'a, Self>;
+    fn get_mut<'a>(resources: &'a Resources, res: &Res<Self>) -> Option<RefMut<'a, Self>>;
 }
 
 #[allow(missing_docs)]
 pub trait Get: Sized + Destroy {
-    fn get<'a>(resources: &'a Resources, res: &Res<Self>) -> Ref<'a, Self>;
+    fn get<'a>(resources: &'a Resources, res: &Res<Self>) -> Option<Ref<'a, Self>>;
 }
 
 #[allow(missing_docs)]
 pub trait Destroy: Sized {
     fn destroy(key: ResourceKey, ctx: Weak<RenderContext>, resources: Weak<Resources>);
 }
-
-pub struct StorageBuffer;
-pub struct StorageTexture;
 
 pub struct Resources {
     pub(crate) bindless: Bindless,
@@ -125,6 +122,8 @@ pub struct Resources {
     pub(crate) indices: RwLock<SlotMap<ResourceKey, IndexBuffer>>,
     pub(crate) vertices: RwLock<SlotMap<ResourceKey, VertexBuffer>>,
     pub(crate) textures: RwLock<SlotMap<ResourceKey, Texture>>,
+    pub(crate) uniforms: RwLock<SlotMap<ResourceKey, UniformBuffer>>,
+    pub(crate) storage_buffers: RwLock<SlotMap<ResourceKey, StorageBuffer>>,
     pub(crate) transient_textures: RwLock<SlotMap<ResourceKey, TransientTexture>>,
     pub(crate) transforms: RwLock<TransformPool>,
     pub(crate) pipeline_cache: RwLock<PipelineCache>,
@@ -174,6 +173,8 @@ impl Resources {
             set,
             pipeline_cache: RwLock::new(pipeline_cache),
             transforms: RwLock::new(transforms),
+            uniforms: RwLock::new(SlotMap::with_key()),
+            storage_buffers: RwLock::new(SlotMap::with_key()),
             textures: RwLock::new(SlotMap::with_key()),
             transient_textures: RwLock::new(SlotMap::with_key()),
             vertices: RwLock::new(SlotMap::with_key()),
