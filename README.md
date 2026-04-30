@@ -62,6 +62,8 @@ let vertex_buffer: Res<VertexBuffer> = world.create::<VertexBuffer>(VertexBuffer
 let index_buffer: Res<IndexBuffer> = world.create::<IndexBuffer>(IndexBufferDesc::new(&vec![0, 1, 2u32])).expect("Error create Index Buffer");
 
 // The main closure in which all rendering passes will be defined
+// We can handle the case when the frame was not rendered for some reason
+// (lack of memory, driver error, device loss), but in most cases I will just ignore it
 let _ = world.draw_frame(move |frame| {
     let () = frame.add_pass(
         RasterPass::new("Simple Pass")
@@ -132,11 +134,17 @@ Formats
     R16G16B16A16_SFLOAT (SAMPLED/COLOR_ATTACHMENT)
 
 ## Note
-Aluminum is focused on data visualization with high enough performance 
-It **does not** provide resource loading tools (glTF/OBJ/PNG) and UI display tools(egui/imgui)
+Aluminum is a **data visualization** engine optimized for rendering performance.
+
+It intentionally excludes:
+
+    - Asset loaders (glTF, OBJ, PNG, etc.)
+    - UI frameworks (egui, imgui, etc.)
 
 ## Known issues
 Not all resources are cleared correctly
+
+I'm balancing the speed of adding new features and correctness
 
 ## Supported Platforms
 
