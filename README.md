@@ -37,12 +37,13 @@ let pipeline: Res<RasterPipeline> = world
             // The format of vertices that this pipeline can work with
             .vertex_input::<Vertex>()
             // Enable depth testing to properly display the 3D mesh
-            // If this flag is enabled, you should use a depth texture when rendering
+            // If this flag is enabled, you should use a depth texture when rendering in the setup phase
             .depth_test(true)
             // We can dynamically crop the image if we want
             // If the flag is enabled, you need to configure this parameter in the execute phase
             .dynamic_scissors(true)
             // Auto resize
+            // If the flag is enabled, you need to configure this parameter in the execute phase
             .dynamic_viewport(true)
     )
     .expect("Error create pipeline");
