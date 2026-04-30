@@ -102,7 +102,8 @@ let _ = world.draw_frame(move |frame| {
 
 ## Minimal hardware requirments
 To support both PC and mobile hardware, only the common subset is used
-I chose to use Vulkan API 1.1+/1.2 version
+
+I use Vulkan API 1.1+/1.2 version
 
 Extensions
 
