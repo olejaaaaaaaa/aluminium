@@ -26,7 +26,7 @@ let world = WorldRenderer::new(&window);
 
 // The Rasterization Pipeline is used to render an image to the 
 // screen or to an offscreen texture and cannot be changed while it is in use.
-let pipeline = world
+let pipeline: Res<RasterPipeline> = world
     .create::<RasterPipeline>(
         RasterPipelineDesc::new()
             // You can pass either the path to the spv byte code or directly pass a slice of bytes
@@ -92,6 +92,8 @@ let _ = world.draw_frame(move |frame| {
                 ctx.push_constants(time_sec);
                 // The pipeline must be created with the dynamic_scissors flag
                 ctx.set_scissor(Scissor::FullRes);
+                // The pipeline must be created with the dynamic_viewport flag
+                // viewport for current window size
                 ctx.set_viewport(Viewport::FullRes);
                 // Draw mesh
                 ctx.draw_indexed(&vertex_buffer, &index_buffer);
