@@ -31,6 +31,8 @@ let pipeline: Res<RasterPipeline> = world
         RasterPipelineDesc::new()
             // You can pass either the path to the spv byte code or directly pass a slice of bytes
             .vertex_shader("./shaders/spv/raster_vs.spv")
+            // The shader must have the correct header for this type of pipeline
+            // See the usage example in the file ./examples/view/src/view.rs
             .fragment_shader("./shaders/spv/raster_ps.spv")
             // The format of vertices that this pipeline can work with
             .vertex_input::<Vertex>()
@@ -116,6 +118,8 @@ Extensions
     - VK_KHR_imageless_framebuffer
     - VK_KHR_buffer_device_address
     - VK_KHR_timeline_semaphore
+    - VK_KHR_device_group
+
 
 Formats
 
