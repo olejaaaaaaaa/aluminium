@@ -53,11 +53,11 @@ let vertices = vec![
 
 // Create new Buffer for all vertices
 // May throw an error if there is not enough memory for allocation
-let vertex_buffer = world.create::<VertexBuffer>(VertexBufferDesc::new(&vertices)).expect("Error create Vertex Buffer");
+let vertex_buffer: Res<VertexBuffer> = world.create::<VertexBuffer>(VertexBufferDesc::new(&vertices)).expect("Error create Vertex Buffer");
 
 // Indices for vertices
 // May throw an error if there is not enough memory for allocation
-let index_buffer = world.create::<IndexBuffer>(IndexBufferDesc::new(&vec![0, 1, 2u32])).expect("Error create Index Buffer");
+let index_buffer: Res<IndexBuffer> = world.create::<IndexBuffer>(IndexBufferDesc::new(&vec![0, 1, 2u32])).expect("Error create Index Buffer");
 
 // The main closure in which all rendering passes will be defined
 let _ = world.draw_frame(move |frame| {
@@ -66,10 +66,10 @@ let _ = world.draw_frame(move |frame| {
             .setup(|builder| {
 
                 // Getting a texture for display on the screen
-                let back: Res<TransientTexture> = builder.backbuffer();
+                let back: Handle<TransientTexture> = builder.backbuffer();
 
                 // Create a Depth texture for depth testing
-                let depth: Res<TransientTexture> = builder.create_texture(
+                let depth: Handle<TransientTexture> = builder.create_texture(
                     // Name for debug and profiling
                     "depth",
                     // Standart Format for Depth image without Stencil
@@ -102,18 +102,30 @@ let _ = world.draw_frame(move |frame| {
 
 ## Minimal hardware requirments
 To support both PC and mobile hardware, only the common subset is used
+I chose to use Vulkan API 1.1+/1.2 version
 
 Extensions
 
     - VK_KHR_swapchain
     - VK_EXT_descriptor_indexing
     - VK_KHR_driver_properties
-    - VK_KHR_synchronization2
     - VK_KHR_get_physical_device_properties2
+    - VK_KHR_imageless_framebuffer
+    - VK_KHR_buffer_device_address
+    - VK_KHR_timeline_semaphore
+
+Formats
+
+    D32_SFLOAT (SAMPLED/DEPTH_STENCIL)
+    R8G8B8A8_SRGB (SAMPLED/COLOR_ATTACHEMENT)
+    R16G16B16A16_SFLOAT (SAMPLED/COLOR_ATTACHMENT)
 
 ## Note
 Aluminum is focused on data visualization with high enough performance 
 It **does not** provide resource loading tools (glTF/OBJ/PNG) and UI display tools(egui/imgui)
+
+## Known issues
+Not all resources are cleared correctly
 
 ## Supported Platforms
 
