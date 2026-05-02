@@ -24,10 +24,10 @@ static const float3 LIGHT_POSITIONS[4] = {
 };
 
 static const float3 LIGHT_COLORS[4] = {
-    float3(3000.0, 3000.0, 3000.0),
-    float3(3000.0, 3000.0, 3000.0),
-    float3(3000.0, 3000.0, 3000.0),
-    float3(3000.0, 3000.0, 3000.0)
+    float3(150.0, 300.0, 300.0),
+    float3(300.0, 150.0, 300.0),
+    float3(150.0, 300.0, 300.0),
+    float3(300.0, 300.0, 150.0)
 };
 
 float3 getNormalFromMap(VSOutput input, Texture2D normal_tex) {

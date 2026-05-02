@@ -174,20 +174,20 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
 
     for mut image in images {
         if image.format == Format::R8G8B8A8 {
-            let dynamic_image = image::DynamicImage::ImageRgb8(
-                image::RgbImage::from_raw(
+
+            let dynamic_image = image::DynamicImage::ImageRgba8(
+                image::RgbaImage::from_raw(
                     image.width,
                     image.height,
                     std::mem::take(&mut image.pixels),
-                )
-                .unwrap(),
+                ).unwrap()
             );
 
             let rgba8_image = dynamic_image.to_rgba8();
             let texture = world.create::<aluminium::Texture>(TextureDesc {
                 width: image.width,
                 height: image.height,
-                format: aluminium::TextureFormat::Color,
+                format: aluminium::PixelFormat::Rgba8,
                 pixels: &rgba8_image.into_raw()
             })?;
 
@@ -207,7 +207,7 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
             let texture = world.create::<aluminium::Texture>(TextureDesc {
                 width: image.width,
                 height: image.height,
-                format: aluminium::TextureFormat::Color,
+                format: aluminium::PixelFormat::Rgb8,
                 pixels: &rgba8_image.into_raw()
             })?;
 

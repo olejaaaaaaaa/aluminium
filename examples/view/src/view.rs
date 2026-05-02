@@ -115,7 +115,7 @@ impl View {
                                 ctx.set_viewport(Viewport::FullRes);
                                 for (index, (mesh, material)) in model.meshes.iter().enumerate() {
                                     ctx.push_constants([
-                                        0.0f32, 2.0 * time_sec.sin().abs(), 2.0 * time_sec.cos().abs(),
+                                        0.0, 15.0 * time_sec.sin().abs(), 15.0 * time_sec.cos().abs(),
                                         index as f32,
                                     ]);
                                     let textures = vec![

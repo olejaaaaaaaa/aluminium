@@ -133,27 +133,13 @@ impl FrameGraph {
                     }
 
                     pass.set = Some(set);
-
-                    {
-                        let binding2 = resources.storage_buffers.read();
-                        let buf2 = binding2.get(buffers.key).unwrap();
-                        println!("buffer raw handle: {:?}", buf2.buffer.raw);
-                        println!("buffer size: {:?}", buf2.buffer.allocation.as_ref().unwrap().size());
-
-                        // и mapped ptr
-                        let ptr = buf2.buffer.allocation.as_ref().unwrap()
-                            .mapped_ptr().unwrap().as_ptr() as *const f32;
-                        unsafe {
-                            println!("first f32 in buffer: {}", *ptr);
-                    }
-
-                }
+                
                 }
             }
        }
 
-       std::mem::forget(layot);
-       std::mem::forget(pool);
+    //    std::mem::forget(layot);
+    //    std::mem::forget(pool);
 
         Ok(())
     }

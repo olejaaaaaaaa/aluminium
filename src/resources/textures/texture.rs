@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ash::vk;
 use vk_sync::ImageBarrier;
 
-use crate::{Resolution, VulkanResult};
+use crate::{PixelFormat, Resolution, VulkanResult};
 use crate::core::{CommandPoolBuilder, GpuBufferBuilder, Image, ImageBuilder, ImageView, ImageViewBuilder};
 use crate::render_context::RenderContext;
 use crate::resources::{Create, Res, ResourceKey, Resources};
@@ -30,11 +30,21 @@ impl Create for Texture {
             resources: &Arc<Resources>,
             desc: Self::Desc<'_>,
         ) -> VulkanResult<Res<Self>> {
+
+        let format = match desc.format {
+            PixelFormat::Rgb8 => {
+                 vk::Format::R8G8B8A8_UNORM
+            },
+            PixelFormat::Rgba8 => {
+                vk::Format::R8G8B8A8_SRGB
+            },
+            _ => todo!()
+        };
         
         let image = ImageBuilder::new(&ctx.device)
             .extent(vk::Extent3D { width: desc.width, height: desc.height, depth: 1 })
             .array_layers(1)
-            .format(vk::Format::R8G8B8A8_SRGB)
+            .format(format)
             .image_type(vk::ImageType::TYPE_2D)
             .usage(vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST)
             .build()?;
@@ -153,7 +163,7 @@ impl Create for Texture {
 
         let image_view = ImageViewBuilder::new(&ctx.device)
             .components(vk::ComponentMapping::default())
-            .format(vk::Format::R8G8B8A8_SRGB)
+            .format(format)
             .image(image.raw)
             .view_type(vk::ImageViewType::TYPE_2D)
             .subresource_range(
@@ -180,7 +190,7 @@ impl Create for Texture {
 pub struct TextureDesc<'a> {
     pub width: u32,
     pub height: u32,
-    pub format: TextureFormat,
+    pub format: PixelFormat,
     pub pixels: &'a [u8]
 }
 
