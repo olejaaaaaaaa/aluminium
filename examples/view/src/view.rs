@@ -4,7 +4,8 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::types::PbrVertex;
-use aluminium::{Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
+use aluminium::{Get, GetMut, Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StorageBuffer, StorageBufferDesc, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
+use bytemuck::{Pod, Zeroable};
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -13,6 +14,13 @@ use winit::window::{Window, WindowId};
 use winit::*;
 
 use crate::{GltfModel, UiRenderer, load_gltf};
+
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct Test {
+    time: f32
+}
 
 pub struct View {
     global_time: std::time::Instant,
@@ -63,7 +71,9 @@ impl View {
 
                 let gbuffer_pipeline = &self.gbuffer_pipeline;
                 let time_sec = self.global_time.elapsed().as_secs_f32();
+                
                 let model = &self.model;
+                let ssbo = model.ssbo.as_ref().unwrap();
 
                 let _ = self.world.draw_frame(move |frame| {
 
@@ -76,6 +86,8 @@ impl View {
                     let gbuffer: GBuffer = frame.add_pass(
                         RasterPass::new("GBuffer Pass")
                             .setup(|builder| {
+
+                                builder.read_storage_buffer(ssbo, Location { set: 2, binding: 0 });
 
                                 let albedo: Handle<TransientTexture> = builder.create_texture(
                                     "albedo", 
@@ -101,8 +113,11 @@ impl View {
                                 ctx.bind_pipeline(gbuffer_pipeline);
                                 ctx.set_scissor(Scissor::FullRes);
                                 ctx.set_viewport(Viewport::FullRes);
-                                for (index, (mesh, _, material)) in model.meshes.iter().enumerate() {
-                                    ctx.push_constants([time_sec, index as f32]);
+                                for (index, (mesh, material)) in model.meshes.iter().enumerate() {
+                                    ctx.push_constants([
+                                        0.0f32, 2.0 * time_sec.sin().abs(), 2.0 * time_sec.cos().abs(),
+                                        index as f32,
+                                    ]);
                                     let textures = vec![
                                         model.textures.get(material.diffuse_map as usize).unwrap_or(&model.textures[0]),
                                         model.textures.get(material.metallic_roughness_map as usize).unwrap_or(&model.textures[0]),

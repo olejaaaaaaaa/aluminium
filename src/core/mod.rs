@@ -60,6 +60,9 @@ pub use semaphore::*;
 mod descriptor_set_layout;
 pub use descriptor_set_layout::*;
 
+mod per_frame;
+pub use per_frame::*;
+
 mod pipeline_cache;
 
 mod fence;

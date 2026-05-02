@@ -1,8 +1,14 @@
+[[vk::binding(0, 0)]] Texture2D Textures[];
+[[vk::binding(1, 0)]] SamplerState tex_sampler;
+
 struct Transform {
-    float4x4 mvp;
+    float4x4 model;
+    float4x4 view;
+    float4x4 proj;
+    float4x4 normal;
 };
 
-[[vk::binding(0, 1)]] StructuredBuffer<Transform> transforms;
+[[vk::binding(0, 1)]] StructuredBuffer<Transform> transform;
 
 [[vk::push_constant]] struct Push {
     uint tex_idx[8];    
@@ -18,27 +24,24 @@ struct VSInput {
 };
 
 struct VSOutput {
-    float4 position : SV_POSITION;
-    float3 normal   : TEXCOORD0; 
-    float3 tangent  : TEXCOORD1;  
-    float2 uv       : TEXCOORD2;
+    float4 position  : SV_POSITION;
+    float3 world_pos : TEXCOORD0;
+    float3 normal    : TEXCOORD1; 
+    float4 tangent   : TEXCOORD2;  
+    float2 uv        : TEXCOORD3;
 };
 
 VSOutput main(VSInput input) {
     VSOutput output;
 
-    float scale = 1.0;
-    float4x4 scaleMatrix = float4x4(
-        scale, 0, 0, 0,
-        0, scale, 0, 0,
-        0, 0, scale, 0,
-        0, 0, 0, 1
-    );
+    Transform t = transform[push.user_data[3]];
 
-    Transform t = transforms[(uint)push.user_data[1]];
-    output.position = mul(scaleMatrix, mul(t.mvp, float4(input.position.xyz, 1.0)));
-    output.uv      = input.uv;
-    output.normal  = input.normal.xyz;
-    output.tangent = input.tangent.xyz;
+    float4 world_pos = mul(t.model, input.position);
+    output.position  = mul(t.proj, mul(t.view, world_pos));
+    output.world_pos = world_pos.xyz;
+    output.normal    = mul((float3x3)t.normal, input.normal.xyz);
+    output.tangent   = mul(t.model, input.tangent);
+    output.uv        = input.uv;
+
     return output;
 }
