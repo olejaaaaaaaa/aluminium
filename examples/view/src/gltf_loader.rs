@@ -1,10 +1,20 @@
 use std::path::Path;
 
 use aluminium::types::{PbrVertex, Vertex};
-use aluminium::{IndexBuffer, IndexBufferDesc, Res, TextureDesc, Transform, TransformDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
+use aluminium::{GetMut, IndexBuffer, IndexBufferDesc, Res, StorageBuffer, StorageBufferDesc, TextureDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use gltf::image::Format;
+
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, Default)]
+pub struct Transform {
+    pub model: [[f32; 4]; 4],      
+    pub view: [[f32; 4]; 4],       
+    pub proj: [[f32; 4]; 4],         
+    pub normal: [[f32; 4]; 4],       
+}
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -22,7 +32,9 @@ pub struct Material {
 
 #[derive(Clone)]
 pub struct GltfModel {
-    pub meshes: Vec<(Mesh, Res<Transform>, Material)>,
+    pub meshes: Vec<(Mesh, Material)>,
+    pub transforms: Vec<Transform>,
+    pub ssbo: Option<Res<StorageBuffer>>,
     pub textures: Vec<Res<aluminium::Texture>>
 }
 
@@ -124,11 +136,19 @@ fn load_gltf_node(
                     texture.texture().index() as u32
                 });
 
-            let mvp = proj * view * node_transform;
-            let transform =
-                world.create::<Transform>(TransformDesc::from(mvp.to_cols_array_2d()))?;
+            let model_matrix = node_transform;
+            let view_matrix = view;
+            let proj_matrix = proj;
+            let normal_matrix = node_transform.inverse().transpose();
 
-            model.meshes.push((Mesh { vertex, index }, transform, Material {
+            model.transforms.push(Transform { 
+                model: model_matrix.to_cols_array_2d(),
+                view: view_matrix.to_cols_array_2d(),
+                proj: proj_matrix.to_cols_array_2d(),
+                normal: normal_matrix.to_cols_array_2d(),
+            });
+
+            model.meshes.push((Mesh { vertex, index }, Material {
                 diffuse_map: diffuse_index,
                 normal_map: normal_index,
                 metallic_roughness_map: metallic_roughness_index,
@@ -198,13 +218,16 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
         }
     }
 
-    let mut gltf_model = GltfModel { meshes: vec![], textures };
+    let mut gltf_model = GltfModel { meshes: vec![], ssbo: None, transforms: vec![], textures };
 
     for scene in gltf.scenes() {
         for node in scene.nodes() {
             load_gltf_node(world, &mut gltf_model, node, &buffers, Mat4::IDENTITY)?;
         }
     }
+
+    let transforms = world.create::<StorageBuffer>(StorageBufferDesc::new(&gltf_model.transforms))?;
+    gltf_model.ssbo = Some(transforms);
 
     Ok(gltf_model)
 }

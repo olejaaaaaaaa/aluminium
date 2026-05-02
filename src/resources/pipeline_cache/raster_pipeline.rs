@@ -3,15 +3,11 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::{
-    load_spv, AttributeDescriptions, BindingDescriptions, GraphicsPipeline,
-    GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder,
-    Vertex,
+    AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, Vertex, load_spv
 };
 use crate::resources::pipeline_cache::Source;
-use crate::resources::{Create, Destroy, Res, ResourceKey, Resources, ShaderType};
+use crate::resources::{Create, Res, Resources, ShaderType};
 use crate::VulkanResult;
-
-
 
 pub trait Layout {
     fn layout() -> VertexInput;
@@ -118,15 +114,6 @@ pub struct RasterPipeline {
     pub pipeline: GraphicsPipeline,
 }
 
-impl Destroy for RasterPipeline {
-    fn destroy(
-        key: ResourceKey,
-        _ctx: std::sync::Weak<crate::render_context::RenderContext>,
-        _resources: std::sync::Weak<Resources>,
-    ) {
-    }
-}
-
 impl Create for RasterPipeline {
     type Desc<'a> = RasterPipelineDesc<'a>;
     fn create(
@@ -141,10 +128,22 @@ impl Create for RasterPipeline {
             .vertex_binding_descriptions(&binding)
             .vertex_attribute_descriptions(&attrs);
 
+        let binding = vk::DescriptorSetLayoutBinding::default()
+            .binding(0)
+            .descriptor_count(1)
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT);
+
+        let layot = DescriptorSetLayoutBuilder::new(&ctx.device)
+            .bindings(vec![
+                binding
+            ])
+            .build()?;
+
         let layout = PipelineLayoutBuilder::new(&ctx.device)
             .set_layouts(vec![
                 resources.bindless.set_layout.raw,
-                resources.layout
+                layot.raw
             ])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
@@ -248,18 +247,16 @@ impl Create for RasterPipeline {
             .vertex_input_info(vertex_input_info)
             .build()?;
 
-        let mut cache = resources.pipeline_cache.write();
+        let cache = resources.pipeline_cache.write();
+
         let layout =
             cache
                 .pipeline_layout
-                .insert(Arc::downgrade(ctx), Arc::downgrade(resources), layout);
+                .insert(layout);
 
-        let handle = cache.raster_pipelines.insert(
-            Arc::downgrade(ctx),
-            Arc::downgrade(resources),
-            RasterPipeline { pipeline, layout },
-        );
+        let layout = resources.make_handle(ctx, layout);
+        let pipeline = cache.raster_pipelines.insert(RasterPipeline { layout, pipeline });
 
-        Ok(handle)
+        Ok(resources.make_handle(ctx, pipeline))
     }
 }

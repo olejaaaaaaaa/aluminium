@@ -16,6 +16,8 @@ cd aluminium
 cargo run -p view
 ```
 
+![Screenshot](./preview.jpg)
+
 ## Example - Triangle
 
 ```rust

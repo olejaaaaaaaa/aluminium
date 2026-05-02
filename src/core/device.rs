@@ -86,6 +86,7 @@ impl Device {
             c"VK_KHR_driver_properties",
             c"VK_KHR_imageless_framebuffer",
             c"VK_KHR_buffer_device_address",
+            c"VK_KHR_timeline_semaphore",
             c"VK_KHR_device_group"
         ];
 

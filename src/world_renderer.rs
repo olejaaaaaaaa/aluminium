@@ -5,10 +5,10 @@ use tracing::error;
 use winit::window::Window;
 
 use super::render_context::RenderContext;
-use crate::core::{SwapchainError, VulkanError, VulkanResult};
-use crate::frame_graph::FrameGraph;
-use crate::frame_scope::FrameScope;
-use crate::resources::*;
+use super::core::{SwapchainError, VulkanError, VulkanResult};
+use super::frame::{FrameGraph, FrameScope};
+use super::resources::*;
+
 /// Lightweight abstraction for rendering using Vulkan API
 ///
 /// The Vulkan API is known for its verbosity, and my abstraction tries to solve
@@ -95,30 +95,6 @@ impl WorldRenderer {
     /// 
     pub fn create<T: Create>(&self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.ctx, &self.resources, desc)
-    }
-
-    /// Acquires a shared read lock on the resource [`Ref<'_, T>`]
-    /// # Panics
-    /// - if the resource is already borrowed mutably
-    pub fn get<T: Get>(&self, handle: &Res<T>) -> Ref<'_, T> {
-        T::get(&self.resources, handle).expect("Already borrowed")
-    }
-
-    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
-    pub fn try_get<T: Get>(&self, handle: &Res<T>) -> Option<Ref<'_, T>> {
-        T::get(&self.resources, handle)
-    }
-
-    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
-    /// # Panics
-    /// - if the resource is already borrowed mutably
-    pub fn get_mut<T: GetMut>(&self, handle: &Res<T>) -> RefMut<'_, T> {
-        T::get_mut(&self.resources, handle).expect("Already borrowed")
-    }
-
-    /// Acquires a shared write lock on the resource [`RefMut<'_, T>`]
-    pub fn try_get_mut<T: GetMut>(&self, handle: &Res<T>) -> Option<RefMut<'_, T>> {
-        T::get_mut(&self.resources, handle)
     }
 
     /// Re-creating the main window

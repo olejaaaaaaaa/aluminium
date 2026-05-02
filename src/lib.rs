@@ -1,25 +1,19 @@
 #![doc = include_str!("../README.md")]
-pub(crate) mod bindless;
 pub(crate) mod core;
-pub(crate) mod frame_graph;
-pub(crate) mod frame_values;
-pub(crate) mod frame_scope;
-pub(crate) mod per_frame;
+pub(crate) mod ext;
+pub(crate) mod frame;
 pub(crate) mod render_context;
 pub(crate) mod resources;
 pub(crate) mod world_renderer;
 
 pub use core::{VulkanError, VulkanResult};
 
-pub use frame_graph::{
-    Handle, RasterPass, RenderTarget, Scissor, Viewport, TransientBuffer, TemporalStorageBuffer, TemporalStorageTexture,
-    TransientStorageBuffer, TransientStorageTexture, LoadOp, StoreOp, Location, Resolution
-};
+pub use frame::*;
 pub use resources::{
-    Mesh, MeshDesc, RasterPipeline, RasterPipelineDesc, Res, ShaderType, TextureFormat, TransientTexture,
-    Transform, TransformDesc, VertexInput, VertexBuffer, IndexBufferDesc, IndexBuffer, VertexBufferDesc, Layout, Texture, TextureDesc
+    RasterPipeline, RasterPipelineDesc, ShaderType, TextureFormat, TransientTexture,
+    VertexInput, Layout, Texture, TextureDesc, Get, GetMut, IndexBuffer, IndexBufferDesc,
+    Sampler, StorageBuffer, StorageBufferDesc, Res, VertexBuffer, VertexBufferDesc, Ref, RefMut
 };
-pub use vk_sync::AccessType;
 pub use world_renderer::WorldRenderer;
 /// Basic types
 pub mod types {
