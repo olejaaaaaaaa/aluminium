@@ -260,8 +260,7 @@ impl PassContext {
 
         device.cmd_bind_vertex_buffers(cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
 
-        device.cmd_bind_index_buffer(cbuf, index_buffer.buffer.raw, 0, vk::IndexType::UINT32);
-
-        device.cmd_draw_indexed(cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
+        device.cmd_bind_index_buffer(cbuf, index_buffer.buffer.raw, 0, index_buffer.ty);
+        device.cmd_draw_indexed(cbuf, index_buffer.count, 1, 0, 0, 0);
     }
 }

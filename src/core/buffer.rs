@@ -8,14 +8,12 @@ use super::{Device, VulkanError, VulkanResult};
 
 pub struct GpuBuffer {
     pub raw: vk::Buffer,
-    pub count: u32,
     pub allocation: Option<Allocation>,
 }
 
 impl GpuBuffer {
     /// Copy slice as raw bytes into [`vk::Buffer`]
     pub fn upload_data<T: Pod + Zeroable>(&mut self, data: &[T]) -> VulkanResult<()> {
-        self.count = data.len() as u32;
         let size = std::mem::size_of_val(data);
 
         assert!(size != 0, "Cannot create empty buffer");
@@ -104,11 +102,8 @@ impl<'a> GpuBufferBuilder<'a> {
         let size = self.size.expect("Missing size");
         let usage = self.usage.expect("Missing usage");
 
-        #[cfg(debug_assertions)]
-        {
-            assert_ne!(size, 0, "Buffer size cannot be zero");
-            assert!(!usage.is_empty(), "Buffer usage cannot be empty");
-        }
+        debug_assert_ne!(size, 0, "Buffer size cannot be zero");
+        debug_assert!(!usage.is_empty(), "Buffer usage cannot be empty");
 
         let buffer_info = vk::BufferCreateInfo::default()
             .size(size)
@@ -155,7 +150,6 @@ impl<'a> GpuBufferBuilder<'a> {
 
         Ok(GpuBuffer {
             raw: buffer,
-            count: 0,
             allocation: Some(allocation),
         })
     }

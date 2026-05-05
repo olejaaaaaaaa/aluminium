@@ -27,10 +27,3 @@ impl<T> Clone for Res<T> {
         }
     }
 }
-
-impl<T> Drop for Res<T> {
-    fn drop(&mut self) {
-        let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
-        if ref_count == 1 {}
-    }
-}

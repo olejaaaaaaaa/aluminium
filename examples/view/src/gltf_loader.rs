@@ -58,7 +58,7 @@ fn load_gltf_node(
         for i in primitives {
             let reader = i.reader(|i| Some(&buffers[i.index()]));
 
-            let indices: Vec<_> = reader.read_indices().unwrap().into_u32().collect();
+            let indices: Vec<u32> = reader.read_indices().unwrap().into_u32().collect();
             let positions: Vec<_> = reader
                 .read_positions()
                 .unwrap()
