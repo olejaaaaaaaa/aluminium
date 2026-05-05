@@ -14,9 +14,9 @@ pub struct GraphicsDevice {
     pub(crate) phys_dev: PhysicalDevice,
     /// Logical device
     pub(crate) logical_device: Device,
-    // The number of frames that can still be prepared while 
+    // The number of frames that can still be prepared while
     // the GPU is rendering the previous frame
-    pub(crate) frame_in_flight: usize
+    pub(crate) frame_in_flight: usize,
 }
 
 impl std::ops::Deref for GraphicsDevice {

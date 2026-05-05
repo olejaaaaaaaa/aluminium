@@ -1,4 +1,3 @@
-
 mod attachment;
 pub use attachment::{ColorAttachment, DepthAttachment};
 

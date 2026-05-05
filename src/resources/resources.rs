@@ -1,9 +1,19 @@
-use std::{marker::PhantomData, sync::{Arc, atomic::AtomicUsize}};
+use std::marker::PhantomData;
+use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
+
 use ash::vk;
 use parking_lot::RwLock;
 use slotmap::SlotMap;
 
-use crate::{Texture, TextureFormat, TransientTexture, VulkanResult, core::{DescriptorSetLayoutBuilder, Device, ImageBuilder, ImageViewBuilder}, ext::bindless::Bindless, render_context::RenderContext, resources::{DescriptorManager, IndexBuffer, PipelineCache, Pool, Res, ResourceKey, StorageBuffer, TransientTextureDesc, UniformBuffer, VertexBuffer}};
+use crate::core::{DescriptorSetLayoutBuilder, Device, ImageBuilder, ImageViewBuilder};
+use crate::ext::bindless::Bindless;
+use crate::render_context::RenderContext;
+use crate::resources::{
+    DescriptorManager, IndexBuffer, PipelineCache, Pool, Res, ResourceKey, StorageBuffer,
+    TransientTextureDesc, UniformBuffer, VertexBuffer,
+};
+use crate::{Texture, TextureFormat, TransientTexture, VulkanResult};
 
 pub struct Resources {
     pub(crate) bindless: Bindless,
@@ -21,19 +31,16 @@ pub struct Resources {
 
 impl Resources {
     pub fn new(ctx: &Arc<RenderContext>) -> VulkanResult<Arc<Self>> {
-
         let pipeline_cache = PipelineCache::new();
         let bindless = Bindless::new(&ctx)?;
         let descriptors = DescriptorManager::new(&ctx.device)?;
 
         let layout = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![
-                vk::DescriptorSetLayoutBinding::default()
-                    .binding(0)
-                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                    .descriptor_count(1)
-                    .stage_flags(vk::ShaderStageFlags::ALL),
-            ])
+            .bindings(vec![vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::ALL)])
             .build()?;
 
         let set = descriptors
@@ -70,15 +77,20 @@ impl Resources {
         }))
     }
 
-    pub fn create_transient(self: &Arc<Self>, ctx: &Arc<RenderContext>, desc: TransientTextureDesc) -> VulkanResult<Res<TransientTexture>> 
-    {
+    pub fn create_transient(
+        self: &Arc<Self>,
+        ctx: &Arc<RenderContext>,
+        desc: TransientTextureDesc,
+    ) -> VulkanResult<Res<TransientTexture>> {
         let extent = ctx.resolution();
 
         let (image, view) = match desc.format {
-            TextureFormat::Depth => { 
-
+            TextureFormat::Depth => {
                 let image = ImageBuilder::new(&ctx.device)
-                    .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+                    .usage(
+                        vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT
+                            | vk::ImageUsageFlags::SAMPLED,
+                    )
                     .array_layers(1)
                     .extent(extent.into())
                     .format(vk::Format::D32_SFLOAT)
@@ -94,15 +106,14 @@ impl Resources {
                             .base_array_layer(0)
                             .layer_count(1)
                             .base_mip_level(0)
-                            .level_count(1)
+                            .level_count(1),
                     )
                     .view_type(vk::ImageViewType::TYPE_2D)
                     .build()?;
 
                 (image, image_view)
             },
-            TextureFormat::Color => {  
-
+            TextureFormat::Color => {
                 let image = ImageBuilder::new(&ctx.device)
                     .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
                     .array_layers(1)
@@ -120,20 +131,23 @@ impl Resources {
                             .base_array_layer(0)
                             .layer_count(1)
                             .base_mip_level(0)
-                            .level_count(1)
+                            .level_count(1),
                     )
                     .view_type(vk::ImageViewType::TYPE_2D)
                     .build()?;
 
                 (image, image_view)
             },
-            _ => { todo!() }
+            _ => {
+                todo!()
+            },
         };
 
-        let key = self.transient_textures.try_write().expect("Error lock").insert(TransientTexture {
-          image,
-          view
-        });
+        let key = self
+            .transient_textures
+            .try_write()
+            .expect("Error lock")
+            .insert(TransientTexture { image, view });
 
         Ok(self.make_handle(ctx, key))
     }
@@ -153,7 +167,7 @@ impl Resources {
     }
 
     pub fn update(&self, image_index: u32) {
-        //self.transforms.write().update(0).unwrap();
+        // self.transforms.write().update(0).unwrap();
     }
 
     /// Always Set 0
@@ -168,6 +182,6 @@ impl Resources {
 
     pub(crate) fn destroy(&self, device: &Device) {
         self.bindless.destroy(device);
-        //self.transforms.write().destroy(device);
+        // self.transforms.write().destroy(device);
     }
 }

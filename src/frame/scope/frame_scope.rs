@@ -1,4 +1,5 @@
-use crate::{Pass, PassBuilder, RenderTarget, frame::scope::FrameResources};
+use crate::frame::scope::FrameResources;
+use crate::{Pass, PassBuilder, RenderTarget};
 
 pub struct FrameScope<'frame> {
     pub(crate) resources: FrameResources,
@@ -16,21 +17,18 @@ impl<'frame> FrameScope<'frame> {
     }
 
     pub fn add_pass<P: Into<Pass<'frame>>, T: Clone + 'static>(&mut self, value: P) -> T {
-
         match value.into() {
             Pass::Raster(mut pass) => {
-                
                 if let Some(setup) = pass.setup.take() {
-
                     let mut builder = PassBuilder {
                         read_storage_buffers: vec![],
                         write_textures: vec![],
                         read_textures: vec![],
                         render_target: RenderTarget {
                             colors: vec![],
-                            depth: None
+                            depth: None,
                         },
-                        resources: &mut self.resources
+                        resources: &mut self.resources,
                     };
 
                     let data = (setup)(&mut builder);
@@ -40,11 +38,11 @@ impl<'frame> FrameScope<'frame> {
                     pass.write_textures = builder.write_textures;
                     pass.read_textures = builder.read_textures;
                 }
-                
+
                 let r = pass.data.downcast_ref::<T>().cloned().expect("AAAAA");
                 self.passes.push(Pass::Raster(pass));
                 return r;
-            }
+            },
         }
     }
 }

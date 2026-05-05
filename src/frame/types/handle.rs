@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+
 use slotmap::new_key_type;
 
 new_key_type! {

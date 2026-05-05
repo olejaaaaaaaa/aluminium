@@ -3,10 +3,12 @@ use std::sync::Arc;
 use ash::vk;
 use vk_sync::ImageBarrier;
 
-use crate::{PixelFormat, Resolution, VulkanResult};
-use crate::core::{CommandPoolBuilder, GpuBufferBuilder, Image, ImageBuilder, ImageView, ImageViewBuilder};
+use crate::core::{
+    CommandPoolBuilder, GpuBufferBuilder, Image, ImageBuilder, ImageView, ImageViewBuilder,
+};
 use crate::render_context::RenderContext;
 use crate::resources::{Create, Res, ResourceKey, Resources};
+use crate::{PixelFormat, Resolution, VulkanResult};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TextureFormat {
@@ -14,7 +16,7 @@ pub enum TextureFormat {
     DepthStencil,
     HDR,
     Color,
-    Data
+    Data,
 }
 
 pub struct Texture {
@@ -26,23 +28,22 @@ pub struct Texture {
 impl Create for Texture {
     type Desc<'a> = TextureDesc<'a>;
     fn create(
-            ctx: &Arc<RenderContext>,
-            resources: &Arc<Resources>,
-            desc: Self::Desc<'_>,
-        ) -> VulkanResult<Res<Self>> {
-
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<Resources>,
+        desc: Self::Desc<'_>,
+    ) -> VulkanResult<Res<Self>> {
         let format = match desc.format {
-            PixelFormat::Rgb8 => {
-                 vk::Format::R8G8B8A8_UNORM
-            },
-            PixelFormat::Rgba8 => {
-                vk::Format::R8G8B8A8_SRGB
-            },
-            _ => todo!()
+            PixelFormat::Rgb8 => vk::Format::R8G8B8A8_UNORM,
+            PixelFormat::Rgba8 => vk::Format::R8G8B8A8_SRGB,
+            _ => todo!(),
         };
-        
+
         let image = ImageBuilder::new(&ctx.device)
-            .extent(vk::Extent3D { width: desc.width, height: desc.height, depth: 1 })
+            .extent(vk::Extent3D {
+                width: desc.width,
+                height: desc.height,
+                depth: 1,
+            })
             .array_layers(1)
             .format(format)
             .image_type(vk::ImageType::TYPE_2D)
@@ -66,7 +67,7 @@ impl Create for Texture {
             .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
             .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
             .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .src_access_mask(vk::AccessFlags::empty())   
+            .src_access_mask(vk::AccessFlags::empty())
             .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
             .image(image.raw)
             .subresource_range(vk::ImageSubresourceRange {
@@ -116,8 +117,8 @@ impl Create for Texture {
         unsafe {
             ctx.device.cmd_copy_buffer_to_image(
                 cmd,
-                staging_buffer.raw,       
-                image.raw,                 
+                staging_buffer.raw,
+                image.raw,
                 vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                 &[region],
             );
@@ -143,7 +144,8 @@ impl Create for Texture {
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::FRAGMENT_SHADER,
                 vk::DependencyFlags::empty(),
-                &[], &[],
+                &[],
+                &[],
                 &[barrier2],
             );
         }
@@ -157,7 +159,9 @@ impl Create for Texture {
         let binding = [cmd];
         let submit_info = vk::SubmitInfo::default().command_buffers(&binding);
         unsafe {
-            let _ = ctx.device.queue_submit(transfer_queue.raw, &[submit_info], vk::Fence::null());
+            let _ = ctx
+                .device
+                .queue_submit(transfer_queue.raw, &[submit_info], vk::Fence::null());
             let _ = ctx.device.queue_wait_idle(transfer_queue.raw);
         }
 
@@ -172,15 +176,17 @@ impl Create for Texture {
                     .base_array_layer(0)
                     .layer_count(1)
                     .base_mip_level(0)
-                    .level_count(1)
-            )   
+                    .level_count(1),
+            )
             .build()?;
 
-        let index = resources.bindless.alloc_texture(&ctx.device, image_view.raw);
+        let index = resources
+            .bindless
+            .alloc_texture(&ctx.device, image_view.raw);
         let key = resources.textures.write().insert(Texture {
             index,
             image,
-            view: image_view
+            view: image_view,
         });
 
         Ok(resources.make_handle(ctx, key))
@@ -191,7 +197,7 @@ pub struct TextureDesc<'a> {
     pub width: u32,
     pub height: u32,
     pub format: PixelFormat,
-    pub pixels: &'a [u8]
+    pub pixels: &'a [u8],
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -203,9 +209,8 @@ pub struct TransientTextureDesc {
 
 pub struct TransientTexture {
     pub(crate) image: Image,
-    pub(crate) view: ImageView
+    pub(crate) view: ImageView,
 }
-
 
 impl PartialEq for TransientTexture {
     fn eq(&self, other: &Self) -> bool {

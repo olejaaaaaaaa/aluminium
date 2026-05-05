@@ -1,9 +1,4 @@
-
-
-pub struct Sampler {
-
-}
-
+pub struct Sampler {}
 
 // impl Create for Sampler {
 //     fn create(
@@ -11,6 +6,6 @@ pub struct Sampler {
 //             resources: &std::sync::Arc<super::Resources>,
 //             desc: Self::Desc<'_>,
 //         ) -> crate::VulkanResult<Res<Self>> {
-        
+
 //     }
 // }

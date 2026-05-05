@@ -85,8 +85,7 @@ impl Bindless {
 
         let sampler = unsafe { ctx.device.create_sampler(&sampler_info, None).unwrap() };
 
-        let sampler_info_desc = vk::DescriptorImageInfo::default()
-            .sampler(sampler);
+        let sampler_info_desc = vk::DescriptorImageInfo::default().sampler(sampler);
 
         let sampler_write = vk::WriteDescriptorSet::default()
             .dst_set(set)

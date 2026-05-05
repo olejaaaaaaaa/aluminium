@@ -5,12 +5,17 @@ use ash::vk::{self, ClearValue, ComponentMapping};
 use slotmap::Key;
 use tracing::{debug, error, trace};
 
-use crate::{FrameGraphResources, FrameScope, Pass, PassContext, RasterPass, RuntimeData, StaticData, TextureFormat};
 use crate::core::{
-    CommandPool, CommandPoolBuilder, DescriptorPoolBuilder, DescriptorSetLayout, DescriptorSetLayoutBuilder, Device, ImageBuilder, ImageViewBuilder, SwapchainError, VulkanError, VulkanResult
+    CommandPool, CommandPoolBuilder, DescriptorPoolBuilder, DescriptorSetLayout,
+    DescriptorSetLayoutBuilder, Device, ImageBuilder, ImageViewBuilder, SwapchainError,
+    VulkanError, VulkanResult,
 };
 use crate::render_context::RenderContext;
 use crate::resources::Resources;
+use crate::{
+    FrameGraphResources, FrameScope, Pass, PassContext, RasterPass, RuntimeData, StaticData,
+    TextureFormat,
+};
 
 pub struct FrameGraph {
     pub resources: FrameGraphResources,
@@ -40,9 +45,9 @@ impl FrameGraph {
 
     fn topological_sort(dependencies: &[Vec<usize>]) -> Vec<usize> {
         let n = dependencies.len();
-        
+
         let mut in_degree: Vec<usize> = dependencies.iter().map(|d| d.len()).collect();
-        
+
         let mut queue: Vec<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
         let mut result = Vec::with_capacity(n);
 
@@ -72,7 +77,7 @@ impl FrameGraph {
 
         let mut dependencies: Vec<Vec<usize>> = vec![vec![]; scope.passes.len()];
 
-       for (i, pass_a) in scope.passes.iter().enumerate() {
+        for (i, pass_a) in scope.passes.iter().enumerate() {
             let writes = pass_a.texture_writes();
             for (j, pass_b) in scope.passes.iter().enumerate() {
                 if i != j && pass_b.texture_reads().iter().any(|r| writes.contains(r)) {
@@ -88,11 +93,9 @@ impl FrameGraph {
 
         let pool = DescriptorPoolBuilder::new(&ctx.device)
             .max_sets(1)
-            .pool_sizes(&[
-                vk::DescriptorPoolSize::default()
-                    .descriptor_count(1)
-                    .ty(vk::DescriptorType::STORAGE_BUFFER)
-            ])
+            .pool_sizes(&[vk::DescriptorPoolSize::default()
+                .descriptor_count(1)
+                .ty(vk::DescriptorType::STORAGE_BUFFER)])
             .build()?;
 
         let binding = vk::DescriptorSetLayoutBinding::default()
@@ -102,28 +105,26 @@ impl FrameGraph {
             .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT);
 
         let layot = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![
-                binding
-            ])
+            .bindings(vec![binding])
             .build()?;
 
-       for i in &mut scope.passes {
+        for i in &mut scope.passes {
             match i {
                 Pass::Raster(pass) => {
                     let buffers = unsafe { (*pass.read_storage_buffers[0].0).clone() };
                     let binding = resources.storage_buffers.read();
                     let buffer = binding.get(buffers.key).unwrap();
-                    
+
                     let set = pool.create_descriptor_set(&ctx.device, &[layot.raw])?[0];
 
                     let buffer_info = vk::DescriptorBufferInfo::default()
-                        .buffer(buffer.buffer.raw) 
+                        .buffer(buffer.buffer.raw)
                         .offset(0)
                         .range(vk::WHOLE_SIZE);
 
                     let write = vk::WriteDescriptorSet::default()
                         .dst_set(set)
-                        .dst_binding(0)        
+                        .dst_binding(0)
                         .dst_array_element(0)
                         .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
                         .buffer_info(std::slice::from_ref(&buffer_info));
@@ -133,13 +134,12 @@ impl FrameGraph {
                     }
 
                     pass.set = Some(set);
-                
-                }
+                },
             }
-       }
+        }
 
-    //    std::mem::forget(layot);
-    //    std::mem::forget(pool);
+        //    std::mem::forget(layot);
+        //    std::mem::forget(pool);
 
         Ok(())
     }
@@ -159,10 +159,11 @@ impl FrameGraph {
             return Ok(());
         }
 
-        
         // ------------------------Wait fence + Reset cmd-----------------------------
         let (cmd_buffer, image_index) = {
-            let window = ctx.window.try_read()
+            let window = ctx
+                .window
+                .try_read()
                 .expect("Error borrowed Window for read");
 
             let frame_idx = window.current_frame % window.frame_sync.len();
@@ -174,20 +175,23 @@ impl FrameGraph {
                     error!("Error wait for fences: {:?}", err);
                     return Ok(());
                 }
-                device.reset_fences(&[sync.in_flight_fence.raw])
+                device
+                    .reset_fences(&[sync.in_flight_fence.raw])
                     .map_err(VulkanError::Unknown)?;
             }
 
             let cmd_buffer = self.cmd_buffers[window.current_frame % ctx.frame_in_flight()];
 
             unsafe {
-                device.reset_command_buffer(cmd_buffer, vk::CommandBufferResetFlags::empty())
+                device
+                    .reset_command_buffer(cmd_buffer, vk::CommandBufferResetFlags::empty())
                     .map_err(VulkanError::Unknown)?;
 
                 let begin_info = vk::CommandBufferBeginInfo::default()
                     .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-                device.begin_command_buffer(cmd_buffer, &begin_info)
+                device
+                    .begin_command_buffer(cmd_buffer, &begin_info)
                     .map_err(VulkanError::Unknown)?;
             }
 
@@ -200,7 +204,9 @@ impl FrameGraph {
                 ) {
                     Ok((index, _)) => index,
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                        return Err(VulkanError::Swapchain(SwapchainError::SwapchainOutOfDateKhr));
+                        return Err(VulkanError::Swapchain(
+                            SwapchainError::SwapchainOutOfDateKhr,
+                        ));
                     },
                     Err(e) => return Err(VulkanError::Unknown(e)),
                 }
@@ -259,7 +265,7 @@ impl FrameGraph {
                                 device: ctx.device.raw.clone(),
                                 bindless: resources.bindless_set(),
                                 cbuf: cmd_buffer,
-                                //per_frame: resources.per_frame_set(),
+                                // per_frame: resources.per_frame_set(),
                                 resolution,
                             },
                             runtime_data: RuntimeData {

@@ -1,7 +1,12 @@
 #![allow(missing_docs)]
 use std::any::Any;
+
 use ash::vk;
-use crate::{Handle, Location, Pass, PassBuilder, PassContext, RenderTarget, Res, StorageBuffer, TransientTexture};
+
+use crate::{
+    Handle, Location, Pass, PassBuilder, PassContext, RenderTarget, Res, StorageBuffer,
+    TransientTexture,
+};
 
 pub struct RasterPass<'frame> {
     pub(crate) name: String,
@@ -11,7 +16,8 @@ pub struct RasterPass<'frame> {
     pub(crate) write_textures: Vec<Handle<TransientTexture>>,
     pub(crate) read_textures: Vec<(Handle<TransientTexture>, Location)>,
     pub(crate) read_storage_buffers: Vec<(*const Res<StorageBuffer>, Location)>,
-    pub(crate) setup: Option<Box<dyn for<'a> FnOnce(&mut PassBuilder<'a>) -> Box<dyn Any> + Send + 'frame>>,
+    pub(crate) setup:
+        Option<Box<dyn for<'a> FnOnce(&mut PassBuilder<'a>) -> Box<dyn Any> + Send + 'frame>>,
     pub(crate) execute: Option<Box<dyn FnOnce(&mut PassContext) + Send + 'frame>>,
 }
 
@@ -20,7 +26,10 @@ impl<'frame> RasterPass<'frame> {
         Self {
             name: name.into(),
             set: None,
-            render_target: RenderTarget { colors: vec![], depth: None },
+            render_target: RenderTarget {
+                colors: vec![],
+                depth: None,
+            },
             read_storage_buffers: vec![],
             write_textures: vec![],
             read_textures: vec![],
@@ -35,9 +44,7 @@ impl<'frame> RasterPass<'frame> {
         F: FnOnce(&mut PassBuilder<'_>) -> T + Send + 'frame,
         T: Copy + Send + 'static,
     {
-        self.setup = Some(Box::new(move |setup| {
-            Box::new(f(setup)) as Box<dyn Any>
-        }));
+        self.setup = Some(Box::new(move |setup| Box::new(f(setup)) as Box<dyn Any>));
         self
     }
 
@@ -51,8 +58,6 @@ impl<'frame> RasterPass<'frame> {
         self
     }
 }
-
-
 
 impl<'a> Into<Pass<'a>> for RasterPass<'a> {
     fn into(self) -> Pass<'a> {

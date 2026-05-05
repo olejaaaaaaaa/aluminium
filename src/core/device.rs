@@ -87,7 +87,7 @@ impl Device {
             c"VK_KHR_imageless_framebuffer",
             c"VK_KHR_buffer_device_address",
             c"VK_KHR_timeline_semaphore",
-            c"VK_KHR_device_group"
+            c"VK_KHR_device_group",
         ];
 
         for i in required_extensions {
@@ -102,9 +102,7 @@ impl Device {
             }
         }
 
-        let optional_extensions: Vec<Vec<&'static CStr>> = vec![
-            vec![],
-        ];
+        let optional_extensions: Vec<Vec<&'static CStr>> = vec![vec![]];
 
         for i in &optional_extensions {
             let mut is_supported = true;

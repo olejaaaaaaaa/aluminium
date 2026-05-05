@@ -2,12 +2,13 @@ mod source;
 pub use source::Source;
 
 mod raster_pipeline;
-pub use raster_pipeline::{RasterPipeline, RasterPipelineDesc, VertexInput, Layout};
+pub use raster_pipeline::{Layout, RasterPipeline, RasterPipelineDesc, VertexInput};
 
 mod bindings;
 pub use bindings::*;
 
-use crate::{core::PipelineLayout, resources::Pool};
+use crate::core::PipelineLayout;
+use crate::resources::Pool;
 
 pub struct PipelineCache {
     pub pipeline_layout: Pool<PipelineLayout>,

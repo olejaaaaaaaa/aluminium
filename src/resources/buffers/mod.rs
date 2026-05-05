@@ -1,4 +1,3 @@
-
 mod index_buffer;
 pub use index_buffer::*;
 

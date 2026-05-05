@@ -21,4 +21,3 @@ impl<'a, T> std::ops::DerefMut for RefMut<'a, T> {
         &mut self.0
     }
 }
-

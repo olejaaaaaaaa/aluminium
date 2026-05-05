@@ -3,7 +3,10 @@ use std::sync::Arc;
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
 
-use crate::{Res, VulkanResult, core::{GpuBuffer, GpuBufferBuilder}, render_context::RenderContext, resources::{Create, Resources}};
+use crate::core::{GpuBuffer, GpuBufferBuilder};
+use crate::render_context::RenderContext;
+use crate::resources::{Create, Resources};
+use crate::{Res, VulkanResult};
 
 pub struct VertexBufferDesc<'a> {
     vertices: &'a [u8],
@@ -11,12 +14,14 @@ pub struct VertexBufferDesc<'a> {
 
 impl<'a> VertexBufferDesc<'a> {
     pub fn new<T: Pod + Zeroable>(vertices: &'a [T]) -> Self {
-        Self { vertices: bytemuck::cast_slice(vertices) }
+        Self {
+            vertices: bytemuck::cast_slice(vertices),
+        }
     }
 }
 
 pub struct VertexBuffer {
-    pub(crate) buffer: GpuBuffer
+    pub(crate) buffer: GpuBuffer,
 }
 
 impl Create for VertexBuffer {
@@ -26,7 +31,6 @@ impl Create for VertexBuffer {
         resources: &Arc<Resources>,
         desc: Self::Desc<'_>,
     ) -> VulkanResult<Res<Self>> {
-
         let size = std::mem::size_of_val(desc.vertices) as u64;
 
         let mut vertex_buffer = GpuBufferBuilder::cpu_only(&ctx.device)

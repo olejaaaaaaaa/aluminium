@@ -4,7 +4,11 @@ use std::error::Error;
 use std::time::Instant;
 
 use aluminium::types::PbrVertex;
-use aluminium::{Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderType, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, VertexInput, Viewport, WorldRenderer};
+use aluminium::{
+    Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res,
+    Resolution, Scissor, ShaderType, StoreOp, Texture, TextureDesc, TextureFormat,
+    TransientTexture, VertexInput, Viewport, WorldRenderer,
+};
 use tracing_subscriber::filter::LevelFilter;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -29,7 +33,6 @@ struct App {
 
 impl ApplicationHandler for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
-
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -73,4 +76,3 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-

@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use ash::vk::{self};
 use bytemuck::{Pod, Zeroable};
-use crate::{RasterPipeline, Scissor, Texture, Viewport, resources::{IndexBuffer, Res, Resources, VertexBuffer}};
+
+use crate::resources::{IndexBuffer, Res, Resources, VertexBuffer};
+use crate::{RasterPipeline, Scissor, Texture, Viewport};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable, Debug)]
@@ -23,15 +25,15 @@ pub struct RuntimeData {
 }
 
 pub struct StaticData {
-    //pub per_frame: vk::DescriptorSet,
+    // pub per_frame: vk::DescriptorSet,
     pub bindless: vk::DescriptorSet,
     pub resolution: vk::Extent2D,
     pub device: ash::Device,
-    pub cbuf: vk::CommandBuffer
+    pub cbuf: vk::CommandBuffer,
 }
 
 enum Pipeline<'a> {
-    Raster(&'a Res<RasterPipeline>)
+    Raster(&'a Res<RasterPipeline>),
 }
 
 impl<'a> Into<Pipeline<'a>> for &'a Res<RasterPipeline> {
@@ -44,24 +46,27 @@ impl<'a> Into<Pipeline<'a>> for &'a Res<RasterPipeline> {
 pub struct PassContext {
     pub(crate) external_resources: Arc<Resources>,
     pub(crate) static_data: StaticData,
-    pub(crate) runtime_data: RuntimeData
+    pub(crate) runtime_data: RuntimeData,
 }
 
 impl PassContext {
-
     pub unsafe fn bind_texture(&mut self, textures: &[&Res<Texture>]) {
         let push = self.runtime_data.push.as_mut().unwrap();
         for i in 0..textures.len() {
-            push.tex_idx[i] = self.external_resources.textures.read().get(textures[i].key).unwrap().index;
+            push.tex_idx[i] = self
+                .external_resources
+                .textures
+                .read()
+                .get(textures[i].key)
+                .unwrap()
+                .index;
         }
-        
     }
 
     pub unsafe fn draw_fullscreen(&self) {
-
         let device = &self.static_data.device;
         let cbuf = self.static_data.cbuf;
-        //let per_frame_set = self.static_data.per_frame;
+        // let per_frame_set = self.static_data.per_frame;
         let bindless = self.static_data.bindless;
         let pipeline = self.runtime_data.pipeline.expect("Required Bind pipeline");
         let layout = self.runtime_data.layout.unwrap();
@@ -69,7 +74,7 @@ impl PassContext {
 
         let push = self.runtime_data.push.unwrap_or(PushConstants {
             tex_idx: [0u32; 8],
-            user_data: [0u8; 96]
+            user_data: [0u8; 96],
         });
 
         device.cmd_bind_pipeline(cbuf, bind_point, pipeline);
@@ -92,14 +97,7 @@ impl PassContext {
             bytemuck::bytes_of(&push),
         );
 
-        device.cmd_bind_descriptor_sets(
-            cbuf,
-            bind_point,
-            layout,
-            0,
-            &[bindless],
-            &[],
-        );
+        device.cmd_bind_descriptor_sets(cbuf, bind_point, layout, 0, &[bindless], &[]);
 
         device.cmd_draw(cbuf, 3, 1, 0, 0);
     }
@@ -183,14 +181,20 @@ impl PassContext {
                 let pipeline = cache.raster_pipelines.0.read();
                 let pipeline = pipeline.get(handle.key).unwrap();
 
-                let layout = cache.pipeline_layout.0.read().get(pipeline.layout.key).unwrap().raw.clone();
+                let layout = cache
+                    .pipeline_layout
+                    .0
+                    .read()
+                    .get(pipeline.layout.key)
+                    .unwrap()
+                    .raw
+                    .clone();
 
                 self.runtime_data.layout = Some(layout);
                 self.runtime_data.pipeline = Some(pipeline.pipeline.raw);
                 self.runtime_data.bind_point = Some(vk::PipelineBindPoint::GRAPHICS);
-            }
+            },
         }
-        
     }
 
     pub unsafe fn push_constants<T: Pod + Zeroable>(&mut self, data: T) {
@@ -210,7 +214,6 @@ impl PassContext {
     }
 
     pub unsafe fn draw_indexed(&self, vertices: &Res<VertexBuffer>, indices: &Res<IndexBuffer>) {
-
         let binding = self.external_resources.vertices.0.read();
         let vertex_buffer = binding.get(vertices.key).unwrap();
 
@@ -219,7 +222,7 @@ impl PassContext {
 
         let device = &self.static_data.device;
         let cbuf = self.static_data.cbuf;
-        //let per_frame_set = self.static_data.per_frame;
+        // let per_frame_set = self.static_data.per_frame;
         let bindless = self.static_data.bindless;
         let pipeline = self.runtime_data.pipeline.expect("Required Bind pipeline");
         let layout = self.runtime_data.layout.unwrap();
@@ -227,7 +230,7 @@ impl PassContext {
 
         let push = self.runtime_data.push.unwrap_or(PushConstants {
             tex_idx: [0u32; 8],
-            user_data: [0u8; 96]
+            user_data: [0u8; 96],
         });
 
         device.cmd_bind_pipeline(cbuf, bind_point, pipeline);
@@ -253,26 +256,12 @@ impl PassContext {
         let mut sets = vec![bindless];
         sets.extend(self.runtime_data.addition_sets.clone());
 
-        device.cmd_bind_descriptor_sets(
-            cbuf,
-            bind_point,
-            layout,
-            0,
-            &sets,
-            &[],
-        );
+        device.cmd_bind_descriptor_sets(cbuf, bind_point, layout, 0, &sets, &[]);
 
-        device
-            .cmd_bind_vertex_buffers(cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
+        device.cmd_bind_vertex_buffers(cbuf, 0, &[vertex_buffer.buffer.raw], &[0]);
 
-        device.cmd_bind_index_buffer(
-            cbuf,
-            index_buffer.buffer.raw,
-            0,
-            vk::IndexType::UINT32,
-        );
+        device.cmd_bind_index_buffer(cbuf, index_buffer.buffer.raw, 0, vk::IndexType::UINT32);
 
-        device
-            .cmd_draw_indexed(cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
+        device.cmd_draw_indexed(cbuf, index_buffer.buffer.count, 1, 0, 0, 0);
     }
 }

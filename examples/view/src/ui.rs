@@ -1,18 +1,20 @@
 use std::collections::HashMap;
 
 use aluminium::types::Vertex;
-use aluminium::{Layout, RasterPipeline, RasterPipelineDesc, ShaderType, VertexInput, VulkanResult, WorldRenderer};
+use aluminium::{
+    Layout, RasterPipeline, RasterPipelineDesc, ShaderType, VertexInput, VulkanResult,
+    WorldRenderer,
+};
 use bytemuck::{Pod, Zeroable};
 use egui::epaint::{ImageDelta, Primitive};
 use egui::{ClippedPrimitive, ImageData, TextureId, ViewportId};
 use winit::event::WindowEvent;
 use winit::window::Window;
 
-
 /// Vulkan renderer for egui.
 pub struct UiRenderer {
     egui_ctx: egui::Context,
-    egui_state: egui_winit::State
+    egui_state: egui_winit::State,
 }
 
 #[repr(C)]
@@ -20,7 +22,7 @@ pub struct UiRenderer {
 struct UiVertex {
     pos: [f32; 2],
     uv: [f32; 2],
-    color: [f32; 4]
+    color: [f32; 4],
 }
 
 impl Layout for UiVertex {
@@ -53,18 +55,15 @@ impl UiRenderer {
         //         .dynamic_viewport(true)
         // )?;
 
-        Ok(Self { 
+        Ok(Self {
             egui_ctx,
-            egui_state
+            egui_state,
         })
     }
 
-    pub fn on_window_event(&self, window: &Window, event: &WindowEvent) {
-
-    }
+    pub fn on_window_event(&self, window: &Window, event: &WindowEvent) {}
 
     pub fn draw(&mut self, window: &Window) {
-
         let raw_input = self.egui_state.take_egui_input(&window);
 
         let egui::FullOutput {
@@ -73,17 +72,13 @@ impl UiRenderer {
             shapes,
             pixels_per_point,
             ..
-        } = self.egui_ctx.run_ui(raw_input, |ctx| {
-            
-        });
+        } = self.egui_ctx.run_ui(raw_input, |ctx| {});
 
-        self.egui_state.handle_platform_output(&window, platform_output);
+        self.egui_state
+            .handle_platform_output(&window, platform_output);
         let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
     }
 }
-
-
-
 
 /// Orthographic projection matrix for use with Vulkan.
 ///

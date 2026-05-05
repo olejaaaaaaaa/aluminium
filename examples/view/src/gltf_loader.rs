@@ -1,25 +1,27 @@
 use std::path::Path;
 
 use aluminium::types::{PbrVertex, Vertex};
-use aluminium::{GetMut, IndexBuffer, IndexBufferDesc, Res, StorageBuffer, StorageBufferDesc, TextureDesc, VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer};
+use aluminium::{
+    GetMut, IndexBuffer, IndexBufferDesc, Res, StorageBuffer, StorageBufferDesc, TextureDesc,
+    VertexBuffer, VertexBufferDesc, VulkanResult, WorldRenderer,
+};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use gltf::image::Format;
 
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Default)]
 pub struct Transform {
-    pub model: [[f32; 4]; 4],      
-    pub view: [[f32; 4]; 4],       
-    pub proj: [[f32; 4]; 4],         
-    pub normal: [[f32; 4]; 4],       
+    pub model: [[f32; 4]; 4],
+    pub view: [[f32; 4]; 4],
+    pub proj: [[f32; 4]; 4],
+    pub normal: [[f32; 4]; 4],
 }
 
 #[derive(Clone)]
 pub struct Mesh {
     pub index: Res<IndexBuffer>,
-    pub vertex: Res<VertexBuffer>
+    pub vertex: Res<VertexBuffer>,
 }
 
 #[derive(Clone)]
@@ -35,7 +37,7 @@ pub struct GltfModel {
     pub meshes: Vec<(Mesh, Material)>,
     pub transforms: Vec<Transform>,
     pub ssbo: Option<Res<StorageBuffer>>,
-    pub textures: Vec<Res<aluminium::Texture>>
+    pub textures: Vec<Res<aluminium::Texture>>,
 }
 
 fn load_gltf_node(
@@ -114,46 +116,41 @@ fn load_gltf_node(
 
             let diffuse_index = pbr
                 .base_color_texture()
-                .map_or(0, |texture| {
-                    texture.texture().index() as u32
-                });
+                .map_or(0, |texture| texture.texture().index() as u32);
 
             let normal_index = material
                 .normal_texture()
-                .map_or(0, |texture| {
-                    texture.texture().index() as u32
-                });
+                .map_or(0, |texture| texture.texture().index() as u32);
 
             let metallic_roughness_index = pbr
                 .metallic_roughness_texture()
-                .map_or(0, |texture| {
-                    texture.texture().index() as u32
-                });
+                .map_or(0, |texture| texture.texture().index() as u32);
 
             let occlusion_index = material
                 .occlusion_texture()
-                .map_or(0, |texture| {
-                    texture.texture().index() as u32
-                });
+                .map_or(0, |texture| texture.texture().index() as u32);
 
             let model_matrix = node_transform;
             let view_matrix = view;
             let proj_matrix = proj;
             let normal_matrix = node_transform.inverse().transpose();
 
-            model.transforms.push(Transform { 
+            model.transforms.push(Transform {
                 model: model_matrix.to_cols_array_2d(),
                 view: view_matrix.to_cols_array_2d(),
                 proj: proj_matrix.to_cols_array_2d(),
                 normal: normal_matrix.to_cols_array_2d(),
             });
 
-            model.meshes.push((Mesh { vertex, index }, Material {
-                diffuse_map: diffuse_index,
-                normal_map: normal_index,
-                metallic_roughness_map: metallic_roughness_index,
-                occlusion_map: occlusion_index
-            }));
+            model.meshes.push((
+                Mesh { vertex, index },
+                Material {
+                    diffuse_map: diffuse_index,
+                    normal_map: normal_index,
+                    metallic_roughness_map: metallic_roughness_index,
+                    occlusion_map: occlusion_index,
+                },
+            ));
         }
     }
 
@@ -174,13 +171,13 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
 
     for mut image in images {
         if image.format == Format::R8G8B8A8 {
-
             let dynamic_image = image::DynamicImage::ImageRgba8(
                 image::RgbaImage::from_raw(
                     image.width,
                     image.height,
                     std::mem::take(&mut image.pixels),
-                ).unwrap()
+                )
+                .unwrap(),
             );
 
             let rgba8_image = dynamic_image.to_rgba8();
@@ -188,12 +185,11 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
                 width: image.width,
                 height: image.height,
                 format: aluminium::PixelFormat::Rgba8,
-                pixels: &rgba8_image.into_raw()
+                pixels: &rgba8_image.into_raw(),
             })?;
 
             textures.push(texture);
         } else if image.format == Format::R8G8B8 {
-
             let dynamic_image = image::DynamicImage::ImageRgb8(
                 image::RgbImage::from_raw(
                     image.width,
@@ -208,17 +204,21 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
                 width: image.width,
                 height: image.height,
                 format: aluminium::PixelFormat::Rgb8,
-                pixels: &rgba8_image.into_raw()
+                pixels: &rgba8_image.into_raw(),
             })?;
 
             textures.push(texture);
-
         } else {
             println!("Skip texture foramt: {:?}", image.format);
         }
     }
 
-    let mut gltf_model = GltfModel { meshes: vec![], ssbo: None, transforms: vec![], textures };
+    let mut gltf_model = GltfModel {
+        meshes: vec![],
+        ssbo: None,
+        transforms: vec![],
+        textures,
+    };
 
     for scene in gltf.scenes() {
         for node in scene.nodes() {
@@ -226,7 +226,8 @@ pub fn load_gltf<P: AsRef<Path>>(world: &WorldRenderer, path: P) -> VulkanResult
         }
     }
 
-    let transforms = world.create::<StorageBuffer>(StorageBufferDesc::new(&gltf_model.transforms))?;
+    let transforms =
+        world.create::<StorageBuffer>(StorageBufferDesc::new(&gltf_model.transforms))?;
     gltf_model.ssbo = Some(transforms);
 
     Ok(gltf_model)

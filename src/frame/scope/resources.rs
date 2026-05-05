@@ -1,5 +1,7 @@
 use slotmap::SlotMap;
-use crate::{Id, resources::TransientTextureDesc};
+
+use crate::resources::TransientTextureDesc;
+use crate::Id;
 
 #[derive(Debug)]
 pub struct FrameResources {

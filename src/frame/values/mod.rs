@@ -1,5 +1,6 @@
 use ash::vk;
 use bytemuck::{Pod, Zeroable};
+
 use crate::core::{Device, PerFrameBuffer, PerFrameBufferBuilder, VulkanResult};
 
 #[repr(C)]
@@ -21,7 +22,6 @@ pub struct FrameValues {
 
 impl FrameValues {
     pub fn new(device: &Device, frame_count: usize) -> VulkanResult<Self> {
-        
         let buffer = PerFrameBufferBuilder::new(device)
             .frame_count(frame_count)
             .buffer_size(size_of::<FrameData>() as u64)

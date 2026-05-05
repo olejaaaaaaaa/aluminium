@@ -8,5 +8,5 @@ pub enum LoadOp {
 #[derive(Debug)]
 pub enum StoreOp {
     Store,
-    DontCare
+    DontCare,
 }

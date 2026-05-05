@@ -3,7 +3,9 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::core::{
-    AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, ShaderBuilder, Vertex, load_spv
+    load_spv, AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder,
+    GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder,
+    ShaderBuilder, Vertex,
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Res, Resources, ShaderType};
@@ -135,16 +137,11 @@ impl Create for RasterPipeline {
             .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT);
 
         let layot = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![
-                binding
-            ])
+            .bindings(vec![binding])
             .build()?;
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
-            .set_layouts(vec![
-                resources.bindless.set_layout.raw,
-                layot.raw
-            ])
+            .set_layouts(vec![resources.bindless.set_layout.raw, layot.raw])
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
@@ -249,13 +246,12 @@ impl Create for RasterPipeline {
 
         let cache = resources.pipeline_cache.write();
 
-        let layout =
-            cache
-                .pipeline_layout
-                .insert(layout);
+        let layout = cache.pipeline_layout.insert(layout);
 
         let layout = resources.make_handle(ctx, layout);
-        let pipeline = cache.raster_pipelines.insert(RasterPipeline { layout, pipeline });
+        let pipeline = cache
+            .raster_pipelines
+            .insert(RasterPipeline { layout, pipeline });
 
         Ok(resources.make_handle(ctx, pipeline))
     }

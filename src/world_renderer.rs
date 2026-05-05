@@ -4,9 +4,9 @@ use std::sync::Arc;
 use tracing::error;
 use winit::window::Window;
 
-use super::render_context::RenderContext;
 use super::core::{SwapchainError, VulkanError, VulkanResult};
 use super::frame::{FrameGraph, FrameScope};
+use super::render_context::RenderContext;
 use super::resources::*;
 
 /// Lightweight abstraction for rendering using Vulkan API
@@ -86,13 +86,11 @@ impl WorldRenderer {
     ///     Vertex { pos: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
     ///     Vertex { pos: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }
     /// ];
-    /// 
+    ///
     /// let vertex_buffer: Res<VertexBuffer> = world.create::<VertexBuffer>(
     ///     VertexBufferDesc::new(&vertices)
     /// )?;
-    /// 
-    ///```
-    /// 
+    /// ```
     pub fn create<T: Create>(&self, desc: T::Desc<'_>) -> VulkanResult<Res<T>> {
         T::create(&self.ctx, &self.resources, desc)
     }
@@ -187,7 +185,7 @@ impl WorldRenderer {
 impl Drop for WorldRenderer {
     fn drop(&mut self) {
         let device = &self.ctx.device;
-        
+
         // Wait all gpu work before destroy resources
         if let Ok(()) = unsafe { device.device_wait_idle() } {
             if Arc::strong_count(&self.resources) > 1 {

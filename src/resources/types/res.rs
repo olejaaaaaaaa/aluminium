@@ -1,8 +1,10 @@
-use std::{marker::PhantomData, sync::{Arc, Weak, atomic::{AtomicUsize, Ordering}}};
+use std::marker::PhantomData;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Weak};
 
 use super::ResourceKey;
-use crate::resources::Resources;
 use crate::render_context::RenderContext;
+use crate::resources::Resources;
 
 /// Unique identifier of the resource with delayed deletion
 pub struct Res<T> {
@@ -29,8 +31,6 @@ impl<T> Clone for Res<T> {
 impl<T> Drop for Res<T> {
     fn drop(&mut self) {
         let ref_count = self.ref_count.fetch_sub(1, Ordering::AcqRel);
-        if ref_count == 1 {
-            // destroy here
-        }
+        if ref_count == 1 {}
     }
 }

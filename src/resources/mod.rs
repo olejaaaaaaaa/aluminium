@@ -21,7 +21,8 @@ pub use descriptor_manager::*;
 mod pipeline_cache;
 pub use pipeline_cache::*;
 
-use crate::{VulkanResult, render_context::RenderContext};
+use crate::render_context::RenderContext;
+use crate::VulkanResult;
 
 #[allow(missing_docs)]
 pub trait Create: Sized {

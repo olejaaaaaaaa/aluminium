@@ -31,12 +31,18 @@ impl RenderContext {
 
     /// Get current resolution
     pub fn resolution(&self) -> vk::Extent2D {
-        self.window.try_read().expect("Error lock window for get current resolution").resolution
+        self.window
+            .try_read()
+            .expect("Error lock window for get current resolution")
+            .resolution
     }
 
     /// Recreate [`WindowManager`]
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
-        self.window.try_write().expect("Error lock window for resize window").resize(&self.device, width, height)
+        self.window
+            .try_write()
+            .expect("Error lock window for resize window")
+            .resize(&self.device, width, height)
     }
 
     /// Create [`RenderContext`]
@@ -86,11 +92,9 @@ impl RenderContext {
 
         let frame_in_flight = (min_image_count - 1).max(1) as usize;
 
-        let render_pass = RenderPassBuilder::default(
-            &device, 
-            vk::Format::R8G8B8A8_SRGB, 
-            vk::Format::D32_SFLOAT
-            ).build()?;
+        let render_pass =
+            RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT)
+                .build()?;
 
         let depth_image = ImageBuilder::new(&device)
             .extent(caps.current_extent.into())
@@ -116,17 +120,17 @@ impl RenderContext {
         for i in swapchain.get_swapchain_images().unwrap() {
             image_views.push(
                 ImageViewBuilder::new(&device)
-                .format(vk::Format::R8G8B8A8_SRGB)
-                .image(i)
-                .subresource_range(vk::ImageSubresourceRange {
-                    aspect_mask: vk::ImageAspectFlags::COLOR,
-                    base_mip_level: 0,
-                    level_count: 1,
-                    base_array_layer: 0,
-                    layer_count: 1,
-                })
-                .view_type(vk::ImageViewType::TYPE_2D)
-                .build()?
+                    .format(vk::Format::R8G8B8A8_SRGB)
+                    .image(i)
+                    .subresource_range(vk::ImageSubresourceRange {
+                        aspect_mask: vk::ImageAspectFlags::COLOR,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count: 1,
+                    })
+                    .view_type(vk::ImageViewType::TYPE_2D)
+                    .build()?,
             );
         }
 
@@ -174,7 +178,7 @@ impl RenderContext {
                 instance,
                 logical_device: device,
                 queue_pool: pool,
-                frame_in_flight
+                frame_in_flight,
             },
         }))
     }

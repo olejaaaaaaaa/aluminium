@@ -1,4 +1,5 @@
-use crate::{Handle, TransientTexture, resources::Res};
+use crate::resources::Res;
+use crate::{Handle, TransientTexture};
 
 type ImageIndex = u32;
 
@@ -9,7 +10,7 @@ pub struct FrameGraphResources {
 
 struct FrameSlot<T> {
     data: T,
-    last_index: u32
+    last_index: u32,
 }
 
 impl FrameGraphResources {
@@ -20,9 +21,7 @@ impl FrameGraphResources {
         }
     }
 
-    fn prepare_frame_data(&mut self, image_index: u32) {
-
-    }
+    fn prepare_frame_data(&mut self, image_index: u32) {}
 
     fn transient_texture(&mut self, handle: Handle<TransientTexture>) -> Res<TransientTexture> {
         todo!()
