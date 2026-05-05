@@ -8,7 +8,7 @@ use crate::core::{
     ShaderBuilder, Vertex,
 };
 use crate::resources::pipeline_cache::Source;
-use crate::resources::{Create, Res, Resources, ShaderType};
+use crate::resources::{Create, Res, Resources, ShaderType, Uniform, UniformBinding};
 use crate::VulkanResult;
 
 pub trait Layout {
@@ -56,6 +56,7 @@ pub struct RasterPipelineDesc<'a> {
     dynamic_scissors: bool,
     vertex_shader: Option<Source<'a>>,
     fragment_shader: Option<Source<'a>>,
+    uniforms: Option<&'a [Uniform]>,
     multiple_render_target: Option<usize>,
     vertex_input: Option<VertexInput>,
 }
@@ -67,6 +68,7 @@ impl<'a> Default for RasterPipelineDesc<'a> {
             depth_test: false,
             dynamic_viewport: false,
             dynamic_scissors: false,
+            uniforms: None,
             vertex_shader: None,
             fragment_shader: None,
             multiple_render_target: None,
@@ -97,6 +99,11 @@ impl<'a> RasterPipelineDesc<'a> {
 
     pub fn vertex_input<T: Layout>(mut self) -> Self {
         self.vertex_input = Some(T::layout());
+        self
+    }
+
+    pub fn uniforms(mut self, uniforms: &'a [Uniform]) -> Self {
+        self.uniforms = Some(uniforms);
         self
     }
 
@@ -187,8 +194,6 @@ impl Create for RasterPipeline {
             },
         };
 
-        let resolution = ctx.resolution();
-
         let mut dynamic_states = Vec::with_capacity(2);
 
         if desc.dynamic_viewport {
@@ -198,6 +203,8 @@ impl Create for RasterPipeline {
         if desc.dynamic_scissors {
             dynamic_states.push(vk::DynamicState::SCISSOR);
         }
+
+        let resolution = ctx.resolution();
 
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
             .vertex_shader(vertex.raw)

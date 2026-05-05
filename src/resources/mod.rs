@@ -15,8 +15,8 @@ pub use textures::*;
 mod buffers;
 pub use buffers::*;
 
-mod descriptor_manager;
-pub use descriptor_manager::*;
+mod descriptor_cache;
+pub use descriptor_cache::*;
 
 mod pipeline_cache;
 pub use pipeline_cache::*;

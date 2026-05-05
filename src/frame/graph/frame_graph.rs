@@ -138,8 +138,8 @@ impl FrameGraph {
             }
         }
 
-        //    std::mem::forget(layot);
-        //    std::mem::forget(pool);
+        std::mem::forget(layot);
+        std::mem::forget(pool);
 
         Ok(())
     }
