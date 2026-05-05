@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use ash::vk;
+use tracing::debug;
 
 use crate::core::{
     DescriptorPool, DescriptorPoolBuilder, DescriptorSetLayout, DescriptorSetLayoutBuilder, Device,
@@ -122,7 +123,7 @@ impl Bindless {
             .descriptor_type(vk::DescriptorType::SAMPLED_IMAGE)
             .image_info(std::slice::from_ref(&image_info));
 
-        println!("Bindless index: {}", index);
+        debug!("New bindless index: {}", index);
 
         unsafe { device.update_descriptor_sets(&[write], &[]) };
     }

@@ -4,7 +4,6 @@ use ash::vk;
 use parking_lot::RwLock;
 
 mod window_manager;
-use tracing::warn;
 pub use window_manager::WindowManager;
 
 mod graphics_device;
@@ -25,17 +24,19 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
+    /// frame in flight
     pub fn frame_in_flight(&self) -> usize {
-        self.window.read().frame_buffers.len()
+        self.device.frame_in_flight
     }
 
+    /// Get current resolution
     pub fn resolution(&self) -> vk::Extent2D {
-        self.window.read().resolution
+        self.window.try_read().expect("Error lock window for get current resolution").resolution
     }
 
     /// Recreate [`WindowManager`]
     pub fn resize(&self, width: u32, height: u32) -> VulkanResult<()> {
-        self.window.write().resize(&self.device, width, height)
+        self.window.try_write().expect("Error lock window for resize window").resize(&self.device, width, height)
     }
 
     /// Create [`RenderContext`]
@@ -67,13 +68,14 @@ impl RenderContext {
             }
         }
 
-        warn!(
-            "Image count: {}:{}",
-            caps.min_image_count, caps.max_image_count
-        );
+        let min_image_count = if caps.max_image_count >= 3 {
+            3
+        } else {
+            caps.min_image_count
+        };
 
         let swapchain = SwapchainBuilder::new(&device)
-            .min_image_count(2)
+            .min_image_count(min_image_count)
             .surface(&surface)
             .present_mode(vk::PresentModeKHR::FIFO)
             .instance(&instance)
@@ -82,9 +84,13 @@ impl RenderContext {
             .format(format)
             .build()?;
 
-        let render_pass =
-            RenderPassBuilder::default(&device, vk::Format::R8G8B8A8_SRGB, vk::Format::D32_SFLOAT)
-                .build()?;
+        let frame_in_flight = (min_image_count - 1).max(1) as usize;
+
+        let render_pass = RenderPassBuilder::default(
+            &device, 
+            vk::Format::R8G8B8A8_SRGB, 
+            vk::Format::D32_SFLOAT
+            ).build()?;
 
         let depth_image = ImageBuilder::new(&device)
             .extent(caps.current_extent.into())
@@ -108,7 +114,8 @@ impl RenderContext {
         let mut image_views = vec![];
 
         for i in swapchain.get_swapchain_images().unwrap() {
-            let image_view = ImageViewBuilder::new(&device)
+            image_views.push(
+                ImageViewBuilder::new(&device)
                 .format(vk::Format::R8G8B8A8_SRGB)
                 .image(i)
                 .subresource_range(vk::ImageSubresourceRange {
@@ -119,8 +126,8 @@ impl RenderContext {
                     layer_count: 1,
                 })
                 .view_type(vk::ImageViewType::TYPE_2D)
-                .build()?;
-            image_views.push(image_view);
+                .build()?
+            );
         }
 
         let mut frame_buffers = vec![];
@@ -144,7 +151,7 @@ impl RenderContext {
         );
         let mut frame_sync = vec![];
 
-        for _ in 0..frame_buffers.len() {
+        for _ in 0..frame_in_flight {
             frame_sync.push(FrameSync::new(&device)?);
         }
 
@@ -167,6 +174,7 @@ impl RenderContext {
                 instance,
                 logical_device: device,
                 queue_pool: pool,
+                frame_in_flight
             },
         }))
     }

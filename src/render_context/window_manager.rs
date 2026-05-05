@@ -56,8 +56,6 @@ impl WindowManager {
         let format_priority = [vk::Format::R8G8B8A8_SRGB];
 
         let color_space_priority = [
-            #[cfg(target_os = "android")]
-            vk::ColorSpaceKHR::EXTENDED_SRGB_LINEAR_EXT,
             vk::ColorSpaceKHR::SRGB_NONLINEAR,
         ];
 

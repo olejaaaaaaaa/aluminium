@@ -30,3 +30,10 @@ pub struct UniformBinding {
     pub binding: u32,
     pub ty: ShaderType,
 }
+
+pub enum UniformType {
+    StorageBuffer,
+    UniformBuffer,
+    Texture,
+    StorageTexture,
+}
