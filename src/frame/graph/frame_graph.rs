@@ -159,28 +159,39 @@ impl FrameGraph {
             return Ok(());
         }
 
-        // ------------------------Acquire Next Image-----------------------------
-        let image_index = {
-            let window = &ctx
-                .window
-                .try_read()
+        
+        // ------------------------Wait fence + Reset cmd-----------------------------
+        let (cmd_buffer, image_index) = {
+            let window = ctx.window.try_read()
                 .expect("Error borrowed Window for read");
-            let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
-            // Wait fence for next frame or skip frame
+            let frame_idx = window.current_frame % window.frame_sync.len();
+            let sync = &window.frame_sync[frame_idx];
+
             unsafe {
                 let wait = device.wait_for_fences(&[sync.in_flight_fence.raw], true, u64::MAX);
                 if let Err(err) = wait {
                     error!("Error wait for fences: {:?}", err);
                     return Ok(());
                 }
-                device
-                    .reset_fences(&[sync.in_flight_fence.raw])
+                device.reset_fences(&[sync.in_flight_fence.raw])
                     .map_err(VulkanError::Unknown)?;
             }
 
-            // Get image index or skip a frame
+            let cmd_buffer = self.cmd_buffers[window.current_frame % ctx.frame_in_flight()];
+
             unsafe {
+                device.reset_command_buffer(cmd_buffer, vk::CommandBufferResetFlags::empty())
+                    .map_err(VulkanError::Unknown)?;
+
+                let begin_info = vk::CommandBufferBeginInfo::default()
+                    .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+                device.begin_command_buffer(cmd_buffer, &begin_info)
+                    .map_err(VulkanError::Unknown)?;
+            }
+
+            let image_index = unsafe {
                 match window.swapchain.loader.acquire_next_image(
                     window.swapchain.raw,
                     u64::MAX,
@@ -189,18 +200,14 @@ impl FrameGraph {
                 ) {
                     Ok((index, _)) => index,
                     Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                        return Err(VulkanError::Swapchain(
-                            SwapchainError::SwapchainOutOfDateKhr,
-                        ));
+                        return Err(VulkanError::Swapchain(SwapchainError::SwapchainOutOfDateKhr));
                     },
-                    Err(e) => {
-                        return Err(VulkanError::Unknown(e));
-                    },
+                    Err(e) => return Err(VulkanError::Unknown(e)),
                 }
-            }
-        };
+            };
 
-        let cmd_buffer = self.cmd_buffers[image_index as usize];
+            (cmd_buffer, image_index)
+        };
 
         // ------------------------Record Command Buffers-----------------------------
         {
@@ -225,22 +232,6 @@ impl FrameGraph {
                                 },
                             },
                         ];
-
-                        unsafe {
-                            device
-                                .reset_command_buffer(
-                                    cmd_buffer,
-                                    vk::CommandBufferResetFlags::empty(),
-                                )
-                                .map_err(VulkanError::Unknown)?;
-
-                            let begin_info = vk::CommandBufferBeginInfo::default()
-                                .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-                            device
-                                .begin_command_buffer(cmd_buffer, &begin_info)
-                                .map_err(VulkanError::Unknown)?;
-                        }
 
                         let render_pass_begin_info = vk::RenderPassBeginInfo::default()
                             .render_pass(window.render_pass.raw)
@@ -289,19 +280,18 @@ impl FrameGraph {
                         unsafe {
                             device.cmd_end_render_pass(cmd_buffer);
                         }
-
-                        unsafe {
-                            device
-                                .end_command_buffer(cmd_buffer)
-                                .map_err(VulkanError::Unknown)?;
-                        }
                     },
                 }
             }
         }
 
-        let mut window = ctx.window.try_write().expect("Window already borrowed");
+        unsafe {
+            device
+                .end_command_buffer(cmd_buffer)
+                .map_err(VulkanError::Unknown)?;
+        }
 
+        let mut window = ctx.window.try_write().expect("Window already borrowed");
         let sync = &window.frame_sync[window.current_frame % window.frame_sync.len()];
 
         // -----------------------Submit-----------------------------
@@ -350,6 +340,14 @@ impl FrameGraph {
         resources.update(image_index);
 
         window.current_frame = window.current_frame.overflowing_add(1).0;
+
+        trace!(
+            "frame={} fif={} cmd_buffers={} idx={}",
+            window.current_frame,
+            ctx.frame_in_flight(),
+            self.cmd_buffers.len(),
+            window.current_frame % ctx.frame_in_flight()
+        );
 
         Ok(())
     }
