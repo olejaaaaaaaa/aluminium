@@ -204,15 +204,16 @@ impl Device {
             .descriptor_binding_partially_bound(true)
             .descriptor_binding_update_unused_while_pending(true)
             .descriptor_binding_sampled_image_update_after_bind(true)
-            .descriptor_binding_storage_image_update_after_bind(true)
-            .descriptor_binding_storage_buffer_update_after_bind(true)
-            .descriptor_binding_uniform_buffer_update_after_bind(true)
             .runtime_descriptor_array(true);
+
+        let mut imageleass_framebuffer = vk::PhysicalDeviceImagelessFramebufferFeatures::default()
+            .imageless_framebuffer(true);
 
         let create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&p_extensions)
-            .push_next(&mut descriptor_indexing);
+            .push_next(&mut descriptor_indexing)
+            .push_next(&mut imageleass_framebuffer);
 
         let device = unsafe {
             profiling::scope!("vkCreateDevice");
