@@ -1,6 +1,11 @@
-#version 440
+#version 450
 
 layout(location = 0) out vec2 vUV;
+
+layout(push_constant, std430) uniform push {
+    uint tex_idx[8];
+    float user_data[24];
+};
 
 void main() {
 

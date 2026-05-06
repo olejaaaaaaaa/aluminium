@@ -206,8 +206,8 @@ impl Device {
             .descriptor_binding_sampled_image_update_after_bind(true)
             .runtime_descriptor_array(true);
 
-        let mut imageleass_framebuffer = vk::PhysicalDeviceImagelessFramebufferFeatures::default()
-            .imageless_framebuffer(true);
+        let mut imageleass_framebuffer =
+            vk::PhysicalDeviceImagelessFramebufferFeatures::default().imageless_framebuffer(true);
 
         let create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_infos)

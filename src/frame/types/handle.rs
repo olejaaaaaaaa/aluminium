@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use slotmap::new_key_type;
@@ -11,6 +12,15 @@ pub struct Handle<T> {
     pub(crate) version: u64,
     pub(crate) _marker: PhantomData<T>,
 }
+
+impl<T> Hash for Handle<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.version.hash(state);
+    }
+}
+
+impl<T> Eq for Handle<T> {}
 
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Self) -> bool {

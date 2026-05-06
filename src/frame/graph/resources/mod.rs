@@ -4,8 +4,9 @@ use crate::{Handle, TransientTexture};
 type ImageIndex = u32;
 
 pub struct FrameGraphResources {
-    // pub transient_textures: Vec<(TransientTextureDesc, Res<TransientTexture>)>,
-    // pub transient_textures_resolve: HashMap<Id, usize>
+    // pub transient_textures: Vec<(TransientTextureDesc,
+    // Res<TransientTexture>)>, pub transient_textures_resolve: HashMap<Id,
+    // usize>
 }
 
 struct FrameSlot<T> {

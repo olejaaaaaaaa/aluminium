@@ -5,7 +5,10 @@ use std::time::Instant;
 
 use aluminium::types::PbrVertex;
 use aluminium::{
-    Get, GetMut, Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc, RenderTarget, Res, Resolution, Scissor, ShaderStage, ShaderType, StorageBuffer, StorageBufferDesc, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, Uniform, UniformBinding, UniformType, VertexInput, Viewport, WorldRenderer
+    Get, GetMut, Handle, LoadOp, Location, RasterPass, RasterPipeline, RasterPipelineDesc,
+    RenderTarget, Res, Resolution, Scissor, ShaderStage, ShaderType, StorageBuffer,
+    StorageBufferDesc, StoreOp, Texture, TextureDesc, TextureFormat, TransientTexture, Uniform,
+    UniformBinding, UniformType, VertexInput, Viewport, WorldRenderer,
 };
 use bytemuck::{Pod, Zeroable};
 use tracing_subscriber::filter::LevelFilter;
@@ -17,17 +20,11 @@ use winit::*;
 
 use crate::{GltfModel, UiRenderer, load_gltf};
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-pub struct Test {
-    time: f32,
-}
-
 pub struct View {
     global_time: std::time::Instant,
     model: GltfModel,
     gbuffer_pipeline: Res<RasterPipeline>,
-    //final_pipeline: Res<RasterPipeline>,
+    final_pipeline: Res<RasterPipeline>,
     ui: UiRenderer,
     world: WorldRenderer,
 }
@@ -47,9 +44,9 @@ impl View {
                         binding: UniformBinding {
                             set: 1,
                             binding: 0,
-                            stage: ShaderStage::Vertex
+                            stage: ShaderStage::Vertex,
                         },
-                        ty: UniformType::StorageBuffer
+                        ty: UniformType::StorageBuffer,
                     }])
                     .depth_test(true)
                     .dynamic_scissors(true)
@@ -57,22 +54,24 @@ impl View {
             )
             .expect("Error create pipeline");
 
-        // let final_pipeline = world.create::<RasterPipeline>(
-        //     RasterPipelineDesc::new()
-        //         .vertex_shader(r"shaders\spv\path_tracing_vert.spv")
-        //         .fragment_shader(r"shaders\spv\fullscreen_quad_frag.spv")
-        //         .uniforms(&[Uniform {
-        //             binding: UniformBinding { 
-        //                 set: 1, 
-        //                 binding: 0, 
-        //                 stage: ShaderStage::Fragment 
-        //             },
-        //             ty: UniformType::Texture
-        //         }])
-        //         .depth_test(false)
-        //         .dynamic_scissors(true)
-        //         .dynamic_viewport(true)
-        //     ).expect("Error create final pipeline");
+        let final_pipeline = world
+            .create::<RasterPipeline>(
+                RasterPipelineDesc::new()
+                    .vertex_shader(r"shaders\spv\path_tracing_vert.spv")
+                    .fragment_shader(r"shaders\spv\fullscreen_quad_frag.spv")
+                    .uniforms(&[Uniform {
+                        binding: UniformBinding {
+                            set: 1,
+                            binding: 0,
+                            stage: ShaderStage::Fragment,
+                        },
+                        ty: UniformType::Texture,
+                    }])
+                    .depth_test(false)
+                    .dynamic_scissors(true)
+                    .dynamic_viewport(true),
+            )
+            .expect("Error create final pipeline");
 
         let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf")
             .expect("Error load gltf model");
@@ -80,7 +79,7 @@ impl View {
         Self {
             global_time: Instant::now(),
             model,
-            //final_pipeline,
+            final_pipeline,
             gbuffer_pipeline,
             ui,
             world,
@@ -96,7 +95,7 @@ impl View {
             },
             WindowEvent::RedrawRequested => {
                 let gbuffer_pipeline = &self.gbuffer_pipeline;
-                //let final_pipeline = &self.final_pipeline;
+                let final_pipeline = &self.final_pipeline;
 
                 let time_sec = self.global_time.elapsed().as_secs_f32();
 
@@ -113,22 +112,24 @@ impl View {
                     let gbuffer: GBuffer = frame.add_pass(
                         RasterPass::new("GBuffer Pass")
                             .setup(|builder| {
-                                builder.read_storage_buffer(ssbo, Location { stage: ShaderStage::Vertex, set: 1, binding: 0 });
-
-                                let albedo: Handle<TransientTexture> = builder.create_texture(
-                                    "albedo",
-                                    TextureFormat::Color,
-                                    Resolution::FullRes,
+                                builder.read_storage_buffer(
+                                    ssbo,
+                                    Location {
+                                        stage: ShaderStage::Vertex,
+                                        set: 1,
+                                        binding: 0,
+                                    },
                                 );
+
+                                let albedo: Handle<TransientTexture> = builder.backbuffer();
+                                let albedo: Handle<TransientTexture> =
+                                    builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
 
                                 let depth: Handle<TransientTexture> = builder.create_texture(
                                     "depth",
                                     TextureFormat::Depth,
                                     Resolution::FullRes,
                                 );
-
-                                let albedo: Handle<TransientTexture> =
-                                    builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
                                 let depth: Handle<TransientTexture> =
                                     builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
 
@@ -145,7 +146,7 @@ impl View {
                                         15.0 * time_sec.cos().abs(),
                                         index as f32,
                                     ]);
-                                    let textures = vec![
+                                    let textures = [
                                         model
                                             .textures
                                             .get(material.diffuse_map as usize)
@@ -173,11 +174,15 @@ impl View {
                     //     RasterPass::new("Final Pass")
                     //         .setup(move |builder| {
 
-                    //             builder.read_texture(gbuffer.albedo, Location { set: 1, binding: 0 });
+                    //             builder.read_texture(gbuffer.albedo, Location
+                    // { stage: ShaderStage::Fragment, set: 1, binding: 0 });
 
                     //             let backbuffer = builder.backbuffer();
-                    //             let _ = builder.write_color(backbuffer,LoadOp::Clear, StoreOp::DontCare);
-                    //             let _ = builder.write_depth(gbuffer.depth,LoadOp::Clear, StoreOp::DontCare);
+                    //             let _ =
+                    // builder.write_color(backbuffer,LoadOp::Clear,
+                    // StoreOp::DontCare);             let _
+                    // = builder.write_depth(gbuffer.depth,LoadOp::Clear,
+                    // StoreOp::DontCare);
 
                     //         })
                     //         .execute(move |ctx| unsafe {

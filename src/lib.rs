@@ -11,9 +11,9 @@ pub use core::{VulkanError, VulkanResult};
 pub use frame::*;
 pub use resources::{
     Get, GetMut, IndexBuffer, IndexBufferDesc, Layout, PixelFormat, RasterPipeline,
-    RasterPipelineDesc, Ref, RefMut, Res, Sampler, ShaderType, StorageBuffer, StorageBufferDesc,
-    Texture, TextureDesc, TextureFormat, TransientTexture, VertexBuffer, VertexBufferDesc,
-    VertexInput, Uniform, UniformBinding, UniformType, ShaderStage
+    RasterPipelineDesc, Ref, RefMut, Res, Sampler, ShaderStage, ShaderType, StorageBuffer,
+    StorageBufferDesc, Texture, TextureDesc, TextureFormat, TransientTexture, Uniform,
+    UniformBinding, UniformType, VertexBuffer, VertexBufferDesc, VertexInput,
 };
 pub use world_renderer::WorldRenderer;
 /// Basic types

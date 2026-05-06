@@ -30,12 +30,12 @@ impl Bindless {
                 .binding(0)
                 .descriptor_type(vk::DescriptorType::SAMPLED_IMAGE)
                 .descriptor_count(MAX_SAMPLED_IMAGE)
-                .stage_flags(vk::ShaderStageFlags::ALL),
+                .stage_flags(vk::ShaderStageFlags::FRAGMENT),
             vk::DescriptorSetLayoutBinding::default()
                 .binding(1)
                 .descriptor_type(vk::DescriptorType::SAMPLER)
                 .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::ALL),
+                .stage_flags(vk::ShaderStageFlags::FRAGMENT),
         ];
 
         let binding_flags = vec![

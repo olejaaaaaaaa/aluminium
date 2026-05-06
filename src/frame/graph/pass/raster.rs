@@ -19,6 +19,7 @@ pub struct RasterPass<'frame> {
     pub(crate) setup:
         Option<Box<dyn for<'a> FnOnce(&mut PassBuilder<'a>) -> Box<dyn Any> + Send + 'frame>>,
     pub(crate) execute: Option<Box<dyn FnOnce(&mut PassContext) + Send + 'frame>>,
+    pub(crate) sync: Option<Box<dyn FnOnce(vk::CommandBuffer) + 'static>>,
 }
 
 impl<'frame> RasterPass<'frame> {
@@ -34,6 +35,7 @@ impl<'frame> RasterPass<'frame> {
             write_textures: vec![],
             read_textures: vec![],
             data: Box::new(()),
+            sync: None,
             setup: None,
             execute: None,
         }

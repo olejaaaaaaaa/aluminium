@@ -91,6 +91,7 @@ impl Resources {
                         vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT
                             | vk::ImageUsageFlags::SAMPLED,
                     )
+                    .init_layout(vk::ImageLayout::UNDEFINED)
                     .array_layers(1)
                     .extent(extent.into())
                     .format(vk::Format::D32_SFLOAT)
@@ -118,6 +119,7 @@ impl Resources {
                     .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
                     .array_layers(1)
                     .extent(extent.into())
+                    .init_layout(vk::ImageLayout::UNDEFINED)
                     .format(vk::Format::R8G8B8A8_SRGB)
                     .image_type(vk::ImageType::TYPE_2D)
                     .build()?;

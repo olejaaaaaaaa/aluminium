@@ -97,7 +97,10 @@ impl PassContext {
             bytemuck::bytes_of(&push),
         );
 
-        device.cmd_bind_descriptor_sets(cbuf, bind_point, layout, 0, &[bindless], &[]);
+        let mut sets = vec![bindless];
+        sets.extend(self.runtime_data.addition_sets.clone());
+
+        device.cmd_bind_descriptor_sets(cbuf, bind_point, layout, 0, &sets, &[]);
 
         device.cmd_draw(cbuf, 3, 1, 0, 0);
     }

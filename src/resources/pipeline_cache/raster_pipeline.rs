@@ -4,7 +4,9 @@ use ash::vk;
 use tracing::debug;
 
 use crate::core::{
-    AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, Device, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, RenderPassBuilder, ShaderBuilder, ShaderModule, Subpass, Vertex, load_spv
+    load_spv, AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, Device,
+    GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder,
+    RenderPassBuilder, ShaderBuilder, ShaderModule, Subpass, Vertex,
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Res, Resources, ShaderType, Uniform, UniformBinding};
@@ -127,7 +129,6 @@ impl Create for RasterPipeline {
         resources: &std::sync::Arc<Resources>,
         desc: Self::Desc<'_>,
     ) -> VulkanResult<Res<Self>> {
-
         let mut offset = 0u32;
         let mut vertex_input_attrs = vec![];
 
@@ -139,7 +140,7 @@ impl Create for RasterPipeline {
                     .binding(0)
                     .offset(offset)
                     .location(location as u32)
-                    .format(format)
+                    .format(format),
             );
 
             offset += size;
@@ -147,12 +148,10 @@ impl Create for RasterPipeline {
 
         let stride = offset;
 
-        let binding = vec![
-            vk::VertexInputBindingDescription::default()
-                .binding(0)
-                .input_rate(vk::VertexInputRate::VERTEX)
-                .stride(stride)
-        ];
+        let binding = vec![vk::VertexInputBindingDescription::default()
+            .binding(0)
+            .input_rate(vk::VertexInputRate::VERTEX)
+            .stride(stride)];
 
         debug!("Vertex Attrs: {:?}", vertex_input_attrs);
 
@@ -166,14 +165,9 @@ impl Create for RasterPipeline {
             for i in uniforms {
                 match i.ty {
                     UniformType::StorageBuffer => {
-
                         let flags = match i.binding.stage {
-                            ShaderStage::Vertex => {
-                                vk::ShaderStageFlags::VERTEX
-                            },
-                            ShaderStage::Fragment => {
-                                vk::ShaderStageFlags::FRAGMENT
-                            }
+                            ShaderStage::Vertex => vk::ShaderStageFlags::VERTEX,
+                            ShaderStage::Fragment => vk::ShaderStageFlags::FRAGMENT,
                         };
 
                         bindings.push(
@@ -181,10 +175,24 @@ impl Create for RasterPipeline {
                                 .binding(i.binding.binding)
                                 .descriptor_count(1)
                                 .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                                .stage_flags(flags)
+                                .stage_flags(flags),
                         );
                     },
-                    _ => unimplemented!()
+                    UniformType::Texture => {
+                        let flags = match i.binding.stage {
+                            ShaderStage::Vertex => vk::ShaderStageFlags::VERTEX,
+                            ShaderStage::Fragment => vk::ShaderStageFlags::FRAGMENT,
+                        };
+
+                        bindings.push(
+                            vk::DescriptorSetLayoutBinding::default()
+                                .binding(i.binding.binding)
+                                .descriptor_count(1)
+                                .descriptor_type(vk::DescriptorType::SAMPLED_IMAGE)
+                                .stage_flags(flags),
+                        );
+                    },
+                    _ => unimplemented!(),
                 }
             }
         }
@@ -261,9 +269,7 @@ impl Create for RasterPipeline {
                 .store_op(vk::AttachmentStoreOp::DONT_CARE)
                 .load_op(vk::AttachmentLoadOp::DONT_CARE);
 
-            attachments.push(
-                depth_attachment
-            );
+            attachments.push(depth_attachment);
         }
 
         let dependency = vec![vk::SubpassDependency {
@@ -286,18 +292,18 @@ impl Create for RasterPipeline {
                 vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => {
                     subpass = subpass.add_color_attachment_ref(
                         vk::AttachmentReference::default()
-                        .attachment(index as u32)
-                        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                            .attachment(index as u32)
+                            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL),
                     );
                 },
                 vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => {
                     subpass = subpass.add_depth_attachment_ref(
                         vk::AttachmentReference::default()
                             .attachment(index as u32)
-                            .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                            .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
                     );
                 },
-                x => unimplemented!("layout: {:?}", x)
+                x => unimplemented!("layout: {:?}", x),
             }
         }
 
@@ -322,7 +328,7 @@ impl Create for RasterPipeline {
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
             .vertex_shader(vertex_shader.raw)
             .fragment_shader(fragment_shader.raw)
-            .render_pass(render_pass.raw)
+            .render_pass(ctx.window.read().render_pass.raw)
             .pipeline_layout(layout.raw)
             .viewport(vec![vk::Viewport::default()
                 .x(0.0)
@@ -381,11 +387,11 @@ impl Create for RasterPipeline {
 
 fn shader_type_info(ty: &ShaderType) -> (vk::Format, u32) {
     match ty {
-        ShaderType::Float  => (vk::Format::R32_SFLOAT,          4),
-        ShaderType::Float2 => (vk::Format::R32G32_SFLOAT,       8),
-        ShaderType::Float3 => (vk::Format::R32G32B32_SFLOAT,    12),
+        ShaderType::Float => (vk::Format::R32_SFLOAT, 4),
+        ShaderType::Float2 => (vk::Format::R32G32_SFLOAT, 8),
+        ShaderType::Float3 => (vk::Format::R32G32B32_SFLOAT, 12),
         ShaderType::Float4 => (vk::Format::R32G32B32A32_SFLOAT, 16),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
 
@@ -393,20 +399,12 @@ fn create_shader(device: &Device, src: Source<'_>) -> VulkanResult<ShaderModule>
     match src {
         Source::Path(path) => {
             let spv = load_spv(path).expect("Path not found or SPIR-V bytecode not valid");
-            Ok(ShaderBuilder::new(device)
-                .bytecode(&spv)
-                .build()?)
+            Ok(ShaderBuilder::new(device).bytecode(&spv).build()?)
         },
-        Source::SpirvU32(bytecode) => {
-            Ok(ShaderBuilder::new(device)
-                .bytecode(&bytecode)
-                .build()?)
-        },
+        Source::SpirvU32(bytecode) => Ok(ShaderBuilder::new(device).bytecode(&bytecode).build()?),
         Source::SpirvU8(bytcode) => {
             let bytecode = bytemuck::cast_slice(bytcode);
-            Ok(ShaderBuilder::new(device)
-                .bytecode(bytecode)
-                .build()?)
-        }
+            Ok(ShaderBuilder::new(device).bytecode(bytecode).build()?)
+        },
     }
 }

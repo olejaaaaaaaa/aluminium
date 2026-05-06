@@ -25,7 +25,6 @@ pub struct RenderPassBuilder<'a> {
 
 impl<'a> RenderPassBuilder<'a> {
     pub fn default(device: &'a Device, color: vk::Format, depth: vk::Format) -> Self {
-
         let subpass = Subpass::new(vk::PipelineBindPoint::GRAPHICS)
             .add_color_attachment_ref(
                 vk::AttachmentReference::default()
@@ -79,11 +78,11 @@ impl<'a> RenderPassBuilder<'a> {
     }
 
     pub fn new(device: &'a Device) -> Self {
-        Self { 
-            device, 
-            attachments: vec![], 
-            dependencies: vec![], 
-            subpasses: vec![] 
+        Self {
+            device,
+            attachments: vec![],
+            dependencies: vec![],
+            subpasses: vec![],
         }
     }
 
@@ -103,12 +102,10 @@ impl<'a> RenderPassBuilder<'a> {
     }
 
     pub fn build(self) -> VulkanResult<RenderPass> {
-
         let device = self.device;
         let mut subpasses = vec![];
 
         for i in &self.subpasses {
-
             let mut subpass = vk::SubpassDescription::default()
                 .color_attachments(&i.color_attachments)
                 .flags(i.flags.unwrap_or(vk::SubpassDescriptionFlags::empty()))

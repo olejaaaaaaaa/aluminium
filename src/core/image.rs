@@ -35,6 +35,7 @@ impl Image {
 
 pub struct ImageBuilder<'a> {
     pub device: &'a Device,
+    pub layout: Option<vk::ImageLayout>,
     pub samples: Option<vk::SampleCountFlags>,
     pub array_layers: Option<u32>,
     pub extent: Option<vk::Extent3D>,
@@ -47,6 +48,7 @@ impl<'a> ImageBuilder<'a> {
     pub fn new(device: &'a Device) -> Self {
         Self {
             device,
+            layout: None,
             samples: None,
             array_layers: None,
             extent: None,
@@ -54,6 +56,11 @@ impl<'a> ImageBuilder<'a> {
             usage: None,
             image_type: None,
         }
+    }
+
+    pub fn init_layout(mut self, layout: vk::ImageLayout) -> Self {
+        self.layout = Some(layout);
+        self
     }
 
     pub fn usage(mut self, usage: vk::ImageUsageFlags) -> Self {
@@ -88,6 +95,7 @@ impl<'a> ImageBuilder<'a> {
         let image_type = self.image_type.unwrap_or(vk::ImageType::TYPE_2D);
         let array_layers = self.array_layers.unwrap_or(1);
         let samples = self.samples.unwrap_or(vk::SampleCountFlags::TYPE_1);
+        let layout = self.layout.unwrap_or(vk::ImageLayout::UNDEFINED);
 
         let create_info = vk::ImageCreateInfo::default()
             .mip_levels(1)
@@ -97,7 +105,7 @@ impl<'a> ImageBuilder<'a> {
             .format(format)
             .tiling(vk::ImageTiling::OPTIMAL)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .initial_layout(layout)
             .image_type(image_type)
             .usage(usage);
 

@@ -1,6 +1,3 @@
-[[vk::binding(0, 0)]] Texture2D Textures[];
-[[vk::binding(1, 0)]] SamplerState tex_sampler;
-
 struct Transform {
     float4x4 model;
     float4x4 view;

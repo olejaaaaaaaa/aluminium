@@ -15,7 +15,7 @@ pub enum ShaderType {
 
 pub struct Uniform {
     pub binding: UniformBinding,
-    pub ty: UniformType
+    pub ty: UniformType,
 }
 
 #[derive(Eq, Hash, PartialEq, Clone)]
@@ -28,7 +28,7 @@ pub enum ShaderStage {
 pub struct UniformBinding {
     pub set: u32,
     pub binding: u32,
-    pub stage: ShaderStage
+    pub stage: ShaderStage,
 }
 
 pub enum UniformType {

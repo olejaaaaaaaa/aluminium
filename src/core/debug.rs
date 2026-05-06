@@ -103,10 +103,10 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         }
     }
 
-    // Silence Vulkan Validation error "VUID-VkSwapchainCreateInfoKHR-pNext-07781"
-    // This happens when a surface is configured with a size outside the allowed
-    // extent. It's a false positive due to the inherent racy-ness of surface
-    // resizing.
+    // Silence Vulkan Validation error
+    // "VUID-VkSwapchainCreateInfoKHR-pNext-07781" This happens when a
+    // surface is configured with a size outside the allowed extent. It's a
+    // false positive due to the inherent racy-ness of surface resizing.
     const VUID_VKSWAPCHAINCREATEINFOKHR_PNEXT_07781: i32 = 0x4c8929c1;
     if cd.message_id_number == VUID_VKSWAPCHAINCREATEINFOKHR_PNEXT_07781 {
         return vk::FALSE;
@@ -126,9 +126,9 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         return vk::FALSE;
     }
 
-    // Silence Vulkan Validation error "VUID-vkCmdCopyImageToBuffer-pRegions-00184".
-    // While we aren't sure yet, we suspect this is probably a VVL issue.
-    // https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/9276
+    // Silence Vulkan Validation error
+    // "VUID-vkCmdCopyImageToBuffer-pRegions-00184". While we aren't sure
+    // yet, we suspect this is probably a VVL issue. https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/9276
     const VUID_VKCMDCOPYIMAGETOBUFFER_PREGIONS_00184: i32 = 0x45ef177c;
     if cd.message_id_number == VUID_VKCMDCOPYIMAGETOBUFFER_PREGIONS_00184 {
         return vk::FALSE;
@@ -136,8 +136,8 @@ unsafe extern "system" fn debug_utils_messenger_callback(
 
     // Silence Vulkan Validation error "VUID-StandaloneSpirv-None-10684".
     //
-    // This is a bug. To prevent massive noise in the tests, lets suppress it for
-    // now. https://github.com/gfx-rs/wgpu/issues/7696
+    // This is a bug. To prevent massive noise in the tests, lets suppress it
+    // for now. https://github.com/gfx-rs/wgpu/issues/7696
     const VUID_STANDALONESPIRV_NONE_10684: i32 = 0xb210f7c2_u32 as i32;
     if cd.message_id_number == VUID_STANDALONESPIRV_NONE_10684 {
         return vk::FALSE;
