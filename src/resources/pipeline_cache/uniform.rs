@@ -1,10 +1,5 @@
 use ash::vk;
 
-pub enum Slot {
-    Bindless { index: u32 },
-    Uniform { set: u32, binding: u32 },
-}
-
 #[derive(Eq, Hash, PartialEq, Clone)]
 pub enum ShaderType {
     Custom(vk::Format),
@@ -18,6 +13,11 @@ pub enum ShaderType {
     U32,
 }
 
+pub struct Uniform {
+    pub binding: UniformBinding,
+    pub ty: UniformType
+}
+
 #[derive(Eq, Hash, PartialEq, Clone)]
 pub enum ShaderStage {
     Vertex,
@@ -28,7 +28,7 @@ pub enum ShaderStage {
 pub struct UniformBinding {
     pub set: u32,
     pub binding: u32,
-    pub ty: ShaderType,
+    pub stage: ShaderStage
 }
 
 pub enum UniformType {

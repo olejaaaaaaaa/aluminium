@@ -21,7 +21,6 @@ resolver = "2"
 ash = "0.38.0"
 ash-window = "0.13.0"                                
 gpu-allocator = { version = "0.28.0", features = ["vulkan"] }     
-vk-sync = "0.1.6"
 winit = { version = "0.30.12", features = ["rwh_06"] }
 slotmap = "1.1.1"
 bytemuck = { version = "1.24.0", features = ["derive"] }
@@ -44,7 +43,6 @@ ash = { workspace = true }
 ash-window = { workspace = true }    
 gpu-allocator = { workspace = true }   
 bytemuck = { workspace = true }
-vk-sync = { workspace = true }
 winit = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }

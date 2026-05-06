@@ -4,8 +4,8 @@ pub use source::Source;
 mod raster_pipeline;
 pub use raster_pipeline::{Layout, RasterPipeline, RasterPipelineDesc, VertexInput};
 
-mod bindings;
-pub use bindings::*;
+mod uniform;
+pub use uniform::*;
 
 use crate::core::PipelineLayout;
 use crate::resources::Pool;

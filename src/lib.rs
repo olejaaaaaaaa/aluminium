@@ -13,7 +13,7 @@ pub use resources::{
     Get, GetMut, IndexBuffer, IndexBufferDesc, Layout, PixelFormat, RasterPipeline,
     RasterPipelineDesc, Ref, RefMut, Res, Sampler, ShaderType, StorageBuffer, StorageBufferDesc,
     Texture, TextureDesc, TextureFormat, TransientTexture, VertexBuffer, VertexBufferDesc,
-    VertexInput,
+    VertexInput, Uniform, UniformBinding, UniformType, ShaderStage
 };
 pub use world_renderer::WorldRenderer;
 /// Basic types
