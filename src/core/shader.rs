@@ -44,7 +44,7 @@ impl<'a> ShaderBuilder<'a> {
 
     pub fn build(self) -> VulkanResult<ShaderModule> {
         let device = self.device;
-        let code = self.bytecode.unwrap();
+        let code = self.bytecode.expect("Missing SPIR-V bytecode");
 
         let create_info = vk::ShaderModuleCreateInfo::default().code(code);
 
@@ -64,10 +64,10 @@ pub(crate) fn read_shader_from_bytes(bytes: &[u8]) -> Result<Vec<u32>, Box<dyn E
     Ok(ash::util::read_spv(&mut cursor)?)
 }
 
-pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
-    let mut file = std::fs::File::open(path).unwrap();
+pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Result<Vec<u32>, Box<dyn Error>> {
+    let mut file = std::fs::File::open(path)?;
     let mut text = Vec::new();
-    file.read_to_end(&mut text).unwrap();
+    file.read_to_end(&mut text)?;
 
     assert_eq!(text.len() % 4, 0);
     assert_eq!(
@@ -75,5 +75,5 @@ pub(crate) fn load_spv<T: AsRef<Path>>(path: T) -> Vec<u32> {
         u32::from_le_bytes([text[0], text[1], text[2], text[3]])
     );
 
-    read_shader_from_bytes(&text).unwrap()
+    Ok(read_shader_from_bytes(&text)?)
 }

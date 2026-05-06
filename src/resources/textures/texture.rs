@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use ash::vk;
-use vk_sync::ImageBarrier;
 
 use crate::core::{
     CommandPoolBuilder, GpuBufferBuilder, Image, ImageBuilder, ImageView, ImageViewBuilder,

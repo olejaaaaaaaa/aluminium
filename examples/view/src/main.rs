@@ -68,7 +68,7 @@ impl ApplicationHandler for App {
 fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_target(false)
-        .with_max_level(LevelFilter::ERROR)
+        .with_max_level(LevelFilter::INFO)
         .init();
 
     let event_loop = EventLoop::new()?;

@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use ash::vk;
+use tracing::debug;
 
 use crate::core::{
-    load_spv, AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder,
-    GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder,
-    ShaderBuilder, Vertex,
+    AttributeDescriptions, BindingDescriptions, DescriptorSetLayoutBuilder, Device, GraphicsPipeline, GraphicsPipelineBuilder, PbrVertex, PipelineLayout, PipelineLayoutBuilder, RenderPassBuilder, ShaderBuilder, ShaderModule, Subpass, Vertex, load_spv
 };
 use crate::resources::pipeline_cache::Source;
 use crate::resources::{Create, Res, Resources, ShaderType, Uniform, UniformBinding};
-use crate::VulkanResult;
+use crate::{ShaderStage, UniformType, VulkanResult};
 
 pub trait Layout {
     fn layout() -> VertexInput;
@@ -20,7 +19,7 @@ impl Layout for PbrVertex {
         VertexInput::new()
             .attr("position", ShaderType::Float4)
             .attr("normal", ShaderType::Float4)
-            .attr("uv", ShaderType::Float4)
+            .attr("uv", ShaderType::Float2)
             .attr("color", ShaderType::Float4)
             .attr("tangent", ShaderType::Float4)
     }
@@ -50,29 +49,27 @@ impl VertexInput {
 }
 
 pub struct RasterPipelineDesc<'a> {
-    use_cache: bool,
     depth_test: bool,
     dynamic_viewport: bool,
     dynamic_scissors: bool,
     vertex_shader: Option<Source<'a>>,
     fragment_shader: Option<Source<'a>>,
     uniforms: Option<&'a [Uniform]>,
-    multiple_render_target: Option<usize>,
-    vertex_input: Option<VertexInput>,
+    render_targets: usize,
+    vertex_input: VertexInput,
 }
 
 impl<'a> Default for RasterPipelineDesc<'a> {
     fn default() -> Self {
         Self {
-            use_cache: false,
             depth_test: false,
             dynamic_viewport: false,
             dynamic_scissors: false,
             uniforms: None,
             vertex_shader: None,
             fragment_shader: None,
-            multiple_render_target: None,
-            vertex_input: None,
+            render_targets: 1,
+            vertex_input: VertexInput::new(),
         }
     }
 }
@@ -98,7 +95,7 @@ impl<'a> RasterPipelineDesc<'a> {
     }
 
     pub fn vertex_input<T: Layout>(mut self) -> Self {
-        self.vertex_input = Some(T::layout());
+        self.vertex_input = T::layout();
         self
     }
 
@@ -130,25 +127,85 @@ impl Create for RasterPipeline {
         resources: &std::sync::Arc<Resources>,
         desc: Self::Desc<'_>,
     ) -> VulkanResult<Res<Self>> {
-        let binding = PbrVertex::bind_desc();
-        let attrs = PbrVertex::attr_desc();
+
+        let mut offset = 0u32;
+        let mut vertex_input_attrs = vec![];
+
+        for (location, ty) in desc.vertex_input.inputs.iter().enumerate() {
+            let (format, size) = shader_type_info(ty);
+
+            vertex_input_attrs.push(
+                vk::VertexInputAttributeDescription::default()
+                    .binding(0)
+                    .offset(offset)
+                    .location(location as u32)
+                    .format(format)
+            );
+
+            offset += size;
+        }
+
+        let stride = offset;
+
+        let binding = vec![
+            vk::VertexInputBindingDescription::default()
+                .binding(0)
+                .input_rate(vk::VertexInputRate::VERTEX)
+                .stride(stride)
+        ];
+
+        debug!("Vertex Attrs: {:?}", vertex_input_attrs);
 
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
             .vertex_binding_descriptions(&binding)
-            .vertex_attribute_descriptions(&attrs);
+            .vertex_attribute_descriptions(&vertex_input_attrs);
 
-        let binding = vk::DescriptorSetLayoutBinding::default()
-            .binding(0)
-            .descriptor_count(1)
-            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT);
+        let mut bindings = vec![];
 
-        let layot = DescriptorSetLayoutBuilder::new(&ctx.device)
-            .bindings(vec![binding])
-            .build()?;
+        if let Some(uniforms) = desc.uniforms {
+            for i in uniforms {
+                match i.ty {
+                    UniformType::StorageBuffer => {
+
+                        let flags = match i.binding.stage {
+                            ShaderStage::Vertex => {
+                                vk::ShaderStageFlags::VERTEX
+                            },
+                            ShaderStage::Fragment => {
+                                vk::ShaderStageFlags::FRAGMENT
+                            }
+                        };
+
+                        bindings.push(
+                            vk::DescriptorSetLayoutBinding::default()
+                                .binding(i.binding.binding)
+                                .descriptor_count(1)
+                                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                                .stage_flags(flags)
+                        );
+                    },
+                    _ => unimplemented!()
+                }
+            }
+        }
+
+        debug!("Vertex Bindings: {:?}", bindings);
+
+        let mut set_layouts = vec![resources.bindless.set_layout.raw];
+
+        if !bindings.is_empty() {
+            let set_layout = DescriptorSetLayoutBuilder::new(&ctx.device)
+                .bindings(bindings)
+                .build()?;
+
+            set_layouts.push(set_layout.raw);
+            std::mem::forget(set_layout);
+        }
+
+        debug!("Set Layouts: {:?}", set_layouts);
 
         let layout = PipelineLayoutBuilder::new(&ctx.device)
-            .set_layouts(vec![resources.bindless.set_layout.raw, layot.raw])
+            .set_layouts(set_layouts)
             .push_constant(vec![vk::PushConstantRange::default()
                 .offset(0)
                 .size(128)
@@ -157,42 +214,11 @@ impl Create for RasterPipeline {
                 )])
             .build()?;
 
-        let color_blend = vk::PipelineColorBlendAttachmentState::default()
-            .color_write_mask(
-                vk::ColorComponentFlags::R
-                    | vk::ColorComponentFlags::G
-                    | vk::ColorComponentFlags::B
-                    | vk::ColorComponentFlags::A,
-            )
-            .blend_enable(false);
+        let vertex_src = desc.vertex_shader.expect("Missing Vertex Shader");
+        let vertex_shader = create_shader(&ctx.device, vertex_src)?;
 
-        let vertex_shader = desc.vertex_shader.unwrap();
-        let vertex = match vertex_shader {
-            Source::Path(path) => {
-                let spv = load_spv(path);
-                ShaderBuilder::new(&ctx.device)
-                    .bytecode(&spv)
-                    .build()
-                    .unwrap()
-            },
-            _ => {
-                panic!("AAAA");
-            },
-        };
-
-        let fragment_shader = desc.fragment_shader.unwrap();
-        let fragment = match fragment_shader {
-            Source::Path(path) => {
-                let spv = load_spv(path);
-                ShaderBuilder::new(&ctx.device)
-                    .bytecode(&spv)
-                    .build()
-                    .unwrap()
-            },
-            _ => {
-                panic!("AAAA");
-            },
-        };
+        let fragment_src = desc.fragment_shader.expect("Missing Fragment Shader");
+        let fragment_shader = create_shader(&ctx.device, fragment_src)?;
 
         let mut dynamic_states = Vec::with_capacity(2);
 
@@ -204,12 +230,99 @@ impl Create for RasterPipeline {
             dynamic_states.push(vk::DynamicState::SCISSOR);
         }
 
+        debug!("Dynamic states: {:?}", dynamic_states);
+
+        let mut attachments = vec![];
+
+        for _ in 0..desc.render_targets {
+            let color_attachment = vk::AttachmentDescription::default()
+                .initial_layout(vk::ImageLayout::UNDEFINED)
+                .final_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                .format(vk::Format::R8G8B8A8_SRGB)
+                .flags(vk::AttachmentDescriptionFlags::empty())
+                .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+                .samples(vk::SampleCountFlags::TYPE_1)
+                .store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .load_op(vk::AttachmentLoadOp::DONT_CARE);
+
+            attachments.push(color_attachment);
+        }
+
+        if desc.depth_test {
+            let depth_attachment = vk::AttachmentDescription::default()
+                .initial_layout(vk::ImageLayout::UNDEFINED)
+                .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                .format(vk::Format::D32_SFLOAT)
+                .flags(vk::AttachmentDescriptionFlags::empty())
+                .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+                .samples(vk::SampleCountFlags::TYPE_1)
+                .store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .load_op(vk::AttachmentLoadOp::DONT_CARE);
+
+            attachments.push(
+                depth_attachment
+            );
+        }
+
+        let dependency = vec![vk::SubpassDependency {
+            src_subpass: vk::SUBPASS_EXTERNAL,
+            dst_subpass: 0,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            src_access_mask: vk::AccessFlags::empty(),
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
+        }];
+
+        let mut subpass = Subpass::new(vk::PipelineBindPoint::GRAPHICS);
+
+        for (index, attach) in attachments.iter().enumerate() {
+            match attach.final_layout {
+                vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => {
+                    subpass = subpass.add_color_attachment_ref(
+                        vk::AttachmentReference::default()
+                        .attachment(index as u32)
+                        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                    );
+                },
+                vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => {
+                    subpass = subpass.add_depth_attachment_ref(
+                        vk::AttachmentReference::default()
+                            .attachment(index as u32)
+                            .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                    );
+                },
+                x => unimplemented!("layout: {:?}", x)
+            }
+        }
+
+        let subpasses = vec![subpass];
+
+        let render_pass = RenderPassBuilder::new(&ctx.device)
+            .attachments(attachments)
+            .subpasses(subpasses)
+            .dependencies(dependency)
+            .build()?;
+
         let resolution = ctx.resolution();
+        let color_blend = vk::PipelineColorBlendAttachmentState::default()
+            .color_write_mask(
+                vk::ColorComponentFlags::R
+                    | vk::ColorComponentFlags::G
+                    | vk::ColorComponentFlags::B
+                    | vk::ColorComponentFlags::A,
+            )
+            .blend_enable(false);
 
         let pipeline = GraphicsPipelineBuilder::new(&ctx.device)
-            .vertex_shader(vertex.raw)
-            .fragment_shader(fragment.raw)
-            .render_pass(ctx.window.read().render_pass.raw)
+            .vertex_shader(vertex_shader.raw)
+            .fragment_shader(fragment_shader.raw)
+            .render_pass(render_pass.raw)
             .pipeline_layout(layout.raw)
             .viewport(vec![vk::Viewport::default()
                 .x(0.0)
@@ -251,6 +364,8 @@ impl Create for RasterPipeline {
             .vertex_input_info(vertex_input_info)
             .build()?;
 
+        std::mem::forget(render_pass);
+
         let cache = resources.pipeline_cache.write();
 
         let layout = cache.pipeline_layout.insert(layout);
@@ -261,5 +376,37 @@ impl Create for RasterPipeline {
             .insert(RasterPipeline { layout, pipeline });
 
         Ok(resources.make_handle(ctx, pipeline))
+    }
+}
+
+fn shader_type_info(ty: &ShaderType) -> (vk::Format, u32) {
+    match ty {
+        ShaderType::Float  => (vk::Format::R32_SFLOAT,          4),
+        ShaderType::Float2 => (vk::Format::R32G32_SFLOAT,       8),
+        ShaderType::Float3 => (vk::Format::R32G32B32_SFLOAT,    12),
+        ShaderType::Float4 => (vk::Format::R32G32B32A32_SFLOAT, 16),
+        _ => unimplemented!()
+    }
+}
+
+fn create_shader(device: &Device, src: Source<'_>) -> VulkanResult<ShaderModule> {
+    match src {
+        Source::Path(path) => {
+            let spv = load_spv(path).expect("Path not found or SPIR-V bytecode not valid");
+            Ok(ShaderBuilder::new(device)
+                .bytecode(&spv)
+                .build()?)
+        },
+        Source::SpirvU32(bytecode) => {
+            Ok(ShaderBuilder::new(device)
+                .bytecode(&bytecode)
+                .build()?)
+        },
+        Source::SpirvU8(bytcode) => {
+            let bytecode = bytemuck::cast_slice(bytcode);
+            Ok(ShaderBuilder::new(device)
+                .bytecode(bytecode)
+                .build()?)
+        }
     }
 }

@@ -27,7 +27,7 @@ pub struct View {
     global_time: std::time::Instant,
     model: GltfModel,
     gbuffer_pipeline: Res<RasterPipeline>,
-    final_pipeline: Res<RasterPipeline>,
+    //final_pipeline: Res<RasterPipeline>,
     ui: UiRenderer,
     world: WorldRenderer,
 }
@@ -57,22 +57,22 @@ impl View {
             )
             .expect("Error create pipeline");
 
-        let final_pipeline = world.create::<RasterPipeline>(
-            RasterPipelineDesc::new()
-                .vertex_shader("./shaders/spv/final_vert.spv")
-                .fragment_shader("./shaders/spv/final_frag.spv")
-                .uniforms(&[Uniform {
-                    binding: UniformBinding { 
-                        set: 1, 
-                        binding: 0, 
-                        stage: ShaderStage::Fragment 
-                    },
-                    ty: UniformType::Texture
-                }])
-                .depth_test(false)
-                .dynamic_scissors(true)
-                .dynamic_viewport(true)
-            ).expect("Error create final pipeline");
+        // let final_pipeline = world.create::<RasterPipeline>(
+        //     RasterPipelineDesc::new()
+        //         .vertex_shader(r"shaders\spv\path_tracing_vert.spv")
+        //         .fragment_shader(r"shaders\spv\fullscreen_quad_frag.spv")
+        //         .uniforms(&[Uniform {
+        //             binding: UniformBinding { 
+        //                 set: 1, 
+        //                 binding: 0, 
+        //                 stage: ShaderStage::Fragment 
+        //             },
+        //             ty: UniformType::Texture
+        //         }])
+        //         .depth_test(false)
+        //         .dynamic_scissors(true)
+        //         .dynamic_viewport(true)
+        //     ).expect("Error create final pipeline");
 
         let model = load_gltf(&world, "./examples/view/assets/flighthelmet/scene.gltf")
             .expect("Error load gltf model");
@@ -80,7 +80,7 @@ impl View {
         Self {
             global_time: Instant::now(),
             model,
-            final_pipeline,
+            //final_pipeline,
             gbuffer_pipeline,
             ui,
             world,
@@ -96,7 +96,7 @@ impl View {
             },
             WindowEvent::RedrawRequested => {
                 let gbuffer_pipeline = &self.gbuffer_pipeline;
-                let final_pipeline = &self.final_pipeline;
+                //let final_pipeline = &self.final_pipeline;
 
                 let time_sec = self.global_time.elapsed().as_secs_f32();
 
@@ -113,7 +113,7 @@ impl View {
                     let gbuffer: GBuffer = frame.add_pass(
                         RasterPass::new("GBuffer Pass")
                             .setup(|builder| {
-                                builder.read_storage_buffer(ssbo, Location { set: 2, binding: 0 });
+                                builder.read_storage_buffer(ssbo, Location { stage: ShaderStage::Vertex, set: 1, binding: 0 });
 
                                 let albedo: Handle<TransientTexture> = builder.create_texture(
                                     "albedo",
@@ -169,24 +169,24 @@ impl View {
                             }),
                     );
 
-                    let () = frame.add_pass(
-                        RasterPass::new("Final Pass")
-                            .setup(move |builder| {
+                    // let () = frame.add_pass(
+                    //     RasterPass::new("Final Pass")
+                    //         .setup(move |builder| {
 
-                                builder.read_texture(gbuffer.albedo, Location { set: 1, binding: 0 });
+                    //             builder.read_texture(gbuffer.albedo, Location { set: 1, binding: 0 });
 
-                                let backbuffer = builder.backbuffer();
-                                let _ = builder.write_color(backbuffer,LoadOp::Clear, StoreOp::DontCare);
-                                let _ = builder.write_depth(gbuffer.depth,LoadOp::Clear, StoreOp::DontCare);
+                    //             let backbuffer = builder.backbuffer();
+                    //             let _ = builder.write_color(backbuffer,LoadOp::Clear, StoreOp::DontCare);
+                    //             let _ = builder.write_depth(gbuffer.depth,LoadOp::Clear, StoreOp::DontCare);
 
-                            })
-                            .execute(move |ctx| unsafe {
-                                ctx.bind_pipeline(final_pipeline);
-                                ctx.set_scissor(Scissor::FullRes);
-                                ctx.set_viewport(Viewport::FullRes);
-                                ctx.draw_fullscreen();
-                            })
-                    );
+                    //         })
+                    //         .execute(move |ctx| unsafe {
+                    //             ctx.bind_pipeline(final_pipeline);
+                    //             ctx.set_scissor(Scissor::FullRes);
+                    //             ctx.set_viewport(Viewport::FullRes);
+                    //             ctx.draw_fullscreen();
+                    //         })
+                    // );
                 });
             },
             _ => {},
