@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use crate::frame::scope::FrameResources;
-use crate::{CompiledPass, Handle, Pass, PassBuilder, RenderTarget, Res, TransientTexture};
+use crate::{Handle, Pass, PassBuilder, RenderTarget, Res, TransientTexture};
 
 pub struct FrameScope<'frame> {
     pub(crate) resources: FrameResources,
     pub(crate) passes: Vec<Pass<'frame>>,
     pub(crate) resolve_textures: HashMap<Handle<TransientTexture>, Res<TransientTexture>>,
-    pub(crate) compiled_passes: Vec<CompiledPass<'frame>>,
+    //pub(crate) compiled_passes: Vec<CompiledPass<'frame>>,
     pub(crate) execution_order: Vec<usize>,
 }
 
@@ -16,7 +16,7 @@ impl<'frame> FrameScope<'frame> {
         Self {
             passes: vec![],
             resolve_textures: HashMap::new(),
-            compiled_passes: vec![],
+            //compiled_passes: vec![],
             resources: FrameResources::new(),
             execution_order: vec![],
         }

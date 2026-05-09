@@ -42,7 +42,7 @@ impl Bindless {
             vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
                 | vk::DescriptorBindingFlags::PARTIALLY_BOUND
                 | vk::DescriptorBindingFlags::UPDATE_UNUSED_WHILE_PENDING,
-            vk::DescriptorBindingFlags::empty(), // для сэмплера
+            vk::DescriptorBindingFlags::empty(),
         ];
 
         let mut binding_flags_info =

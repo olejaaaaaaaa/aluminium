@@ -121,16 +121,16 @@ impl View {
                                     },
                                 );
 
-                                let albedo: Handle<TransientTexture> = builder.backbuffer();
-                                let albedo: Handle<TransientTexture> =
+                                let albedo = builder.backbuffer();
+                                let albedo =
                                     builder.write_color(albedo, LoadOp::Clear, StoreOp::Store);
 
-                                let depth: Handle<TransientTexture> = builder.create_texture(
+                                let depth = builder.create_texture(
                                     "depth",
                                     TextureFormat::Depth,
                                     Resolution::FullRes,
                                 );
-                                let depth: Handle<TransientTexture> =
+                                let depth =
                                     builder.write_depth(depth, LoadOp::Clear, StoreOp::Store);
 
                                 GBuffer { albedo, depth }

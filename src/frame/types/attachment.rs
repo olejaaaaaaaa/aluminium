@@ -1,11 +1,6 @@
 use super::{Handle, LoadOp, StoreOp};
 use crate::TransientTexture;
 
-pub enum Color {
-    Internal(Handle<TransientTexture>),
-    External,
-}
-
 #[derive(Debug)]
 pub struct ColorAttachment {
     pub color: Handle<TransientTexture>,

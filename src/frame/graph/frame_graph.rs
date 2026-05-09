@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ash::vk::{self, ClearValue, ComponentMapping};
@@ -13,8 +14,7 @@ use crate::core::{
 use crate::render_context::RenderContext;
 use crate::resources::{Resources, TransientTextureDesc};
 use crate::{
-    FrameGraphResources, FrameScope, Pass, PassContext, RasterPass, Resolution, RuntimeData,
-    ShaderStage, StaticData, TextureFormat,
+    CompiledPassBuilder, CompiledRasterPassBuilder, FrameGraphResources, FrameScope, Pass, PassContext, RasterPass, Resolution, RuntimeData, ShaderStage, StaticData, TextureFormat
 };
 
 pub struct FrameGraph {
@@ -67,14 +67,52 @@ impl FrameGraph {
         result
     }
 
-    pub(crate) fn compile(
-        &mut self,
-        scope: &mut FrameScope<'_>,
-        ctx: &Arc<RenderContext>,
-        resources: &Arc<Resources>,
-    ) -> VulkanResult<()> {
-        profiling::scope!("FrameGraph::compile");
+    pub fn allocate_render_pass() {
 
+    }
+
+    pub fn allocate_descriptor_sets() {
+
+    }
+
+    pub fn allocate_framebuffers() {
+
+    }
+    
+    pub fn allocate_transient_textures<'a>(indices: &[usize], ctx: &Arc<RenderContext>, resources: &Arc<Resources>, scope: &FrameScope<'a>) -> VulkanResult<Vec<CompiledPassBuilder<'a>>> {
+        
+        let mut builders = Vec::with_capacity(scope.passes.len());
+        let mut resolve = HashMap::new();
+
+        for (id, desc) in &scope.resources.textures {
+
+            let texture = resources.create_transient(ctx, TransientTextureDesc { 
+                name: desc.name, 
+                format: desc.format, 
+                resolution: desc.resolution 
+            })?;
+
+            resolve.insert(id, texture);
+        }
+
+        for i in indices {
+            let pass = &scope.passes[*i];
+            match pass {
+                Pass::Raster(pass) => {
+                    let colors = pass.render_target.colors.iter().map(|c| resolve.get(&c.color.id).expect("Not found transient texture")).collect::<Vec<_>>();
+                    builders.push(CompiledPassBuilder::Raster(CompiledRasterPassBuilder::new()));
+                }
+            }
+        }
+
+        Ok(builders)
+    }
+
+    pub fn resolve_framebuffer() {
+
+    }
+
+    pub fn sorting_passes(scope: &FrameScope<'_>) -> Vec<usize> {
         let mut dependencies: Vec<Vec<usize>> = vec![vec![]; scope.passes.len()];
 
         for (i, pass_a) in scope.passes.iter().enumerate() {
@@ -89,7 +127,24 @@ impl FrameGraph {
         let sorted_indices = Self::topological_sort(&dependencies);
         trace!("topological sorted: {:?}", sorted_indices);
 
-        scope.execution_order = sorted_indices;
+        sorted_indices
+    }
+
+    pub fn insert_pipeline_barriers() {
+
+    }
+
+    pub fn compile(
+        &mut self,
+        scope: &mut FrameScope<'_>,
+        ctx: &Arc<RenderContext>,
+        resources: &Arc<Resources>,
+    ) -> VulkanResult<()> {
+        profiling::scope!("FrameGraph::compile");
+
+        let indices = Self::sorting_passes(scope);
+        scope.execution_order = indices.clone();
+        //let passes = Self::allocate_transient_textures(&indices, ctx, resources, scope)?;
 
         for i in &mut scope.passes {
             match i {
@@ -180,14 +235,7 @@ impl FrameGraph {
 
                     for (handle, location) in &pass.read_textures {
                         let texture = scope.resolve_textures.get(handle).unwrap();
-                        let binding: parking_lot::lock_api::RwLockReadGuard<
-                            '_,
-                            parking_lot::RawRwLock,
-                            slotmap::SlotMap<
-                                crate::resources::ResourceKey,
-                                crate::TransientTexture,
-                            >,
-                        > = resources.transient_textures.read();
+                        let binding = resources.transient_textures.read();
                         let texture = binding.get(texture.key).unwrap();
 
                         image_infos.push(
@@ -228,31 +276,7 @@ impl FrameGraph {
                     std::mem::forget(layout);
                     std::mem::forget(pool);
 
-                    for color in &pass.render_target.colors {
-                        if !color.color.id.is_null() {
-                            let texture = resources.create_transient(
-                                ctx,
-                                TransientTextureDesc {
-                                    name: "color_target",
-                                    format: TextureFormat::Color,
-                                    resolution: Resolution::FullRes,
-                                },
-                            )?;
-                            scope.resolve_textures.insert(color.color, texture);
-                        }
-                    }
 
-                    if let Some(depth) = &pass.render_target.depth {
-                        let texture = resources.create_transient(
-                            ctx,
-                            TransientTextureDesc {
-                                name: "depth_target",
-                                format: TextureFormat::Depth,
-                                resolution: Resolution::FullRes,
-                            },
-                        )?;
-                        scope.resolve_textures.insert(depth.depth, texture);
-                    }
 
                     // for handle in &pass.write_textures {
                     //     let texture =
@@ -668,14 +692,7 @@ impl FrameGraph {
                 .map_err(VulkanError::Unknown)?;
         }
 
-        trace!(
-            image_index = ?image_index,
-            current_frame = ?window.current_frame
-        );
-
         resources.update(image_index);
-
-        window.current_frame = window.current_frame.overflowing_add(1).0;
 
         trace!(
             "frame={} fif={} cmd_buffers={} idx={}",
@@ -684,6 +701,8 @@ impl FrameGraph {
             self.cmd_buffers.len(),
             window.current_frame % ctx.frame_in_flight()
         );
+
+        window.current_frame = window.current_frame.overflowing_add(1).0;
 
         Ok(())
     }

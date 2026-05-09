@@ -24,7 +24,7 @@ impl<T> Eq for Handle<T> {}
 
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.id == other.id && self.version == other.version
     }
 }
 

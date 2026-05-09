@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 use std::ops::Add as _;
 
+use slotmap::Key;
+
 use crate::frame::scope::FrameResources;
 use crate::frame::types::{ColorAttachment, DepthAttachment};
 use crate::frame::Id;
@@ -16,10 +18,11 @@ pub struct PassBuilder<'a> {
 }
 
 impl<'a> PassBuilder<'a> {
+    /// return unique handle to backbuffer
     pub fn backbuffer(&mut self) -> Handle<TransientTexture> {
         // the only handle that will be invalid
         Handle {
-            id: Id::default(),
+            id: Id::null(),
             version: 0,
             _marker: PhantomData,
         }
